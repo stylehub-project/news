@@ -1,0 +1,9 @@
+{
+  "name": "News Club",
+  "description": "A powerful modern news app with AI features, Reels, and personalized maps.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
