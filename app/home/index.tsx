@@ -13,8 +13,9 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import NewsCardBasic from '../../components/cards/NewsCardBasic';
-import NewsSkeleton from '../../components/skeletons/NewsSkeleton';
 import HighlightReadingMode from '../../components/HighlightReadingMode';
+import SmartLoader from '../../components/loaders/SmartLoader';
+import { useLoading } from '../../context/LoadingContext';
 
 // Mock Data for Infinite Feed
 const MOCK_NEWS = [
@@ -69,18 +70,28 @@ const FEATURES = [
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(true);
+  const { isLoaded, markAsLoaded } = useLoading();
+  const [isLoading, setIsLoading] = useState(!isLoaded('home'));
   const [isReadingMode, setIsReadingMode] = useState(false);
 
   useEffect(() => {
-    // Simulate initial data fetch
-    const timer = setTimeout(() => setIsLoading(false), 2000);
-    return () => clearTimeout(timer);
-  }, []);
+    if (isLoading) {
+        // Simulate initial data fetch with Context-Aware Loader
+        const timer = setTimeout(() => {
+            setIsLoading(false);
+            markAsLoaded('home');
+        }, 2500);
+        return () => clearTimeout(timer);
+    }
+  }, [isLoading, markAsLoaded]);
 
   const handleCardClick = (id: string) => {
       navigate(`/news/${id}`);
   };
+
+  if (isLoading) {
+      return <SmartLoader type="home" />;
+  }
 
   return (
     <div className="h-full overflow-y-auto pb-24 bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
@@ -149,34 +160,25 @@ const HomePage: React.FC = () => {
         </div>
 
         <div className="space-y-4">
-            {isLoading ? (
-                <>
-                    <NewsSkeleton />
-                    <NewsSkeleton />
-                </>
-            ) : (
-                MOCK_NEWS.map((news) => (
-                    <NewsCardBasic
-                        key={news.id}
-                        {...news}
-                        onClick={handleCardClick}
-                        onSave={() => console.log('Saved', news.id)}
-                        onShare={() => console.log('Shared', news.id)}
-                        onAIExplain={() => navigate('/ai-chat')}
-                    />
-                ))
-            )}
+            {MOCK_NEWS.map((news) => (
+                <NewsCardBasic
+                    key={news.id}
+                    {...news}
+                    onClick={handleCardClick}
+                    onSave={() => console.log('Saved', news.id)}
+                    onShare={() => console.log('Shared', news.id)}
+                    onAIExplain={() => navigate('/ai-chat')}
+                />
+            ))}
             
             {/* Infinite Scroll Loader Mock */}
-            {!isLoading && (
-                <div className="py-6 flex justify-center opacity-50">
-                     <div className="flex gap-1">
-                         <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></span>
-                         <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-100"></span>
-                         <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-200"></span>
-                     </div>
-                </div>
-            )}
+            <div className="py-6 flex justify-center opacity-50">
+                    <div className="flex gap-1">
+                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></span>
+                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-100"></span>
+                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-200"></span>
+                    </div>
+            </div>
         </div>
       </div>
 

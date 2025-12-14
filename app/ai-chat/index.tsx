@@ -8,9 +8,12 @@ import QuickQuestions from '../../components/chatbot/QuickQuestions';
 import NotebookMode from '../../components/chatbot/NotebookMode';
 import { BookOpen } from 'lucide-react';
 import TypingLoader from '../../components/loaders/TypingLoader';
+import SmartLoader from '../../components/loaders/SmartLoader';
+import { useLoading } from '../../context/LoadingContext';
 
 const ChatPage: React.FC = () => {
   const navigate = useNavigate();
+  const { isLoaded, markAsLoaded } = useLoading();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -20,16 +23,28 @@ const ChatPage: React.FC = () => {
     }
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(!isLoaded('chat'));
   const [isNotebookMode, setIsNotebookMode] = useState(false);
   const [notebookTopic, setNotebookTopic] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Simulate Initial Load
+  useEffect(() => {
+      if (isInitializing) {
+          const timer = setTimeout(() => {
+              setIsInitializing(false);
+              markAsLoaded('chat');
+          }, 2000);
+          return () => clearTimeout(timer);
+      }
+  }, [isInitializing, markAsLoaded]);
 
   // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isLoading]); // Added isLoading to scroll when loading starts
+  }, [messages, isLoading]); 
 
   const handleSend = (text: string) => {
     const newUserMsg: Message = {
@@ -111,6 +126,10 @@ const ChatPage: React.FC = () => {
     setIsNotebookMode(prev => !prev);
     setNotebookTopic("General Discussion");
   };
+
+  if (isInitializing) {
+      return <SmartLoader type="chat" />;
+  }
 
   return (
     <div className="flex flex-col h-full bg-gray-50 pb-[70px] relative"> {/* Full height + padding for bottom nav */}

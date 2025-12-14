@@ -3,6 +3,8 @@ import { ChevronLeft, Zap, Volume2, VolumeX, PlayCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ReelContainer from '../../components/reel/ReelContainer';
 import ReelItem from '../../components/reel/ReelItem';
+import SmartLoader from '../../components/loaders/SmartLoader';
+import { useLoading } from '../../context/LoadingContext';
 
 const MOCK_REELS = [
   {
@@ -11,6 +13,8 @@ const MOCK_REELS = [
     description: 'Major tech companies have agreed on a unified framework for AI development, causing stock markets to surge globally. Analysts predict this could be the biggest shift in the industry since the internet.',
     imageUrl: 'https://images.unsplash.com/photo-1611974765270-ca1258634369?q=80&w=1000&auto=format&fit=crop',
     source: 'TechCrunch',
+    category: 'Technology',
+    aiEnhanced: true,
     timeAgo: '2h ago',
     likes: '4.5k',
     comments: '342',
@@ -22,10 +26,12 @@ const MOCK_REELS = [
     description: 'The massive rocket cleared the tower and successfully separated its booster, marking a major milestone for interplanetary travel. Elon Musk declares "Mars awaits".',
     imageUrl: 'https://images.unsplash.com/photo-1517976487492-5750f3195933?q=80&w=1000&auto=format&fit=crop',
     source: 'SpaceNews',
+    category: 'Space',
+    aiEnhanced: false,
     timeAgo: '5h ago',
     likes: '12k',
     comments: '1.2k',
-    tags: ['Space', 'Mars', 'Future']
+    tags: ['Space', 'Mars', 'Rocket']
   },
   {
     id: '3',
@@ -33,10 +39,12 @@ const MOCK_REELS = [
     description: 'A breakthrough in solid-state battery technology could double the range of current EVs and reduce charging time to just 10 minutes.',
     imageUrl: 'https://images.unsplash.com/photo-1593941707882-a5bba14938c7?q=80&w=1000&auto=format&fit=crop',
     source: 'GreenDaily',
+    category: 'Environment',
+    aiEnhanced: true,
     timeAgo: '1d ago',
     likes: '8.9k',
     comments: '890',
-    tags: ['EV', 'Green', 'Tech']
+    tags: ['EV', 'Battery', 'Green']
   },
   {
     id: '4',
@@ -44,22 +52,39 @@ const MOCK_REELS = [
     description: 'The digital masterpiece titled "The Future is Now" has shattered records, reigniting the debate about the value of digital assets.',
     imageUrl: 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?q=80&w=1000&auto=format&fit=crop',
     source: 'ArtWorld',
+    category: 'Culture',
+    aiEnhanced: false,
     timeAgo: '2d ago',
     likes: '2.1k',
     comments: '150',
-    tags: ['Crypto', 'NFT', 'Art']
+    tags: ['NFT', 'Art', 'Crypto']
   }
 ];
 
 const ReelPage: React.FC = () => {
   const navigate = useNavigate();
+  const { isLoaded, markAsLoaded } = useLoading();
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeReelId, setActiveReelId] = useState<string>(MOCK_REELS[0].id);
   const [isAutoScroll, setIsAutoScroll] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const [isLoading, setIsLoading] = useState(!isLoaded('reel'));
+
+  // Simulate Initial Load for the Reel Context Loader
+  useEffect(() => {
+      if (isLoading) {
+          const timer = setTimeout(() => {
+              setIsLoading(false);
+              markAsLoaded('reel');
+          }, 2000);
+          return () => clearTimeout(timer);
+      }
+  }, [isLoading, markAsLoaded]);
 
   // Intersection Observer to detect active reel
   useEffect(() => {
+    if (isLoading) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -76,7 +101,7 @@ const ReelPage: React.FC = () => {
     elements.forEach((el) => observer.observe(el));
 
     return () => observer.disconnect();
-  }, [MOCK_REELS]);
+  }, [MOCK_REELS, isLoading]);
 
   const handleNext = () => {
     const currentIndex = MOCK_REELS.findIndex(r => r.id === activeReelId);
@@ -89,18 +114,22 @@ const ReelPage: React.FC = () => {
     }
   };
 
+  if (isLoading) {
+      return <SmartLoader type="reel" />;
+  }
+
   return (
     <div className="h-full w-full bg-black relative">
       {/* Top Header Overlay */}
-      <div className="absolute top-0 left-0 w-full z-40 p-4 pt-4 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent">
+      <div className="absolute top-0 left-0 w-full z-40 p-4 pt-4 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
          <button 
             onClick={() => navigate('/')} 
-            className="p-2 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-colors"
+            className="p-2 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-colors pointer-events-auto"
          >
             <ChevronLeft size={24} />
          </button>
 
-         <div className="flex gap-3">
+         <div className="flex gap-3 pointer-events-auto">
              <button 
                 onClick={() => setIsAutoScroll(!isAutoScroll)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md text-xs font-bold transition-all ${

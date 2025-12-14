@@ -12,6 +12,8 @@ interface ReelItemProps {
     description: string;
     imageUrl: string;
     source: string;
+    category: string;
+    aiEnhanced?: boolean;
     timeAgo: string;
     likes: string;
     comments: string;
@@ -30,6 +32,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [showLikeAnimation, setShowLikeAnimation] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   
   // Refs for logic
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -115,20 +118,31 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
         onClick={togglePlayPause}
         onDoubleClick={handleDoubleClick}
     >
-      {/* Background Media with Ken Burns Effect */}
+      {/* Zone A: Background Media with Progressive Loading & Parallax */}
       <div className="absolute inset-0 bg-black">
+        {/* Blur Placeholder */}
+        <img 
+            src={data.imageUrl}
+            className={`absolute inset-0 w-full h-full object-cover blur-2xl scale-110 transition-opacity duration-700 ${imgLoaded ? 'opacity-0' : 'opacity-100'}`}
+            alt="Blur Placeholder"
+        />
+        
+        {/* Main High-Res Image */}
         <img 
           src={data.imageUrl} 
-          className={`w-full h-full object-cover opacity-80 transition-transform duration-[10000ms] ease-linear ${isActive && isPlaying ? 'scale-125' : 'scale-100'}`}
-          alt="News Background" 
+          onLoad={() => setImgLoaded(true)}
+          className={`w-full h-full object-cover transition-all duration-[15000ms] ease-linear will-change-transform ${imgLoaded ? 'opacity-90' : 'opacity-0'} ${isActive && isPlaying ? 'scale-110' : 'scale-100'}`}
+          alt="News Content" 
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/90 pointer-events-none" />
+        
+        {/* Gradient Overlays for Zone Visibility */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/95 pointer-events-none" />
       </div>
 
-      {/* Progress Bar */}
+      {/* Zone A (Top): Progress Bar */}
       <div className="absolute top-0 left-0 w-full h-1 bg-white/20 z-50">
         <div 
-            className="h-full bg-white transition-all duration-100 ease-linear"
+            className="h-full bg-white transition-all duration-100 ease-linear shadow-[0_0_10px_rgba(255,255,255,0.8)]"
             style={{ width: `${progress}%` }}
         />
       </div>
@@ -136,7 +150,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
       {/* Play/Pause Overlay Icon (Fades out) */}
       {!isPlaying && (
         <div className="absolute inset-0 flex items-center justify-center z-30 bg-black/20 backdrop-blur-[1px]">
-            <div className="p-4 bg-black/40 rounded-full text-white animate-in zoom-in duration-200">
+            <div className="p-4 bg-black/40 rounded-full text-white animate-in zoom-in duration-200 backdrop-blur-md border border-white/10">
                 <Play size={48} fill="currentColor" />
             </div>
         </div>
@@ -145,7 +159,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
       {/* Like Animation Overlay */}
       {showLikeAnimation && <LikeAnimation />}
 
-      {/* Action Bar (Right) */}
+      {/* Zone D: Right Action Bar */}
       <ReelActionBar 
         likes={data.likes}
         comments={data.comments}
@@ -158,11 +172,13 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
         onAIExplain={(e) => { e?.stopPropagation(); console.log('AI Explain'); }}
       />
 
-      {/* Info Bar (Bottom) */}
+      {/* Zone B & C: Bottom Info Bar */}
       <ReelInfoBar 
         title={data.title}
         description={data.description}
         source={data.source}
+        category={data.category}
+        aiEnhanced={data.aiEnhanced}
         timeAgo={data.timeAgo}
         tags={data.tags}
         onReadMore={(e) => { e?.stopPropagation(); console.log('Read More'); }}

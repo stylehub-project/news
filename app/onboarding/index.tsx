@@ -4,6 +4,7 @@ import { Camera, Check, ChevronRight, Globe, Moon, Sun, Smartphone, ArrowRight, 
 import Button from '../../components/ui/Button';
 import { useTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../context/LanguageContext';
+import SmartLoader from '../../components/loaders/SmartLoader';
 
 const INTERESTS = [
     { id: 'world', label: 'World News', emoji: '🌍' },
@@ -31,6 +32,7 @@ const OnboardingPage: React.FC = () => {
   const { setLanguage } = useLanguage();
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [name, setName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const totalSteps = 4;
 
@@ -38,8 +40,11 @@ const OnboardingPage: React.FC = () => {
     if (step < totalSteps) {
       setStep(prev => prev + 1);
     } else {
-      // Complete onboarding
-      navigate('/');
+      // Complete onboarding and show loader
+      setIsSubmitting(true);
+      setTimeout(() => {
+          navigate('/');
+      }, 4500);
     }
   };
 
@@ -48,6 +53,10 @@ const OnboardingPage: React.FC = () => {
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
   };
+
+  if (isSubmitting) {
+      return <SmartLoader type="profile" />;
+  }
 
   return (
     <div className="h-full w-full bg-white flex flex-col relative overflow-hidden">
