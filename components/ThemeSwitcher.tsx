@@ -12,7 +12,7 @@ const ThemeSwitcher: React.FC = () => {
   ];
 
   return (
-    <div className="flex bg-gray-100 p-1 rounded-xl">
+    <div className="flex bg-gray-100 dark:bg-gray-700/50 p-1 rounded-xl">
       {themes.map((t) => {
           const Icon = t.icon;
           const isActive = theme === t.id;
@@ -22,8 +22,8 @@ const ThemeSwitcher: React.FC = () => {
                 onClick={() => setTheme(t.id as any)}
                 className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                     isActive 
-                    ? 'bg-white text-blue-600 shadow-sm' 
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-300 shadow-sm' 
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
             >
                 <Icon size={16} />

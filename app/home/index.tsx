@@ -57,14 +57,14 @@ const MOCK_NEWS = [
 ];
 
 const FEATURES = [
-    { label: 'AI Analysis', icon: Sparkles, color: 'bg-indigo-100 text-indigo-600', path: '/ai-chat' },
-    { label: 'Headlines', icon: Zap, color: 'bg-yellow-100 text-yellow-600', path: '/top-stories' },
-    { label: 'Reels', icon: Smartphone, color: 'bg-pink-100 text-pink-600', path: '/reel' },
-    { label: 'Chatbot', icon: MessageSquare, color: 'bg-blue-100 text-blue-600', path: '/ai-chat' },
-    { label: 'Newspaper', icon: Newspaper, color: 'bg-gray-100 text-gray-800', path: '/newspaper' },
-    { label: 'Map News', icon: Map, color: 'bg-emerald-100 text-emerald-600', path: '/map' },
-    { label: 'Saved', icon: Bookmark, color: 'bg-orange-100 text-orange-600', path: '/bookmarks' },
-    { label: 'Read Mode', icon: Headphones, color: 'bg-purple-100 text-purple-600', path: '/' }, // Toggle logic
+    { label: 'AI Analysis', icon: Sparkles, color: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400', path: '/ai-chat' },
+    { label: 'Headlines', icon: Zap, color: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400', path: '/top-stories' },
+    { label: 'Reels', icon: Smartphone, color: 'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400', path: '/reel' },
+    { label: 'Chatbot', icon: MessageSquare, color: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400', path: '/ai-chat' },
+    { label: 'Newspaper', icon: Newspaper, color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200', path: '/newspaper' },
+    { label: 'Map News', icon: Map, color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400', path: '/map' },
+    { label: 'Saved', icon: Bookmark, color: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400', path: '/bookmarks' },
+    { label: 'Read Mode', icon: Headphones, color: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400', path: '/' }, // Toggle logic
 ];
 
 const HomePage: React.FC = () => {
@@ -83,7 +83,7 @@ const HomePage: React.FC = () => {
   };
 
   return (
-    <div className="h-full overflow-y-auto pb-24 bg-gray-50">
+    <div className="h-full overflow-y-auto pb-24 bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       
       {/* 2.2 Hero Section */}
       <div className="p-4 pb-2">
@@ -130,7 +130,7 @@ const HomePage: React.FC = () => {
                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm transition-transform group-active:scale-90 ${feat.color}`}>
                              <Icon size={22} />
                          </div>
-                         <span className="text-[10px] font-medium text-gray-600 text-center leading-tight w-full truncate px-1">
+                         <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 text-center leading-tight w-full truncate px-1">
                              {feat.label}
                          </span>
                      </div>
@@ -142,7 +142,7 @@ const HomePage: React.FC = () => {
       {/* 2.4 Infinite News Feed */}
       <div className="px-4 mt-2">
         <div className="flex items-center justify-between mb-3">
-             <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+             <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
                 <PlayCircle size={18} className="text-red-500 fill-red-500" />
                 Latest Feed
              </h2>

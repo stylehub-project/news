@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 type Theme = 'light' | 'dark' | 'amoled';
 
@@ -10,13 +10,35 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme>('light');
+  const [theme, setThemeState] = useState<Theme>(() => {
+    const saved = localStorage.getItem('app-theme');
+    return (saved as Theme) || 'light';
+  });
+
+  const setTheme = (newTheme: Theme) => {
+    setThemeState(newTheme);
+    localStorage.setItem('app-theme', newTheme);
+  };
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    
+    // Reset classes
+    root.classList.remove('light', 'dark', 'amoled');
+
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else if (theme === 'amoled') {
+      root.classList.add('dark');
+      root.classList.add('amoled'); // Custom class we can target if needed
+    } else {
+      root.classList.add('light');
+    }
+  }, [theme]);
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>
-      <div className={theme === 'dark' ? 'dark' : theme === 'amoled' ? 'dark amoled' : ''}>
-        {children}
-      </div>
+      {children}
     </ThemeContext.Provider>
   );
 };

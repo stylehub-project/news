@@ -3,6 +3,7 @@ import { Sparkles, Construction, Clock, ArrowLeft, Home, Bell, Lock, ChevronRigh
 import { useNavigate } from 'react-router-dom';
 import Button from './ui/Button';
 import Toast from './ui/Toast';
+import ParticleLoader from './loaders/ParticleLoader';
 
 export type ComingSoonVariant = 
   | 'gradient' | 'minimal' | 'typography' | 'premium' // Group A
@@ -109,10 +110,8 @@ const ComingSoon: React.FC<ComingSoonProps> = ({
 
   const renderPremium = () => (
       <div className="relative w-full rounded-3xl overflow-hidden bg-gray-900 p-1 min-h-[400px] flex items-center justify-center">
-          <div className="absolute inset-0 bg-white opacity-5 grid grid-cols-2 gap-4 p-4 blur-sm pointer-events-none">
-              <div className="h-32 bg-gray-500 rounded-xl"></div>
-              <div className="h-32 bg-gray-500 rounded-xl"></div>
-              <div className="col-span-2 h-40 bg-gray-500 rounded-xl"></div>
+          <div className="absolute inset-0">
+              <ParticleLoader className="h-full w-full bg-gray-900" />
           </div>
           <div className="relative z-10 bg-gray-800/90 backdrop-blur-xl border border-white/10 p-8 rounded-2xl text-center max-w-sm shadow-2xl">
                 <div className="w-16 h-16 bg-gradient-to-tr from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-orange-500/20">

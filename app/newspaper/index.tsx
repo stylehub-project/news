@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import PageHeader from '../../components/PageHeader';
 import NewspaperTemplate, { NewspaperStyle, NewspaperData } from '../../components/newspaper/NewspaperTemplate';
-import NewspaperWritingAnimation from '../../components/newspaper/NewspaperWritingAnimation';
 import NewspaperPreview from '../../components/newspaper/NewspaperPreview';
 import NewspaperControls from '../../components/newspaper/NewspaperControls';
 import NewspaperConfig from '../../components/newspaper/NewspaperConfig';
+import MultiStepLoader from '../../components/loaders/MultiStepLoader';
 
 const NewspaperPage: React.FC = () => {
   // State
@@ -26,8 +26,8 @@ const NewspaperPage: React.FC = () => {
     setGenerationStage('drafting');
     
     // Simulate multi-step AI Generation
-    setTimeout(() => setGenerationStage('image-gen'), 1500);
-    setTimeout(() => setGenerationStage('finalizing'), 3000);
+    setTimeout(() => setGenerationStage('image-gen'), 2000);
+    setTimeout(() => setGenerationStage('finalizing'), 4500);
     
     setTimeout(() => {
         // Mock Rich Data Generation
@@ -77,11 +77,17 @@ const NewspaperPage: React.FC = () => {
             ]
         });
         setViewState('PREVIEW');
-    }, 4500);
+    }, 6000);
   };
 
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 1.5));
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.4));
+
+  const steps = [
+      { id: 'drafting', label: 'Drafting Headlines' },
+      { id: 'image-gen', label: 'Generating Visuals' },
+      { id: 'finalizing', label: 'Polishing Layout' },
+  ];
 
   return (
     <div className="flex flex-col h-full bg-gray-50 pb-[80px]">
@@ -102,9 +108,14 @@ const NewspaperPage: React.FC = () => {
                 />
             )}
 
-            {/* Generating Mode (Overlay) */}
+            {/* Generating Mode (Overlay with MultiStepLoader) */}
             {viewState === 'GENERATING' && (
-                 <NewspaperWritingAnimation isActive={true} stage={generationStage} />
+                 <div className="absolute inset-0 bg-white/90 backdrop-blur-md z-20 flex flex-col items-center justify-center p-6">
+                     <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm border border-gray-100">
+                        <h3 className="text-xl font-black text-center mb-6">Building Your Edition</h3>
+                        <MultiStepLoader steps={steps} currentStepId={generationStage} />
+                     </div>
+                 </div>
             )}
 
             {/* Preview Mode */}

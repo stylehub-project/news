@@ -4,21 +4,29 @@ import Navbar from './Navbar';
 import BottomNav from './BottomNav';
 import FloatingAIButton from './FloatingAIButton';
 import ToastContainer from './ui/ToastContainer';
+import { useTheme } from '../context/ThemeContext';
 
 const Layout: React.FC = () => {
   const location = useLocation();
   const path = location.pathname;
+  const { theme } = useTheme();
   
   // Pages that take up the full screen without standard nav
-  // Also hiding nav on 'reel' as it has its own overlay controls
   const isFullScreenPage = ['/splash', '/login', '/onboarding', '/reel'].includes(path);
   const showNav = !isFullScreenPage;
 
   // Hide AI button on entry pages too
   const showAIButton = !['/splash', '/login', '/onboarding', '/ai-chat', '/reel'].includes(path);
 
+  // Background Logic
+  const getBackgroundClass = () => {
+    if (theme === 'amoled') return 'bg-black text-gray-100';
+    if (theme === 'dark') return 'bg-gray-900 text-gray-100';
+    return 'bg-white text-gray-900';
+  };
+
   return (
-    <div className="font-sans text-gray-900 bg-white h-dvh w-full max-w-md mx-auto shadow-2xl overflow-hidden relative border-x border-gray-200 flex flex-col">
+    <div className={`font-sans h-dvh w-full max-w-md mx-auto shadow-2xl overflow-hidden relative border-x dark:border-gray-800 flex flex-col transition-colors duration-300 ${getBackgroundClass()}`}>
       {/* Top Navbar - Sticky/Fixed at top of flex container */}
       {showNav && <div className="shrink-0 z-40"><Navbar /></div>}
 

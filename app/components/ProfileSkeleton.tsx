@@ -6,13 +6,13 @@ const ProfileSkeleton: React.FC = () => {
     <div className="p-4 pb-24">
       <div className="flex flex-col items-center mb-8">
         <div className="w-24 h-24 bg-gray-200 rounded-full mb-4 relative flex items-center justify-center">
-            <span className="text-2xl text-gray-400 font-bold">JD</span>
+            <span className="text-2xl text-gray-400 font-bold">L</span>
             <button className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full shadow-lg">
                 <Camera size={16} />
             </button>
         </div>
-        <h2 className="text-xl font-bold">John Doe</h2>
-        <p className="text-gray-500 text-sm">@johndoe • News Enthusiast</p>
+        <h2 className="text-xl font-bold">Lakshya</h2>
+        <p className="text-gray-500 text-sm">@lakshya • News Enthusiast</p>
       </div>
 
       <div className="space-y-4">
