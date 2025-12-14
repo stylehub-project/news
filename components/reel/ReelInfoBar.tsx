@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight, Clock, Sparkles } from 'lucide-react';
+import { ChevronRight, Clock, Sparkles, TrendingUp, UserCheck, MapPin } from 'lucide-react';
 
 interface ReelInfoBarProps {
   title: string;
@@ -9,6 +9,7 @@ interface ReelInfoBarProps {
   aiEnhanced?: boolean;
   timeAgo: string;
   tags?: string[];
+  reason?: string; // 6.7 Personalization Signal
   onReadMore?: (e: React.MouseEvent) => void;
 }
 
@@ -20,6 +21,7 @@ const ReelInfoBar: React.FC<ReelInfoBarProps> = ({
   aiEnhanced,
   timeAgo,
   tags = [],
+  reason,
   onReadMore
 }) => {
   // Dynamic Font Sizing for Headline to ensure visual balance
@@ -46,10 +48,24 @@ const ReelInfoBar: React.FC<ReelInfoBarProps> = ({
     );
   };
 
+  const getReasonIcon = () => {
+      if (reason?.includes('Trending')) return <TrendingUp size={12} />;
+      if (reason?.includes('location') || reason?.includes('nearby')) return <MapPin size={12} />;
+      return <UserCheck size={12} />;
+  }
+
   return (
     <div className="absolute left-0 bottom-0 w-full p-5 pb-[85px] z-10 pointer-events-none flex flex-col items-start gap-3">
       <div className="pointer-events-auto w-[85%]">
         
+        {/* 6.7 Visible Personalization Signal */}
+        {reason && (
+            <div className="mb-2 inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/20 px-2 py-1 rounded-lg text-[10px] font-bold text-blue-200 animate-in slide-in-from-bottom-2 fade-in duration-500 uppercase tracking-wide">
+                {getReasonIcon()}
+                {reason}
+            </div>
+        )}
+
         {/* Zone B: Headline Overlay & Metadata */}
         <div className="mb-2 animate-in slide-in-from-bottom-2 duration-500 flex flex-wrap items-center gap-2">
             {/* Category Pill */}
@@ -101,6 +117,7 @@ const ReelInfoBar: React.FC<ReelInfoBarProps> = ({
         <button 
             onClick={onReadMore}
             className="flex items-center gap-2 text-sm font-bold text-white bg-white/20 hover:bg-white/30 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/20 transition-all active:scale-95 group shadow-lg"
+            aria-label="Read full article"
         >
             Read Full Story 
             <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
