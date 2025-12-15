@@ -7,13 +7,14 @@ import SmartLoader from '../../components/loaders/SmartLoader';
 import SwipeHint from '../../components/reel/SwipeHint';
 import { useLoading } from '../../context/LoadingContext';
 
-// Base Mock Data
+// Mock Data with Mixed Media (Video & Image)
 const INITIAL_REELS = [
   {
     id: '1',
     title: 'Global Markets Rally as Tech Giants Announce New AI Partnership',
     description: 'Major tech companies have agreed on a unified framework for AI development, causing stock markets to surge globally. Analysts predict this could be the biggest shift in the industry since the internet.',
     imageUrl: 'https://images.unsplash.com/photo-1611974765270-ca1258634369?q=80&w=1000&auto=format&fit=crop',
+    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-futuristic-robotic-arm-working-on-a-circuit-board-42996-large.mp4',
     source: 'TechCrunch',
     category: 'Technology',
     aiEnhanced: true,
@@ -41,6 +42,7 @@ const INITIAL_REELS = [
     title: 'SpaceX Successfully Launches Starship on Historic Mars Mission Test',
     description: 'The massive rocket cleared the tower and successfully separated its booster, marking a major milestone for interplanetary travel. Elon Musk declares "Mars awaits".',
     imageUrl: 'https://images.unsplash.com/photo-1517976487492-5750f3195933?q=80&w=1000&auto=format&fit=crop',
+    // Keeping this as an Image reel for variety
     source: 'SpaceNews',
     category: 'Space',
     aiEnhanced: false,
@@ -64,21 +66,22 @@ const INITIAL_REELS = [
   },
   {
     id: '3',
-    title: 'New Electric Vehicle Battery Tech Promises 1000km Range',
-    description: 'A breakthrough in solid-state battery technology could double the range of current EVs and reduce charging time to just 10 minutes.',
-    imageUrl: 'https://images.unsplash.com/photo-1593941707882-a5bba14938c7?q=80&w=1000&auto=format&fit=crop',
+    title: 'New Renewable Energy Tech Promises Cleaner Future',
+    description: 'A breakthrough in solar panel efficiency could revolutionize how cities power themselves, reducing reliance on fossil fuels significantly by 2030.',
+    imageUrl: 'https://images.unsplash.com/photo-1509391366360-2e959784a276?q=80&w=1000&auto=format&fit=crop',
+    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-solar-panel-forest-42805-large.mp4',
     source: 'GreenDaily',
     category: 'Environment',
     aiEnhanced: true,
     timeAgo: '1d ago',
     likes: '8.9k',
     comments: '890',
-    tags: ['EV', 'Battery', 'Green'],
-    aiSummary: "Researchers have unlocked a solid-state electrolyte formula that remains stable at high temperatures, enabling EV batteries to charge faster and last longer.",
+    tags: ['Solar', 'Green', 'Energy'],
+    aiSummary: "Researchers have unlocked a new photovoltaic cell design that captures 40% more sunlight, making solar energy cheaper than coal in 90% of the world.",
     keyPoints: [
-        "1000km range on a single charge.",
-        "10-minute fast charging capability.",
-        "Commercial production expected by 2026."
+        "40% efficiency increase.",
+        "Cheaper manufacturing costs.",
+        "Scalable for urban environments."
     ],
     factCheck: { status: 'Reviewing', score: 75 },
     relatedNews: [
@@ -137,14 +140,14 @@ const ReelPage: React.FC = () => {
       }
   }, [isLoading, markAsLoaded]);
 
-  // 2. Restore Scroll Position (6.9 Requirement)
+  // 2. Restore Scroll Position
   useEffect(() => {
       if (!isLoading && !hasRestoredPosition) {
           const lastId = sessionStorage.getItem('news-reel-last-id');
           if (lastId) {
               const element = document.getElementById(`reel-${lastId}`);
               if (element) {
-                  element.scrollIntoView({ behavior: 'auto' }); // Instant jump on load
+                  element.scrollIntoView({ behavior: 'auto' });
                   setActiveReelId(lastId);
               }
           }
@@ -152,43 +155,44 @@ const ReelPage: React.FC = () => {
       }
   }, [isLoading, hasRestoredPosition]);
 
-  // 3. Preload Next Images & Haptics Logic
+  // 3. Preload & Infinite Scroll Logic
   useEffect(() => {
     if (!isLoading && activeReelId) {
-        // Save current position
+        // Save state
         sessionStorage.setItem('news-reel-last-id', activeReelId);
 
-        // Find current index
+        // Find index
         const currentIndex = reels.findIndex(r => r.id === activeReelId);
         
-        // Preload next 2 images
+        // Preload next images (Video preload handled by browser usually, but we can hint)
         const nextReels = reels.slice(currentIndex + 1, currentIndex + 3);
         nextReels.forEach(reel => {
             const img = new Image();
             img.src = reel.imageUrl;
         });
 
-        // Trigger Haptic
+        // Haptic Feedback
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
             navigator.vibrate(15);
         }
 
-        // Infinite Scroll Trigger (Load more when 2 away from end)
+        // Trigger Infinite Fetch
         if (currentIndex >= reels.length - 2 && !isFetchingMore) {
             fetchMoreReels();
         }
     }
   }, [activeReelId, isLoading, reels, isFetchingMore]);
 
-  // 4. Infinite Fetch Logic (6.9 Data Fetch Prompt)
+  // 4. Data Fetching
   const fetchMoreReels = useCallback(() => {
       setIsFetchingMore(true);
-      // Simulate API delay
       setTimeout(() => {
+          // In a real app, this would be an API call with pagination
+          // Here we recycle initial reels with new IDs to simulate infinite content
           const newReels = INITIAL_REELS.map(r => ({
               ...r,
-              id: `${r.id}-${Date.now()}-${Math.random()}`, // Ensure unique IDs
-              title: `${r.title} (Page ${Math.floor(reels.length / 4) + 1})` // Mock variation
+              id: `${r.id}-${Date.now()}-${Math.random()}`,
+              title: `${r.title} (Page ${Math.floor(reels.length / 4) + 1})`
           }));
           
           setReels(prev => [...prev, ...newReels]);
@@ -228,7 +232,6 @@ const ReelPage: React.FC = () => {
         const element = document.getElementById(`reel-${nextId}`);
         element?.scrollIntoView({ behavior: 'smooth' });
     } else {
-        // At actual end, stop autoscroll until fetch finishes
         setIsAutoScroll(false); 
     }
   };
