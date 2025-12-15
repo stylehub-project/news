@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface HighlightReadingModeProps {
   text: string;
@@ -16,55 +16,107 @@ const HighlightReadingMode: React.FC<HighlightReadingModeProps> = ({
     theme = 'light'
 }) => {
   const [wordIndex, setWordIndex] = useState(-1);
-  const words = text.split(/(\s+)/); // Split keeping delimiters to preserve spacing
-  
-  // Highlight Colors based on theme
-  const highlightColor = {
-      light: 'bg-yellow-200 text-black',
-      sepia: 'bg-[#e3d0b1] text-[#2c221b]',
-      dark: 'bg-blue-900 text-white'
-  }[theme];
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  // We split by capturing the separator so we can reconstruct the text layout perfectly
+  // This results in ['Word', ' ', 'Word', ' ', ...]
+  const words = React.useMemo(() => text.split(/(\s+)/), [text]);
 
-  // Reset when text changes
+  // Load voices on mount
   useEffect(() => {
-      setWordIndex(-1);
+    const loadVoices = () => {
+        const vs = window.speechSynthesis.getVoices();
+        setVoices(vs);
+    };
+    loadVoices();
+    // Chrome requires this event to load voices
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    return () => { window.speechSynthesis.onvoiceschanged = null; };
+  }, []);
+
+  const getBestVoice = () => {
+      // Priority list for "Sweet/Cute" voices
+      return voices.find(v => v.name === "Google US English") || 
+             voices.find(v => v.name === "Microsoft Zira - English (United States)") || 
+             voices.find(v => v.name.includes("Samantha")) || 
+             voices.find(v => v.name.includes("Female") && v.lang.startsWith("en")) ||
+             voices.find(v => v.lang.startsWith("en")) ||
+             voices[0];
+  };
+
+  useEffect(() => {
+    // Reset when text changes
+    window.speechSynthesis.cancel();
+    setWordIndex(-1);
   }, [text]);
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    
     if (isPlaying) {
-      // Base speed is 200ms per word, adjusted by speed multiplier
-      const delay = 250 / speed;
-      
-      interval = setInterval(() => {
-        setWordIndex(prev => {
-          if (prev >= words.length - 1) {
-            clearInterval(interval);
-            onComplete?.();
-            return prev;
-          }
-          // Skip whitespace only tokens for highlighting logic (just advance)
-          return prev + 1;
-        });
-      }, delay);
+        if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+        } else if (!window.speechSynthesis.speaking) {
+            const u = new SpeechSynthesisUtterance(text);
+            u.voice = getBestVoice();
+            u.pitch = 1.1; // Slightly higher pitch for "sweet" tone
+            u.rate = speed; 
+            u.volume = 1;
+            
+            u.onboundary = (event) => {
+                if (event.name === 'word') {
+                    // Map character index to word array index
+                    const charIndex = event.charIndex;
+                    let count = 0;
+                    for (let i = 0; i < words.length; i++) {
+                        if (count >= charIndex) {
+                            setWordIndex(i);
+                            break;
+                        }
+                        count += words[i].length;
+                    }
+                }
+            };
+
+            u.onend = () => {
+                setWordIndex(-1);
+                onComplete?.();
+            };
+
+            window.speechSynthesis.speak(u);
+        }
+    } else {
+        if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.pause();
+        }
     }
 
-    return () => clearInterval(interval);
-  }, [isPlaying, words.length, onComplete, speed]);
+    // Cleanup on unmount or when dependencies change drastically
+    return () => {
+        // We do NOT cancel here to allow pause/resume state to persist between renders if needed
+        // But if the component actually unmounts, the cleanup below handles it.
+    };
+  }, [isPlaying, speed, text, voices, words, onComplete]);
+
+  // Force stop on unmount
+  useEffect(() => {
+      return () => {
+          window.speechSynthesis.cancel();
+      };
+  }, []);
+
+  const highlightColor = {
+      light: 'bg-yellow-200 text-black',
+      sepia: 'bg-[#e3d0b1] text-[#2c221b]',
+      dark: 'bg-blue-600 text-white shadow-sm'
+  }[theme];
 
   return (
-    <div className="leading-relaxed transition-all duration-300">
+    <div className="leading-relaxed transition-all duration-300 font-serif md:font-sans text-lg text-justify">
       {words.map((word, i) => {
-         // Determine if this specific word is currently active
-         // We check if it is not whitespace
+         // Only highlight non-whitespace tokens
          const isCurrent = i === wordIndex && word.trim().length > 0;
-         // Past words are dimmed slightly in dark mode for focus? Optional.
-         
          return (
             <span 
                 key={i} 
-                className={`transition-colors duration-100 rounded-sm ${isCurrent ? highlightColor : ''}`}
+                className={`transition-colors duration-200 rounded-sm px-0.5 ${isCurrent ? highlightColor : ''}`}
             >
                 {word}
             </span>

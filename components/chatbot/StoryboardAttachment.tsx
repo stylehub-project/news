@@ -27,6 +27,19 @@ const StoryboardAttachment: React.FC<StoryboardAttachmentProps> = ({ data }) => 
       setIsPlaying(false);
     } else {
       const utterance = new SpeechSynthesisUtterance(data.summary);
+      
+      // Sweet Voice Configuration
+      const voices = window.speechSynthesis.getVoices();
+      const sweetVoice = voices.find(v => v.name === "Google US English") || 
+                         voices.find(v => v.name === "Microsoft Zira - English (United States)") || 
+                         voices.find(v => v.name.includes("Samantha")) || 
+                         voices.find(v => v.name.includes("Female") && v.lang.startsWith("en")) ||
+                         voices[0];
+      
+      if (sweetVoice) utterance.voice = sweetVoice;
+      utterance.pitch = 1.1;
+      utterance.rate = 1.0;
+
       utterance.onend = () => setIsPlaying(false);
       window.speechSynthesis.speak(utterance);
       setIsPlaying(true);
