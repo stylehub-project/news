@@ -21,7 +21,7 @@ const QuickQuestions: React.FC<QuickQuestionsProps> = ({ onSelect }) => {
         <button
           key={i}
           onClick={() => onSelect(q)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-indigo-100 rounded-full text-xs font-medium text-indigo-700 whitespace-nowrap hover:bg-indigo-50 transition-colors shadow-sm active:scale-95"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 border border-indigo-100 dark:border-indigo-900/30 rounded-full text-xs font-medium text-indigo-700 dark:text-indigo-300 whitespace-nowrap hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors shadow-sm active:scale-95"
         >
           <Sparkles size={10} className="text-indigo-400" />
           {q}
