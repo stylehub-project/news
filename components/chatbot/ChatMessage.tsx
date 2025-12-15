@@ -21,13 +21,13 @@ export interface Message {
   timestamp?: string;
   sources?: Array<{ name: string; url: string }>;
   suggestedActions?: string[];
-  isStreaming?: boolean; // 7.11 Streaming State
+  isStreaming?: boolean;
 }
 
 interface ChatMessageProps {
   message: Message;
   onActionClick?: (action: string) => void;
-  onReport?: (id: string) => void; // 7.10 Reporting
+  onReport?: (id: string) => void;
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onReport }) => {
@@ -46,87 +46,44 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-white dark:border-gray-800 mt-1 relative overflow-hidden ${isUser ? 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300' : 'bg-gradient-to-br from-indigo-600 to-violet-600 text-white'}`}>
                 {isUser ? <User size={16} /> : <Bot size={16} className={message.isStreaming ? 'animate-pulse' : ''} />}
                 
-                {/* 7.12 Emotion-Aware / Activity Glow */}
+                {/* Streaming Glow */}
                 {!isUser && message.isStreaming && (
                     <div className="absolute inset-0 bg-white/20 animate-ping rounded-full"></div>
                 )}
             </div>
 
-            {/* Message Bubble & Content */}
+            {/* Message Bubble */}
             <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} min-w-0 flex-1`}>
                 <div 
                 className={`p-4 shadow-sm relative overflow-hidden text-sm leading-relaxed w-full group transition-colors duration-300 ${
                     isUser 
                     ? 'bg-blue-600 text-white rounded-2xl rounded-tr-none' 
-                    : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-gray-100 rounded-2xl rounded-tl-none'
+                    : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-none'
                 }`}
                 >
-                {/* 7.7 Smart Text Rendering (Only for AI) */}
+                {/* Content */}
                 {isUser ? (
-                    <p className="whitespace-pre-wrap">{message.content}</p>
+                    <p className="whitespace-pre-wrap font-medium">{message.content}</p>
                 ) : (
                     <div className="relative">
                         <SmartTextRenderer content={message.content} />
-                        {/* Cursor for Streaming Effect */}
                         {message.isStreaming && (
                             <span className="inline-block w-2 h-4 bg-indigo-500 ml-1 animate-pulse align-middle"></span>
                         )}
                     </div>
                 )}
 
-                {/* Attachments / Rich Content */}
+                {/* Attachments */}
                 {message.attachments && message.attachments.length > 0 && (
                     <div className="mt-3 space-y-3 w-full min-w-[260px]">
                     {message.attachments.map((att, idx) => (
                         <div key={idx} className="animate-in fade-in zoom-in-95 duration-500">
-                            
-                            {/* 7.5 Storyboard Attachment */}
-                            {att.type === 'storyboard' && att.data && (
-                                <StoryboardAttachment data={att.data as StoryboardData} />
-                            )}
-
-                            {/* 7.6 Image Attachment */}
-                            {att.type === 'image' && att.url && (
-                                <ImageAttachment url={att.url} title={att.title} />
-                            )}
-
-                            {/* Reading Mode */}
+                            {att.type === 'storyboard' && att.data && <StoryboardAttachment data={att.data as StoryboardData} />}
+                            {att.type === 'image' && att.url && <ImageAttachment url={att.url} title={att.title} />}
                             {att.type === 'reading' && (
                                 <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-100 dark:border-gray-600">
                                     <div className="text-xs font-bold text-gray-400 dark:text-gray-300 mb-2 uppercase tracking-wider">AI Read Aloud</div>
                                     <HighlightReadingMode text={att.content || "Content unavailable."} theme="dark" />
-                                </div>
-                            )}
-
-                            {/* Chart Placeholder */}
-                            {att.type === 'chart' && (
-                                <div className="p-3 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
-                                <div className="flex items-center gap-2 mb-2 opacity-70 dark:text-gray-300">
-                                    <BarChart2 size={14} />
-                                    <span className="text-xs font-bold uppercase">{att.title || 'Data Visualization'}</span>
-                                </div>
-                                <div className="flex items-end gap-1 h-24 justify-between px-2 pb-1 border-b border-l border-gray-200 dark:border-gray-700">
-                                    {[40, 70, 30, 85, 50, 60].map((h, i) => (
-                                    <div key={i} className="w-full bg-indigo-500 rounded-t-sm opacity-90 hover:opacity-100 transition-opacity" style={{ height: `${h}%` }}></div>
-                                    ))}
-                                </div>
-                                </div>
-                            )}
-
-                            {/* Flowchart Placeholder */}
-                            {att.type === 'flowchart' && (
-                                <div className="p-3 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
-                                <div className="flex items-center gap-2 mb-2 opacity-70 dark:text-gray-300">
-                                    <GitMerge size={14} />
-                                    <span className="text-xs font-bold uppercase">{att.title || 'Process Flow'}</span>
-                                </div>
-                                <div className="flex flex-col items-center gap-2 text-[10px] font-mono opacity-80 py-2">
-                                    <div className="border-2 border-gray-800 dark:border-gray-500 px-3 py-1 rounded-lg bg-white dark:bg-gray-800 shadow-sm dark:text-gray-200">Start</div>
-                                    <div className="h-4 w-0.5 bg-gray-300 dark:bg-gray-600"></div>
-                                    <div className="border-2 border-blue-500 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-lg bg-blue-50 dark:bg-blue-900/30 shadow-sm">AI Analysis</div>
-                                    <div className="h-4 w-0.5 bg-gray-300 dark:bg-gray-600"></div>
-                                    <div className="border-2 border-gray-800 dark:border-gray-500 px-3 py-1 rounded-lg bg-white dark:bg-gray-800 shadow-sm dark:text-gray-200">Result</div>
-                                </div>
                                 </div>
                             )}
                         </div>
@@ -134,12 +91,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                     </div>
                 )}
 
-                {/* 7.10 Safety & Trust Footer (Only for AI, not during streaming) */}
+                {/* Safety Footer */}
                 {!isUser && !message.isStreaming && (
                     <div className="mt-3 pt-3 border-t border-gray-50 dark:border-gray-700 flex items-center justify-between opacity-60 hover:opacity-100 transition-opacity">
                         <div className="flex items-center gap-1.5 text-[10px] text-gray-400 dark:text-gray-500">
                             <Info size={10} />
-                            <span>AI-generated. Verify important info.</span>
+                            <span>AI-generated. Verify details.</span>
                         </div>
                         <div className="flex gap-2">
                             {isReported ? (
@@ -158,7 +115,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                 )}
                 </div>
                 
-                {/* Metadata Row: Time & Sources */}
+                {/* Metadata */}
                 <div className="flex items-center gap-2 mt-1 px-1 flex-wrap">
                     {message.timestamp && (
                         <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">
@@ -167,7 +124,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                     )}
                     
                     {message.sources && message.sources.map((src, i) => (
-                        <div key={i} className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full text-[10px] text-gray-500 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer">
+                        <div key={i} className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full text-[10px] text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer">
                             <ExternalLink size={8} />
                             {src.name}
                         </div>
@@ -176,14 +133,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
             </div>
         </div>
 
-        {/* 7.4 Follow-Up Actions (Outside Bubble) */}
+        {/* Suggested Actions */}
         {!isUser && !message.isStreaming && message.suggestedActions && message.suggestedActions.length > 0 && (
             <div className="ml-11 mt-2 flex flex-wrap gap-2 animate-in slide-in-from-top-1 duration-300">
                 {message.suggestedActions.map((action, i) => (
                     <button 
                         key={i}
                         onClick={() => onActionClick?.(action)}
-                        className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 px-3 py-1.5 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/50 hover:border-indigo-200 transition-all active:scale-95"
+                        className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-800 px-3 py-1.5 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/60 hover:border-indigo-200 transition-all active:scale-95"
                     >
                         {action} <ArrowRight size={10} />
                     </button>

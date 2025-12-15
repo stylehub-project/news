@@ -15,72 +15,86 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
 }) => {
   const [blink, setBlink] = useState(false);
   const [lookDir, setLookDir] = useState({ x: 0, y: 0 });
-  const [reaction, setReaction] = useState<'none' | 'poke'>('none');
+  const [reaction, setReaction] = useState<'none' | 'poke' | 'happy'>('none');
+  const [mouthOpen, setMouthOpen] = useState(false);
 
-  // Blinking Logic
+  // Blinking Logic - Randomized
   useEffect(() => {
-    const blinkLoop = () => {
+    const triggerBlink = () => {
       setBlink(true);
       setTimeout(() => setBlink(false), 150);
-      // Random blink interval between 2s and 5s
-      setTimeout(blinkLoop, Math.random() * 3000 + 2000);
+      const nextBlink = Math.random() * 4000 + 2000; // 2-6s
+      setTimeout(triggerBlink, nextBlink);
     };
-    const timer = setTimeout(blinkLoop, 2000);
+    const timer = setTimeout(triggerBlink, 2000);
     return () => clearTimeout(timer);
   }, []);
 
   // Eye Movement Logic (Idle)
   useEffect(() => {
-    if (state !== 'idle') return;
-    const lookLoop = () => {
-      // Random gaze direction
-      const x = (Math.random() - 0.5) * 6;
+    if (state !== 'idle') {
+        setLookDir({ x: 0, y: 0 }); // Reset when busy
+        return;
+    }
+    const triggerLook = () => {
+      const x = (Math.random() - 0.5) * 8;
       const y = (Math.random() - 0.5) * 4;
       setLookDir({ x, y });
-      setTimeout(lookLoop, Math.random() * 4000 + 1000);
+      const nextLook = Math.random() * 3000 + 1500;
+      setTimeout(triggerLook, nextLook);
     };
-    const timer = setTimeout(lookLoop, 1000);
+    const timer = setTimeout(triggerLook, 1000);
     return () => clearTimeout(timer);
+  }, [state]);
+
+  // Speaking Animation (Mouth Flap)
+  useEffect(() => {
+      if (state !== 'speaking') {
+          setMouthOpen(false);
+          return;
+      }
+      const interval = setInterval(() => {
+          setMouthOpen(prev => !prev);
+      }, 150); // Fast flap
+      return () => clearInterval(interval);
   }, [state]);
 
   const handleClick = () => {
     setReaction('poke');
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     onClick?.();
-    setTimeout(() => setReaction('none'), 600); // Reaction duration
+    setTimeout(() => setReaction('none'), 600);
   };
 
-  // SVG Element Calculation
-  const eyeHeight = blink ? 1 : (reaction === 'poke' ? 14 : 10);
-  const eyeWidth = reaction === 'poke' ? 14 : 10;
+  // --- SVG Calculations ---
+
+  // Eye shape
+  const isSquinting = reaction === 'poke' || state === 'thinking';
+  const eyeScaleY = blink ? 0.1 : (isSquinting ? 0.4 : 1);
   
-  // Pupil position
-  const pupilX = state === 'thinking' ? 0 : (reaction === 'poke' ? 0 : lookDir.x);
-  const pupilY = state === 'thinking' ? -2 : (reaction === 'poke' ? 0 : lookDir.y);
-
-  // Mouth Path Calculation
-  let mouthPath = "M 16,28 Q 24,32 32,28"; // Default Smile
-  if (state === 'speaking') {
-      mouthPath = "M 18,28 Q 24,34 30,28"; // Open mouth
-  } else if (state === 'thinking') {
-      mouthPath = "M 18,30 L 30,30"; // Flat line
-  } else if (reaction === 'poke') {
-      mouthPath = "M 20,32 Q 24,24 28,32"; // 'O' shape (Surprise)
-  }
-
-  // Color logic based on state
-  const glowColor = state === 'thinking' ? '#facc15' : (state === 'error' ? '#ef4444' : '#6366f1'); // Yellow, Red, Indigo
+  // Color Palette
+  const colors = {
+      idle: { face: '#4f46e5', eyes: '#ffffff', glow: '#818cf8' }, // Indigo
+      thinking: { face: '#d97706', eyes: '#fffbeb', glow: '#fbbf24' }, // Amber
+      speaking: { face: '#0ea5e9', eyes: '#ffffff', glow: '#38bdf8' }, // Sky
+      error: { face: '#dc2626', eyes: '#fee2e2', glow: '#f87171' }, // Red
+  };
+  const theme = colors[state] || colors.idle;
 
   return (
     <div 
-      className={`relative cursor-pointer transition-transform duration-200 select-none ${reaction === 'poke' ? 'scale-90' : 'hover:scale-105'} ${className}`}
+      className={`relative cursor-pointer select-none transition-transform duration-300 ${reaction === 'poke' ? 'scale-90' : 'hover:scale-105'} ${className}`}
       style={{ width: size, height: size }}
       onClick={handleClick}
     >
-      <svg viewBox="0 0 48 48" className="w-full h-full overflow-visible drop-shadow-lg">
+      <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible drop-shadow-xl">
         <defs>
-            <filter id="glow-avatar">
-                <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+            <linearGradient id={`grad-${state}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor={theme.glow} />
+                <stop offset="100%" stopColor={theme.face} />
+            </linearGradient>
+            <filter id="glow-soft" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
                 <feMerge>
                     <feMergeNode in="coloredBlur"/>
                     <feMergeNode in="SourceGraphic"/>
@@ -88,40 +102,65 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
             </filter>
         </defs>
 
-        {/* Head Shape */}
-        <rect x="4" y="4" width="40" height="40" rx="12" fill="#ffffff" stroke={glowColor} strokeWidth="2" className="transition-colors duration-500" />
-        
-        {/* Face Screen Area */}
-        <rect x="8" y="10" width="32" height="28" rx="6" fill="#1e1b4b" />
+        {/* Floating Animation Container */}
+        <g className={state === 'thinking' ? 'animate-pulse' : 'animate-[float_6s_ease-in-out_infinite]'}>
+            
+            {/* Main Face Shape */}
+            <rect 
+                x="10" y="10" width="80" height="80" rx="24" 
+                fill={`url(#grad-${state})`}
+                stroke="white" strokeWidth="2" strokeOpacity="0.2"
+                filter="url(#glow-soft)"
+                className="transition-all duration-500 ease-out"
+            />
 
-        {/* Eyes Group */}
-        <g transform={`translate(0, ${state === 'thinking' ? -1 : 0})`}>
-            {/* Left Eye */}
-            <g transform="translate(16, 20)">
-                <ellipse cx="0" cy="0" rx={eyeWidth/2} ry={eyeHeight/2} fill={glowColor} filter="url(#glow-avatar)" />
-                <circle cx={pupilX} cy={pupilY} r={blink ? 0 : 2} fill="#ffffff" className="transition-all duration-300" />
+            {/* Inner Face Screen (Dark Glass) */}
+            <rect 
+                x="20" y="25" width="60" height="50" rx="16" 
+                fill="#0f172a" 
+                fillOpacity="0.9"
+            />
+
+            {/* Eyes Container */}
+            <g transform={`translate(${lookDir.x}, ${lookDir.y})`} className="transition-transform duration-500 ease-out">
+                {/* Left Eye */}
+                <ellipse 
+                    cx="35" cy="45" rx="8" ry="10" 
+                    fill={theme.eyes}
+                    style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: `scaleY(${eyeScaleY})` }}
+                    className="transition-transform duration-100"
+                />
+                
+                {/* Right Eye */}
+                <ellipse 
+                    cx="65" cy="45" rx="8" ry="10" 
+                    fill={theme.eyes}
+                    style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: `scaleY(${eyeScaleY})` }}
+                    className="transition-transform duration-100"
+                />
             </g>
 
-            {/* Right Eye */}
-            <g transform="translate(32, 20)">
-                <ellipse cx="0" cy="0" rx={eyeWidth/2} ry={eyeHeight/2} fill={glowColor} filter="url(#glow-avatar)" />
-                <circle cx={pupilX} cy={pupilY} r={blink ? 0 : 2} fill="#ffffff" className="transition-all duration-300" />
-            </g>
+            {/* Mouth */}
+            <path 
+                d={
+                    state === 'speaking' 
+                    ? (mouthOpen ? "M 40,65 Q 50,72 60,65" : "M 40,65 Q 50,65 60,65") 
+                    : (state === 'thinking' ? "M 42,68 L 58,68" : "M 40,65 Q 50,70 60,65")
+                } 
+                stroke={theme.eyes} 
+                strokeWidth="3" 
+                strokeLinecap="round" 
+                fill="none" 
+                className="transition-all duration-150"
+            />
+
+            {/* Reflection/Shine */}
+            <path d="M 20,20 Q 50,15 80,20" stroke="white" strokeWidth="2" strokeOpacity="0.3" fill="none" />
         </g>
 
-        {/* Mouth */}
-        <path 
-            d={mouthPath} 
-            stroke={glowColor} 
-            strokeWidth="3" 
-            strokeLinecap="round" 
-            fill="none" 
-            className={`transition-all duration-300 ${state === 'speaking' ? 'animate-[pulse_0.5s_infinite]' : ''}`}
-        />
-
-        {/* Thinking Spinner Ring */}
+        {/* Loading Spinner Ring */}
         {state === 'thinking' && (
-            <circle cx="24" cy="24" r="22" stroke={glowColor} strokeWidth="2" fill="none" strokeDasharray="10 10" className="animate-spin opacity-50" />
+            <circle cx="50" cy="50" r="46" stroke={theme.glow} strokeWidth="3" fill="none" strokeDasharray="20 10" className="animate-[spin_3s_linear_infinite] opacity-60" />
         )}
       </svg>
     </div>

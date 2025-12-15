@@ -32,11 +32,11 @@ const useAdminBroadcast = (onReceive: (msg: Message) => void) => {
     useEffect(() => {
         // Simulate receiving a broadcast after a delay (e.g., Breaking News)
         const timer = setTimeout(() => {
-            if (Math.random() > 0.9) { // Low probability
+            if (Math.random() > 0.95) { // Very Low probability to not annoy
                 const broadcastMsg: Message = {
                     id: `admin-${Date.now()}`,
-                    role: 'ai', // System acting as AI
-                    content: "> **SYSTEM ALERT**: Server maintenance scheduled for 3:00 AM UTC. \n\nNo downtime expected.",
+                    role: 'ai',
+                    content: "> **BREAKING**: System maintenance scheduled for 3:00 AM UTC. No downtime expected.",
                     timestamp: 'System',
                     suggestedActions: ['Dismiss']
                 };
@@ -62,9 +62,9 @@ const ChatPage: React.FC = () => {
             {
               id: 'welcome',
               role: 'ai',
-              content: "Hello! I'm your **News Assistant**. I can access real-time data via Google Search and analyze current events for you. Try asking to **\"Visualize the Mars mission\"**.",
+              content: "Hello! I'm your **News Assistant**. I can help you analyze stories, check facts, and summarize global events. \n\nTry asking: **\"What's the latest on Space?\"**",
               timestamp: 'Just now',
-              suggestedActions: ['Generate today\'s overview', 'Visualize the Mars mission']
+              suggestedActions: ['Generate daily overview', 'Visualize Mars mission']
             }
           ];
       } catch (e) {
@@ -88,31 +88,29 @@ const ChatPage: React.FC = () => {
   // --- 7.11 Engineering Refs ---
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatSessionRef = useRef<Chat | null>(null);
-  const lastSentTime = useRef<number>(0); // Rate limiting
-  const processedContextRef = useRef<string | null>(null); // Prevent double firing on strict mode
+  const lastSentTime = useRef<number>(0);
+  const processedContextRef = useRef<string | null>(null);
 
   // --- Initialize Gemini Chat ---
   useEffect(() => {
     const initChat = async () => {
         try {
-            // Using the new SDK
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             
-            // Map existing messages to history format
-            // Exclude the very first welcome message if it's purely UI based (id='welcome')
+            // Filter out system/admin messages from history sent to model
             const history = messages
-                .filter(m => m.id !== 'welcome' && !m.id.startsWith('admin'))
+                .filter(m => m.role !== 'system' && !m.id.startsWith('admin') && m.content)
                 .map(m => ({
                     role: m.role === 'user' ? 'user' : 'model',
                     parts: [{ text: m.content }]
                 }));
 
             chatSessionRef.current = ai.chats.create({
-                model: 'gemini-3-pro-preview', // Using the latest model as requested
+                model: 'gemini-3-pro-preview', 
                 history: history,
                 config: {
-                    systemInstruction: "You are a friendly, expert News Assistant for the 'News Club' app. You provide accurate summaries, analyze complex topics, and maintain a helpful tone. You can use markdown for formatting.",
-                    tools: [{ googleSearch: {} }], // Enable Search Grounding
+                    systemInstruction: "You are a helpful, professional, and concise News Assistant for the 'News Club' app. \n\n1. Provide accurate summaries of current events.\n2. Use **bold** for key terms and headlines.\n3. Use bullet points for lists.\n4. Keep responses digestible for mobile users (short paragraphs).\n5. If asked about real-time news, use the googleSearch tool implicitly by answering as if you have access to general knowledge, or clarify if you need a specific search.",
+                    tools: [{ googleSearch: {} }],
                 },
             });
         } catch (error) {
@@ -141,23 +139,19 @@ const ChatPage: React.FC = () => {
           
           switch(context) {
               case 'article':
-                  initialPrompt = `Explain the article "${headline}" in simple terms.`;
+                  initialPrompt = `Can you explain the article "${headline}" simply?`;
                   break;
               case 'reel':
-                  initialPrompt = `Tell me more about the story: "${headline}". What are the implications?`;
+                  initialPrompt = `I just watched a reel about "${headline}". Tell me more details.`;
                   break;
               case 'newspaper':
-                  initialPrompt = `I need creative headline ideas for a newspaper about "${topic || 'Technology'}".`;
-                  break;
-              case 'profile':
-                  initialPrompt = `Analyze my reading interests in ${topic} and suggest new topics.`;
+                  initialPrompt = `I'm creating a newspaper about "${topic || 'General News'}". Suggest 3 catchy headlines.`;
                   break;
               default:
                   break;
           }
 
           if (initialPrompt) {
-              // Add a slight delay to feel natural after navigation
               setTimeout(() => handleSend(initialPrompt), 600);
           }
       }
@@ -174,13 +168,6 @@ const ChatPage: React.FC = () => {
       }
   }, [isInitializing, markAsLoaded]);
 
-  // --- 7.9 Session Intelligence: Persist to SessionStorage ---
-  useEffect(() => {
-      if (messages.length > 0) {
-          sessionStorage.setItem('news_club_chat_session', JSON.stringify(messages));
-      }
-  }, [messages]);
-
   // --- Auto Scroll ---
   useEffect(() => {
     if (scrollRef.current) {
@@ -188,7 +175,14 @@ const ChatPage: React.FC = () => {
     }
   }, [messages, isLoading, isStreaming]); 
 
-  // --- 7.14 Admin Broadcast Hook ---
+  // --- Persist Session ---
+  useEffect(() => {
+      if (messages.length > 0) {
+          sessionStorage.setItem('news_club_chat_session', JSON.stringify(messages));
+      }
+  }, [messages]);
+
+  // --- Admin Broadcast Hook ---
   useAdminBroadcast((msg) => {
       setMessages(prev => [...prev, msg]);
       if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
@@ -196,16 +190,16 @@ const ChatPage: React.FC = () => {
 
   // --- Handlers ---
   const handleClearChat = () => {
-      if (window.confirm("Start a new conversation? This will clear current context.")) {
+      if (window.confirm("Clear conversation history?")) {
           const resetMsg: Message[] = [{
               id: Date.now().toString(),
               role: 'ai',
-              content: "Context cleared. How can I help you with the latest news?",
+              content: "Chat cleared. What news topic are you interested in?",
               timestamp: 'Just now'
           }];
           setMessages(resetMsg);
           sessionStorage.removeItem('news_club_chat_session');
-          // Re-init chat session
+          // Re-init chat
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
           chatSessionRef.current = ai.chats.create({
               model: 'gemini-3-pro-preview',
@@ -215,17 +209,14 @@ const ChatPage: React.FC = () => {
   };
 
   const handleStopGeneration = () => {
-      // Note: The SDK doesn't natively expose an abort controller for the stream easily in this setup,
-      // but we can stop processing the visual stream.
       setIsLoading(false);
       setIsStreaming(false);
       setAvatarState('idle');
       
-      // Update last message to remove loading state visuals if needed
       setMessages(prev => {
           const last = prev[prev.length - 1];
           if (last.role === 'ai') {
-              return [...prev.slice(0, -1), { ...last, isStreaming: false, content: last.content + " [Stopped]" }];
+              return [...prev.slice(0, -1), { ...last, isStreaming: false, content: last.content + " ...[stopped]" }];
           }
           return prev;
       });
@@ -234,22 +225,20 @@ const ChatPage: React.FC = () => {
   const handleSend = async (text: string) => {
     if (!text.trim()) return;
 
-    // 7.11 Offline Check
     if (!navigator.onLine) {
-        setToastMessage("You are offline. Please check connection.");
+        setToastMessage("You are offline.");
         setShowToast(true);
-        setAvatarState('error');
         return;
     }
 
-    // 7.11 Rate Limit (1 second)
+    // Rate Limit (1s)
     const now = Date.now();
     if (now - lastSentTime.current < 1000) return;
     lastSentTime.current = now;
 
     logInteraction('user_sent', { text, timestamp: now });
 
-    // Notebook Mode Check
+    // Notebook Mode Shortcut
     if (text.toLowerCase().includes('notebook')) {
         setNotebookTopic(text);
         setIsNotebookMode(true);
@@ -267,21 +256,18 @@ const ChatPage: React.FC = () => {
     setIsLoading(true);
     setAvatarState('thinking');
 
-    // Initialize AI message placeholder
+    // AI Placeholder
     const aiMsgId = (Date.now() + 1).toString();
-    const initialAiMsg: Message = {
+    setMessages(prev => [...prev, {
         id: aiMsgId,
         role: 'ai',
         content: '', 
         isStreaming: true,
         timestamp: 'Just now'
-    };
-    setMessages(prev => [...prev, initialAiMsg]);
+    }]);
 
     try {
-        if (!chatSessionRef.current) {
-             throw new Error("Chat session not initialized");
-        }
+        if (!chatSessionRef.current) throw new Error("Chat not ready");
 
         const result = await chatSessionRef.current.sendMessageStream({ message: text });
         
@@ -296,17 +282,14 @@ const ChatPage: React.FC = () => {
             const chunkText = chunk.text;
             if (chunkText) {
                 accumulatedText += chunkText;
-                
-                // Real-time update
                 setMessages(prev => prev.map(m => 
                     m.id === aiMsgId ? { ...m, content: accumulatedText } : m
                 ));
             }
             
-            // Capture Grounding Metadata if available
+            // Grounding check
             if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) {
-                const chunks = chunk.candidates[0].groundingMetadata.groundingChunks;
-                chunks.forEach((c: any) => {
+                chunk.candidates[0].groundingMetadata.groundingChunks.forEach((c: any) => {
                     if (c.web?.uri && c.web?.title) {
                         if (!sources.find(s => s.url === c.web.uri)) {
                             sources.push({ name: c.web.title, url: c.web.uri });
@@ -316,7 +299,6 @@ const ChatPage: React.FC = () => {
             }
         }
 
-        // Finalize message
         setMessages(prev => prev.map(m => 
             m.id === aiMsgId ? { 
                 ...m, 
@@ -335,7 +317,7 @@ const ChatPage: React.FC = () => {
         setMessages(prev => prev.map(m => 
             m.id === aiMsgId ? { 
                 ...m, 
-                content: "I'm having trouble connecting to the network right now. Please try again.", 
+                content: "I'm having trouble reaching the news servers right now. Please try again in a moment.", 
                 isStreaming: false 
             } : m
         ));
@@ -346,7 +328,7 @@ const ChatPage: React.FC = () => {
   };
 
   const handleReportMessage = (id: string) => {
-      setToastMessage("Report received. We will review this answer.");
+      setToastMessage("Feedback sent. Thank you.");
       setShowToast(true);
       logInteraction('error', { type: 'report', msgId: id });
   };
@@ -358,31 +340,31 @@ const ChatPage: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 pb-[70px] relative transition-colors duration-300">
       
-      {/* Toast */}
       {showToast && (
           <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60]">
               <Toast type="info" message={toastMessage} onClose={() => setShowToast(false)} />
           </div>
       )}
 
-      {/* Overlays */}
       {isNotebookMode && <NotebookMode topic={notebookTopic} onClose={() => setIsNotebookMode(false)} />}
       {isVoiceMode && <VoiceMode onClose={() => setIsVoiceMode(false)} />}
 
-      {/* 7.2 Custom Header with Interactive Avatar */}
+      {/* Header */}
       <div className="shrink-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 z-10 transition-colors duration-300">
         <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
-                {/* Interactive Avatar */}
                 <InteractiveAvatar 
                     state={avatarState} 
                     size={42} 
-                    onClick={() => setAvatarState('speaking')} 
+                    onClick={() => {
+                        setAvatarState('speaking');
+                        setTimeout(() => setAvatarState(isLoading ? 'thinking' : 'idle'), 1500);
+                    }} 
                 />
                 
                 <div>
                     <h1 className="font-bold text-gray-900 dark:text-white leading-none">News Club AI</h1>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 font-medium flex items-center gap-1">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 font-medium flex items-center gap-1 mt-0.5">
                         {!navigator.onLine ? (
                             <><WifiOff size={10} className="text-red-500"/> Offline</>
                         ) : isLoading ? (
@@ -390,7 +372,7 @@ const ChatPage: React.FC = () => {
                         ) : isStreaming ? (
                             <>Typing<span className="animate-pulse">...</span></>
                         ) : (
-                            <>Online <Sparkles size={10} className="text-indigo-500" /></>
+                            <>Online <Sparkles size={10} className="text-emerald-500" /></>
                         )}
                     </span>
                 </div>
@@ -419,7 +401,7 @@ const ChatPage: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-gray-50 dark:bg-gray-900 transition-colors duration-300" ref={scrollRef}>
         <div className="max-w-3xl mx-auto w-full">
             {!searchParams.get('context') && messages.length < 2 && (
-                <div className="mb-6 px-1">
+                <div className="mb-6 px-1 animate-in fade-in slide-in-from-top-4">
                     <AIButtonGenerateOverview onClick={() => handleSend("Generate today's news overview")} isLoading={isLoading || isStreaming} />
                 </div>
             )}
@@ -434,10 +416,8 @@ const ChatPage: React.FC = () => {
                     />
                 ))}
                 
-                {/* 7.8 Zero-Boredom Loading */}
                 {isLoading && <ThinkingIndicator />}
 
-                {/* 7.11 Abort Control UI */}
                 {(isLoading || isStreaming) && (
                     <div className="flex justify-center mt-4 animate-in fade-in slide-in-from-bottom-2">
                         <Button 
