@@ -9,7 +9,7 @@ interface ReelInfoBarProps {
   aiEnhanced?: boolean;
   timeAgo: string;
   tags?: string[];
-  reason?: string; // 6.7 Personalization Signal
+  reason?: string;
   onReadMore?: (e: React.MouseEvent) => void;
 }
 
@@ -24,13 +24,11 @@ const ReelInfoBar: React.FC<ReelInfoBarProps> = ({
   reason,
   onReadMore
 }) => {
-  // Dynamic Font Sizing for Headline to ensure visual balance
   const isLongTitle = title.length > 60;
   const titleClass = isLongTitle 
     ? "text-lg md:text-xl leading-snug" 
     : "text-2xl md:text-3xl leading-tight";
 
-  // Keyword highlighting logic
   const HighlightText = ({ text, highlights }: { text: string, highlights: string[] }) => {
     if (!highlights.length) return <span>{text}</span>;
     
@@ -55,10 +53,12 @@ const ReelInfoBar: React.FC<ReelInfoBarProps> = ({
   }
 
   return (
-    <div className="absolute left-0 bottom-0 w-full p-5 pb-[85px] z-10 pointer-events-none flex flex-col items-start gap-3">
-      <div className="pointer-events-auto w-[85%]">
+    // Reduced bottom padding (pb-8) since full-screen reels don't have bottom nav
+    <div className="absolute left-0 bottom-0 w-full p-5 pb-8 z-10 pointer-events-none flex flex-col items-start gap-3">
+      {/* Width limited to avoid right action bar overlap */}
+      <div className="pointer-events-auto w-[82%] max-w-[500px]">
         
-        {/* 6.7 Visible Personalization Signal */}
+        {/* Personalization Signal */}
         {reason && (
             <div className="mb-2 inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/20 px-2 py-1 rounded-lg text-[10px] font-bold text-blue-200 animate-in slide-in-from-bottom-2 fade-in duration-500 uppercase tracking-wide">
                 {getReasonIcon()}
@@ -66,14 +66,12 @@ const ReelInfoBar: React.FC<ReelInfoBarProps> = ({
             </div>
         )}
 
-        {/* Zone B: Headline Overlay & Metadata */}
+        {/* Metadata Row */}
         <div className="mb-2 animate-in slide-in-from-bottom-2 duration-500 flex flex-wrap items-center gap-2">
-            {/* Category Pill */}
             <span className="bg-blue-600 text-white text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider shadow-lg shadow-blue-900/50">
                 {category}
             </span>
 
-            {/* AI Enhanced Badge (Micro-element) */}
             {aiEnhanced && (
               <div className="flex items-center gap-1.5 bg-indigo-500/20 text-indigo-200 border border-indigo-500/30 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md">
                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse shadow-[0_0_8px_rgba(129,140,248,0.8)]"></div>
@@ -81,7 +79,6 @@ const ReelInfoBar: React.FC<ReelInfoBarProps> = ({
               </div>
             )}
             
-            {/* Source & Time */}
             <div className="flex items-center gap-1.5 text-gray-300 text-xs font-medium bg-black/30 px-2 py-1 rounded-full backdrop-blur-sm border border-white/10">
                 <span className="text-white font-bold">{source}</span>
                 <span className="text-[10px] opacity-60">•</span>
@@ -97,7 +94,7 @@ const ReelInfoBar: React.FC<ReelInfoBarProps> = ({
             {title}
         </h2>
         
-        {/* Description / Sub-headline with Highlights */}
+        {/* Description */}
         <div className="relative overflow-hidden mb-4">
             <p className="text-sm text-gray-200 leading-relaxed font-medium line-clamp-3 drop-shadow-sm animate-in slide-in-from-bottom-4 duration-1000">
                 <HighlightText text={description} highlights={tags} />
@@ -113,7 +110,7 @@ const ReelInfoBar: React.FC<ReelInfoBarProps> = ({
             </div>
         )}
 
-        {/* Zone C: CTA */}
+        {/* CTA */}
         <button 
             onClick={onReadMore}
             className="flex items-center gap-2 text-sm font-bold text-white bg-white/20 hover:bg-white/30 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/20 transition-all active:scale-95 group shadow-lg"

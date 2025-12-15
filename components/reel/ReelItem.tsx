@@ -186,7 +186,9 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
       }
   };
 
+  // Only handle touch events if not expanded
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (isExpanded) return;
     touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, time: Date.now() };
     longPressTimerRef.current = setTimeout(() => {
         wasPlayingBeforeLongPress.current = isPlaying;
@@ -195,6 +197,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
+    if (isExpanded) return;
     if (!touchStartRef.current) return;
     if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); longPressTimerRef.current = null; }
 
@@ -211,10 +214,12 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+      if (isExpanded) return;
       if (!touchStartRef.current) return;
       const diffX = e.touches[0].clientX - touchStartRef.current.x;
       const diffY = e.touches[0].clientY - touchStartRef.current.y;
 
+      // Swipe Left to Expand
       if (diffX < -60 && Math.abs(diffY) < 50) {
           if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
           setIsExpanded(true);
@@ -222,6 +227,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
   };
 
   const handleDoubleClick = (e: React.MouseEvent) => {
+    if (isExpanded) return;
     e.stopPropagation();
     if (!isLiked) handleLike();
     else {
@@ -309,6 +315,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
 
       {showLikeAnimation && <LikeAnimation />}
 
+      {/* Expanded Layer (AI Analysis) */}
       <ReelExpandLayer 
         isOpen={isExpanded} 
         onClose={() => setIsExpanded(false)} 
@@ -316,6 +323,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
       />
 
       {/* --- UI Controls --- */}
+      {/* Hide controls when expanded to clear view */}
       <div className={`transition-opacity duration-300 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <ReelActionBar 
             likes={isLiked ? (parseInt(data.likes) + 1).toString() : data.likes} // Optimistic update
