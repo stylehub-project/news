@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, Settings, Bookmark, Share2, Type, MoveVertical, FastForward } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Settings, Bookmark, Share2, Type, MoveVertical, FastForward, Sparkles } from 'lucide-react';
 import HighlightReadingMode from '../../components/HighlightReadingMode';
 import Sheet from '../../components/ui/Sheet';
 
@@ -79,7 +79,7 @@ const DetailsPage: React.FC = () => {
       </div>
 
       {/* 8.2 Controls (Floating) */}
-      <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-4 px-6 py-3 rounded-full shadow-2xl z-40 border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}>
+      <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-4 px-5 py-2.5 rounded-full shadow-2xl z-40 border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}>
          <button 
             onClick={() => setSpeed(prev => prev === 2 ? 0.5 : prev + 0.5)}
             className="text-xs font-bold w-8 text-center"
@@ -89,18 +89,17 @@ const DetailsPage: React.FC = () => {
          
          <button 
             onClick={handleToggleRead}
-            className={`p-4 rounded-full text-white shadow-lg transition-transform active:scale-95 ${isReading ? 'bg-red-500' : 'bg-blue-600'}`}
+            className={`p-3.5 rounded-full text-white shadow-lg transition-transform active:scale-95 ${isReading ? 'bg-red-500' : 'bg-blue-600'}`}
          >
-            {isReading ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
+            {isReading ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" className="ml-1" />}
          </button>
 
+         {/* 7.13 AI Explain Button with Context */}
          <button 
-            className="text-xs font-bold"
-            onClick={() => {
-                // Mock forward
-            }}
+            className="text-xs font-bold flex items-center gap-1 text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition-colors"
+            onClick={() => navigate(`/ai-chat?context=article&headline=${encodeURIComponent(MOCK_ARTICLE.title)}`)}
          >
-            <FastForward size={20} />
+            <Sparkles size={14} className="fill-indigo-600/20" /> Explain
          </button>
       </div>
 

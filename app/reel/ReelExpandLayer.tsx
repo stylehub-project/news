@@ -43,8 +43,8 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
   };
 
   const handleChat = () => {
-      // In a real app, we'd pass the reel ID or context
-      navigate('/ai-chat?context=reel');
+      // 7.13 Cross-App Integration: Pass Reel context
+      navigate(`/ai-chat?context=reel&headline=${encodeURIComponent(data.title)}`);
   };
 
   return (

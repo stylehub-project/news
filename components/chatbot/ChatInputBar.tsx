@@ -1,13 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Send, Image as ImageIcon, Mic, Paperclip } from 'lucide-react';
 import Button from '../ui/Button';
 
 interface ChatInputBarProps {
   onSend: (text: string) => void;
+  onVoiceClick?: () => void;
   isLoading?: boolean;
 }
 
-const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, isLoading }) => {
+const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoading }) => {
   const [text, setText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -35,21 +36,25 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, isLoading }) => {
         </button>
         
         {/* Input Field */}
-        <div className="flex-1 bg-gray-100 rounded-3xl px-4 py-2 flex items-center focus-within:ring-2 focus-within:ring-indigo-100 focus-within:bg-white transition-all">
+        <div className="flex-1 bg-gray-100 rounded-3xl px-4 py-2.5 flex items-center focus-within:ring-2 focus-within:ring-indigo-100 focus-within:bg-white transition-all">
             <input 
               ref={inputRef}
               type="text" 
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask about the news..." 
+              placeholder="Ask AI about the news..." 
               className="bg-transparent w-full outline-none text-sm placeholder:text-gray-400 disabled:opacity-50"
               disabled={isLoading}
             />
         </div>
 
-        {/* Mic / Voice Mode (Coming Soon) */}
-        <button className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 rounded-full transition-colors">
+        {/* Voice Mode Trigger */}
+        <button 
+            onClick={onVoiceClick}
+            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors active:scale-90"
+            title="Voice Conversation"
+        >
             <Mic size={20} />
         </button>
 

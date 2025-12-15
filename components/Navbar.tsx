@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Bell } from 'lucide-react';
+import { Search, Bell, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Navbar: React.FC = () => {
@@ -25,6 +25,11 @@ const Navbar: React.FC = () => {
 
       {/* Right: Actions */}
       <div className="flex items-center gap-1">
+        <Link to="/ai-chat" className="hidden sm:flex items-center gap-1.5 p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-xs font-bold mr-1 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors border border-indigo-100 dark:border-indigo-800">
+            <Sparkles size={14} className="fill-indigo-600/20 dark:fill-indigo-400/20" />
+            <span>Ask AI</span>
+        </Link>
+
         <Link to="/notifications" className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-all text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 active:scale-95 relative">
           <Bell size={20} />
           <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-gray-900"></span>

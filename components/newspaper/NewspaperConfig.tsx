@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Plus, Layout, Type, Image as ImageIcon, GitMerge, BarChart2, Clock, Sparkles } from 'lucide-react';
+import { Plus, Layout, Type, Image as ImageIcon, GitMerge, BarChart2, Clock, Sparkles, MessageSquare } from 'lucide-react';
 import Button from '../ui/Button';
 import TemplateSelector from './TemplateSelector';
 import { NewspaperStyle } from './NewspaperTemplate';
 import Input from '../ui/Input';
+import { useNavigate } from 'react-router-dom';
 
 interface NewspaperConfigProps {
   title: string;
@@ -28,6 +29,7 @@ const NewspaperConfig: React.FC<NewspaperConfigProps> = ({
   setStyle,
   onGenerate
 }) => {
+  const navigate = useNavigate();
   const [activeSections, setActiveSections] = useState<string[]>(['summary', 'timeline']);
 
   const toggleSection = (id: string) => {
@@ -36,14 +38,24 @@ const NewspaperConfig: React.FC<NewspaperConfigProps> = ({
     );
   };
 
+  const handleConsultAI = () => {
+      navigate(`/ai-chat?context=newspaper&topic=${encodeURIComponent(title || 'General News')}`);
+  };
+
   return (
     <div className="flex flex-col h-full p-4 space-y-8 overflow-y-auto bg-gray-50/50">
       
       {/* 6.2 Editor - Header Block */}
       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-4">
-        <div className="flex items-center gap-2 mb-2">
-            <span className="bg-blue-100 text-blue-700 p-1.5 rounded-lg"><Layout size={18} /></span>
-            <h3 className="font-bold text-gray-800">Edition Details</h3>
+        <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+                <span className="bg-blue-100 text-blue-700 p-1.5 rounded-lg"><Layout size={18} /></span>
+                <h3 className="font-bold text-gray-800">Edition Details</h3>
+            </div>
+            {/* 7.13 AI Consultant Trigger */}
+            <button onClick={handleConsultAI} className="text-xs font-bold text-indigo-600 flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded hover:bg-indigo-100 transition-colors">
+                <MessageSquare size={12} /> Ask AI Ideas
+            </button>
         </div>
         <div className="space-y-3">
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Headline</label>

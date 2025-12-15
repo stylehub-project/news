@@ -89,6 +89,14 @@ const HomePage: React.FC = () => {
       navigate(`/news/${id}`);
   };
 
+  // 7.13 Cross-App Usage: Connect card to Chat
+  const handleAIExplain = (id: string) => {
+      const article = MOCK_NEWS.find(n => n.id === id);
+      if (article) {
+          navigate(`/ai-chat?context=article&headline=${encodeURIComponent(article.title)}&id=${id}`);
+      }
+  };
+
   if (isLoading) {
       return <SmartLoader type="home" />;
   }
@@ -167,7 +175,7 @@ const HomePage: React.FC = () => {
                     onClick={handleCardClick}
                     onSave={() => console.log('Saved', news.id)}
                     onShare={() => console.log('Shared', news.id)}
-                    onAIExplain={() => navigate('/ai-chat')}
+                    onAIExplain={handleAIExplain}
                 />
             ))}
             
