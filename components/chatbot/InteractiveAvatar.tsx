@@ -60,18 +60,21 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
   }, [state]);
 
   const handleClick = () => {
-    setReaction('poke');
+    // Determine random reaction
+    const newReaction = Math.random() > 0.5 ? 'poke' : 'happy';
+    setReaction(newReaction);
+    
+    // Haptic Feedback
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+    
     onClick?.();
-    setTimeout(() => setReaction('none'), 600);
+    
+    // Reset reaction
+    setTimeout(() => setReaction('none'), 800);
   };
 
   // --- SVG Calculations ---
 
-  // Eye shape
-  const isSquinting = reaction === 'poke' || state === 'thinking';
-  const eyeScaleY = blink ? 0.1 : (isSquinting ? 0.4 : 1);
-  
   // Color Palette
   const colors = {
       idle: { face: '#4f46e5', eyes: '#ffffff', glow: '#818cf8' }, // Indigo
@@ -81,9 +84,13 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
   };
   const theme = colors[state] || colors.idle;
 
+  // Eye shape logic
+  const leftEyeScaleY = blink ? 0.1 : (reaction === 'poke' ? 0.1 : 1); // Left eye winks on poke
+  const rightEyeScaleY = blink ? 0.1 : 1; 
+
   return (
     <div 
-      className={`relative cursor-pointer select-none transition-transform duration-300 ${reaction === 'poke' ? 'scale-90' : 'hover:scale-105'} ${className}`}
+      className={`relative cursor-pointer select-none transition-transform duration-200 ${reaction !== 'none' ? 'scale-90' : 'hover:scale-105'} ${className}`}
       style={{ width: size, height: size }}
       onClick={handleClick}
     >
@@ -127,7 +134,7 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
                 <ellipse 
                     cx="35" cy="45" rx="8" ry="10" 
                     fill={theme.eyes}
-                    style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: `scaleY(${eyeScaleY})` }}
+                    style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: `scaleY(${leftEyeScaleY})` }}
                     className="transition-transform duration-100"
                 />
                 
@@ -135,7 +142,7 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
                 <ellipse 
                     cx="65" cy="45" rx="8" ry="10" 
                     fill={theme.eyes}
-                    style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: `scaleY(${eyeScaleY})` }}
+                    style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: `scaleY(${rightEyeScaleY})` }}
                     className="transition-transform duration-100"
                 />
             </g>
@@ -143,9 +150,11 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
             {/* Mouth */}
             <path 
                 d={
-                    state === 'speaking' 
-                    ? (mouthOpen ? "M 40,65 Q 50,72 60,65" : "M 40,65 Q 50,65 60,65") 
-                    : (state === 'thinking' ? "M 42,68 L 58,68" : "M 40,65 Q 50,70 60,65")
+                    reaction === 'happy' 
+                    ? "M 35,65 Q 50,75 65,65" // Big Smile
+                    : state === 'speaking' 
+                        ? (mouthOpen ? "M 40,65 Q 50,72 60,65" : "M 40,65 Q 50,65 60,65") 
+                        : (state === 'thinking' ? "M 42,68 L 58,68" : "M 40,65 Q 50,70 60,65")
                 } 
                 stroke={theme.eyes} 
                 strokeWidth="3" 

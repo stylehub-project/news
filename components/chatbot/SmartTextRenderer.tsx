@@ -9,11 +9,12 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
 
   const parseLine = (line: string, index: number) => {
     // 1. Callouts / Quotes
-    if (line.startsWith('> ')) {
+    if (line.trim().startsWith('>')) {
+      const cleanLine = line.trim().substring(1).trim();
       return (
         <div key={index} className="my-3 pl-4 border-l-4 border-indigo-500 dark:border-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/20 py-2 pr-2 rounded-r-lg">
           <p className="text-indigo-900 dark:text-indigo-200 italic font-medium">
-            {parseInline(line.substring(2))}
+            {parseInline(cleanLine)}
           </p>
         </div>
       );
@@ -45,12 +46,14 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
     // Split by Bold **text** and entities [[text]]
     const parts = text.split(/(\*\*.*?\*\*|\[\[.*?\]\])/g);
     return parts.map((part, i) => {
+      // Bold
       if (part.startsWith('**') && part.endsWith('**')) {
         return <strong key={i} className="font-bold text-gray-900 dark:text-white">{part.slice(2, -2)}</strong>;
       }
+      // Entity Chip
       if (part.startsWith('[[') && part.endsWith(']]')) {
         return (
-          <span key={i} className="inline-block bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded text-xs font-bold mx-0.5 border border-blue-200 dark:border-blue-800">
+          <span key={i} className="inline-block bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded text-xs font-bold mx-0.5 border border-blue-200 dark:border-blue-800 shadow-sm align-middle">
             {part.slice(2, -2)}
           </span>
         );

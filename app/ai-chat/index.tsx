@@ -106,10 +106,10 @@ const ChatPage: React.FC = () => {
                 }));
 
             chatSessionRef.current = ai.chats.create({
-                model: 'gemini-3-pro-preview', 
+                model: 'gemini-2.5-flash', // Using stable flash model for browser
                 history: history,
                 config: {
-                    systemInstruction: "You are a helpful, professional, and concise News Assistant for the 'News Club' app. \n\n1. Provide accurate summaries of current events.\n2. Use **bold** for key terms and headlines.\n3. Use bullet points for lists.\n4. Keep responses digestible for mobile users (short paragraphs).\n5. If asked about real-time news, use the googleSearch tool implicitly by answering as if you have access to general knowledge, or clarify if you need a specific search.",
+                    systemInstruction: "You are a helpful, professional, and concise News Assistant for the 'News Club' app. \n\nFORMATTING RULES:\n1. Use **bold** for key terms and headlines.\n2. Use [[brackets]] around specific entities like people, companies, or countries (e.g., [[Elon Musk]], [[SpaceX]]).\n3. Start important summaries or quotes with '> ' to create a callout box.\n4. Keep responses digestible for mobile users.\n5. If asked about real-time news, use the googleSearch tool implicitly.",
                     tools: [{ googleSearch: {} }],
                 },
             });
@@ -202,7 +202,7 @@ const ChatPage: React.FC = () => {
           // Re-init chat
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
           chatSessionRef.current = ai.chats.create({
-              model: 'gemini-3-pro-preview',
+              model: 'gemini-2.5-flash',
               config: { tools: [{ googleSearch: {} }] }
           });
       }
@@ -357,6 +357,7 @@ const ChatPage: React.FC = () => {
                     state={avatarState} 
                     size={42} 
                     onClick={() => {
+                        // Interactive Reaction
                         setAvatarState('speaking');
                         setTimeout(() => setAvatarState(isLoading ? 'thinking' : 'idle'), 1500);
                     }} 
