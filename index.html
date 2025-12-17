@@ -8,10 +8,8 @@
     <script>
       // --- Process Environment Shim ---
       // This script ensures 'process.env' exists for the app to consume.
-      // We hardcode the API key here as a fallback to ensure immediate functionality.
+      // API Keys should be set in your deployment platform (e.g., Vercel) Environment Variables.
       
-      const FALLBACK_KEY = "AIzaSyCENnoSC8YJpnqIinS1gH23ksvJIUfcqzk";
-
       window.process = window.process || {};
       window.process.env = window.process.env || {};
 
@@ -23,11 +21,12 @@
       window.process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "123456789";
       window.process.env.NEXT_PUBLIC_FIREBASE_APP_ID = "1:123456789:web:abcdef";
 
-      // 2. API Key Injection
-      // If the bundler hasn't already replaced process.env.API_KEY with a string,
-      // we inject the provided key.
-      if (!window.process.env.API_KEY || window.process.env.API_KEY === 'undefined') {
-          window.process.env.API_KEY = FALLBACK_KEY;
+      // 2. API Key Placeholder
+      // The actual key must be provided via the build system (Vite/Webpack) replacing process.env.API_KEY
+      // or injected here via server-side rendering if applicable.
+      // We initialize it to ensure the property exists.
+      if (!window.process.env.API_KEY) {
+          window.process.env.API_KEY = ''; 
       }
 
       // --- Tailwind Config ---
