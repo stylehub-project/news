@@ -44,18 +44,34 @@ const cleanHistory = (msgs: Message[]) => {
 
 // --- Helper: Secure API Key Access ---
 const getApiKey = () => {
-    // 1. Try window.process shim (injected by index.html)
+  let apiKey = '';
+  
+  // 1. Try Vite / Modern Bundlers (import.meta.env)
+  try {
     // @ts-ignore
-    if (typeof window !== 'undefined' && window.process?.env?.API_KEY) {
-        // @ts-ignore
-        return window.process.env.API_KEY;
+    if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+      // @ts-ignore
+      apiKey = (import.meta as any).env.VITE_API_KEY || (import.meta as any).env.API_KEY;
     }
-    // 2. Try standard process.env (bundler replacement)
+  } catch (e) {}
+
+  // 2. Try Standard Process Env (Next.js / Webpack / Vercel System Env)
+  if (!apiKey && typeof process !== 'undefined' && process.env) {
     try {
-        if (process.env.API_KEY) return process.env.API_KEY;
+      apiKey = process.env.NEXT_PUBLIC_API_KEY || process.env.API_KEY || process.env.REACT_APP_API_KEY;
     } catch (e) {}
-    
-    return null;
+  }
+
+  // 3. Try Window Shim (Fallback for index.html injection)
+  if (!apiKey && typeof window !== 'undefined') {
+      // @ts-ignore
+      const winEnv = window.process?.env;
+      if (winEnv && winEnv.API_KEY && winEnv.API_KEY !== 'undefined') {
+          apiKey = winEnv.API_KEY;
+      }
+  }
+
+  return apiKey;
 };
 
 // --- Mock Services ---
@@ -234,7 +250,7 @@ const ChatPage: React.FC = () => {
 
     const apiKey = getApiKey();
     if (!apiKey) {
-        setToastMessage("API Key is missing. Please check configuration.");
+        setToastMessage("API Key is missing. Please check your environment variables (VITE_API_KEY or NEXT_PUBLIC_API_KEY).");
         setShowToast(true);
         return;
     }
