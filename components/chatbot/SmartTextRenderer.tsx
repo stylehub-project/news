@@ -8,9 +8,11 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
   const lines = content.split('\n');
 
   const parseLine = (line: string, index: number) => {
+    const trimmed = line.trim();
+
     // 1. Callouts / Quotes
-    if (line.trim().startsWith('>')) {
-      const cleanLine = line.trim().substring(1).trim();
+    if (trimmed.startsWith('>')) {
+      const cleanLine = trimmed.substring(1).trim();
       return (
         <div key={index} className="my-3 pl-4 border-l-4 border-indigo-500 dark:border-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/20 py-2 pr-2 rounded-r-lg">
           <p className="text-indigo-900 dark:text-indigo-200 italic font-medium">
@@ -20,18 +22,36 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
       );
     }
 
-    // 2. Bullet Points
-    if (line.trim().startsWith('- ')) {
+    // 2. Bullet Points (Handle both '- ' and '* ')
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
         return (
-            <div key={index} className="flex gap-2 mb-1 pl-1">
-                <span className="text-indigo-500 dark:text-indigo-400 font-bold">•</span>
-                <p className="text-gray-800 dark:text-gray-200">{parseInline(line.substring(2))}</p>
+            <div key={index} className="flex gap-2 mb-1 pl-1 items-start">
+                <span className="text-indigo-500 dark:text-indigo-400 font-bold mt-[7px] text-[6px] shrink-0">●</span>
+                <p className="text-gray-800 dark:text-gray-200 leading-relaxed">{parseInline(trimmed.substring(2))}</p>
             </div>
         )
     }
 
-    // 3. Spacing
-    if (line.trim() === '') {
+    // 3. Headers (###)
+    if (trimmed.startsWith('### ')) {
+        return (
+            <h3 key={index} className="text-base font-bold text-gray-900 dark:text-white mt-4 mb-2">
+                {parseInline(trimmed.substring(4))}
+            </h3>
+        );
+    }
+
+    // 4. Headers (##)
+    if (trimmed.startsWith('## ')) {
+        return (
+            <h2 key={index} className="text-lg font-bold text-indigo-700 dark:text-indigo-300 mt-5 mb-2 border-b border-gray-100 dark:border-gray-700 pb-1">
+                {parseInline(trimmed.substring(3))}
+            </h2>
+        );
+    }
+
+    // 5. Spacing
+    if (trimmed === '') {
         return <div key={index} className="h-3"></div>;
     }
 
@@ -43,13 +63,28 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
   };
 
   const parseInline = (text: string) => {
-    // Split by Bold **text** and entities [[text]]
-    const parts = text.split(/(\*\*.*?\*\*|\[\[.*?\]\])/g);
+    // Regex logic:
+    // 1. Bold: **text**
+    // 2. Italic: *text* (but ignore * if it was part of **)
+    // 3. Entity: [[text]]
+    
+    // We split by tokens. Note: This simple splitter might be fragile with nested MD, but sufficient for GenAI output.
+    const parts = text.split(/(\*\*.*?\*\*|\[\[.*?\]\]|\*.*?\*)/g);
+    
     return parts.map((part, i) => {
       // Bold
-      if (part.startsWith('**') && part.endsWith('**')) {
+      if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
         return <strong key={i} className="font-bold text-gray-900 dark:text-white">{part.slice(2, -2)}</strong>;
       }
+      
+      // Italic
+      if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+         // check if it's not actually bold (handled above, but safety check)
+         if (!part.startsWith('**')) {
+             return <em key={i} className="italic text-gray-700 dark:text-gray-300">{part.slice(1, -1)}</em>;
+         }
+      }
+
       // Entity Chip
       if (part.startsWith('[[') && part.endsWith(']]')) {
         return (

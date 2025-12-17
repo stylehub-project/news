@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Bot, BarChart2, GitMerge, FileText, ExternalLink, ArrowRight, ShieldAlert, Flag, Info, CheckCircle2 } from 'lucide-react';
+import { User, Bot, ExternalLink, ArrowRight, Flag, Info, CheckCircle2 } from 'lucide-react';
 import HighlightReadingMode from '../HighlightReadingMode';
 import StoryboardAttachment, { StoryboardData } from './StoryboardAttachment';
 import ImageAttachment from './ImageAttachment';
@@ -15,7 +15,7 @@ export interface MessageAttachment {
 
 export interface Message {
   id: string;
-  role: 'user' | 'ai';
+  role: 'user' | 'ai' | 'model';
   content: string;
   attachments?: MessageAttachment[];
   timestamp?: string;
@@ -65,10 +65,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                 {isUser ? (
                     <p className="whitespace-pre-wrap font-medium">{message.content}</p>
                 ) : (
-                    <div className="relative">
+                    <div className="relative min-h-[20px]">
                         <SmartTextRenderer content={message.content} />
                         {message.isStreaming && (
-                            <span className="inline-block w-2 h-4 bg-indigo-500 ml-1 animate-pulse align-middle"></span>
+                            <span className="inline-block w-2 h-4 bg-indigo-500 dark:bg-indigo-400 ml-1 align-middle animate-pulse rounded-sm"></span>
                         )}
                     </div>
                 )}
@@ -91,62 +91,76 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                     </div>
                 )}
 
-                {/* Safety Footer */}
+                {/* Sources & Footer */}
                 {!isUser && !message.isStreaming && (
-                    <div className="mt-3 pt-3 border-t border-gray-50 dark:border-gray-700 flex items-center justify-between opacity-60 hover:opacity-100 transition-opacity">
-                        <div className="flex items-center gap-1.5 text-[10px] text-gray-400 dark:text-gray-500">
-                            <Info size={10} />
-                            <span>AI-generated. Verify details.</span>
-                        </div>
-                        <div className="flex gap-2">
-                            {isReported ? (
-                                <span className="text-[10px] text-green-600 flex items-center gap-1"><CheckCircle2 size={10}/> Reported</span>
-                            ) : (
-                                <button 
-                                    onClick={handleReport}
-                                    className="p-1 hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 rounded transition-colors" 
-                                    title="Report inaccurate answer"
-                                >
-                                    <Flag size={10} />
-                                </button>
-                            )}
+                    <div className="mt-3 pt-3 border-t border-gray-50 dark:border-gray-700 flex flex-col gap-2 opacity-80 hover:opacity-100 transition-opacity">
+                        
+                        {/* Sources Grid */}
+                        {message.sources && message.sources.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-1">
+                                {message.sources.map((src, i) => (
+                                    <a 
+                                        key={i} 
+                                        href={src.url} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-gray-200 dark:border-gray-600 px-2 py-1 rounded-md text-[10px] text-gray-600 dark:text-gray-300 font-medium transition-colors"
+                                    >
+                                        <ExternalLink size={10} />
+                                        <span className="truncate max-w-[100px]">{src.name}</span>
+                                    </a>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5 text-[10px] text-gray-400 dark:text-gray-500">
+                                <Info size={10} />
+                                <span>AI-generated. Verify details.</span>
+                            </div>
+                            <div className="flex gap-2">
+                                {isReported ? (
+                                    <span className="text-[10px] text-green-600 flex items-center gap-1"><CheckCircle2 size={10}/> Reported</span>
+                                ) : (
+                                    <button 
+                                        onClick={handleReport}
+                                        className="p-1 hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 rounded transition-colors" 
+                                        title="Report inaccurate answer"
+                                    >
+                                        <Flag size={10} />
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
                 </div>
                 
-                {/* Metadata */}
+                {/* Timestamp */}
                 <div className="flex items-center gap-2 mt-1 px-1 flex-wrap">
                     {message.timestamp && (
                         <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">
                             {message.timestamp}
                         </span>
                     )}
-                    
-                    {message.sources && message.sources.map((src, i) => (
-                        <div key={i} className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full text-[10px] text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer">
-                            <ExternalLink size={8} />
-                            {src.name}
-                        </div>
-                    ))}
                 </div>
+                
+                {/* Suggested Actions */}
+                {!isUser && !message.isStreaming && message.suggestedActions && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                        {message.suggestedActions.map((action, i) => (
+                            <button
+                                key={i}
+                                onClick={() => onActionClick?.(action)}
+                                className="bg-white dark:bg-gray-800 border border-indigo-100 dark:border-indigo-900 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-full text-xs font-medium hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors shadow-sm flex items-center gap-1"
+                            >
+                                {action} <ArrowRight size={12} />
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
-
-        {/* Suggested Actions */}
-        {!isUser && !message.isStreaming && message.suggestedActions && message.suggestedActions.length > 0 && (
-            <div className="ml-11 mt-2 flex flex-wrap gap-2 animate-in slide-in-from-top-1 duration-300">
-                {message.suggestedActions.map((action, i) => (
-                    <button 
-                        key={i}
-                        onClick={() => onActionClick?.(action)}
-                        className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-800 px-3 py-1.5 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/60 hover:border-indigo-200 transition-all active:scale-95"
-                    >
-                        {action} <ArrowRight size={10} />
-                    </button>
-                ))}
-            </div>
-        )}
     </div>
   );
 };
