@@ -18,13 +18,12 @@ import Toast from '../../components/ui/Toast';
 
 // --- Helper: Sanitize History ---
 // Ensures strict User -> Model -> User -> Model alternation
-// Drops any trailing user messages to prevent "User, User" sequence errors
 const cleanHistory = (msgs: Message[]) => {
     const history: { role: 'user' | 'model', parts: { text: string }[] }[] = [];
     let expectingUser = true;
     
     for (const m of msgs) {
-        // Skip admin/empty messages (system role not supported in types)
+        // Skip admin/empty messages
         if (m.id.startsWith('admin') || !m.content) continue;
         
         if (expectingUser && m.role === 'user') {
@@ -36,13 +35,27 @@ const cleanHistory = (msgs: Message[]) => {
         }
     }
     
-    // If history ends with User, we must pop it because we are about to send a NEW user message via sendMessage()
-    // The chat session needs to be in a state waiting for User input, meaning the last message in history must be Model.
     if (history.length > 0 && history[history.length - 1].role === 'user') {
         history.pop();
     }
     
     return history;
+};
+
+// --- Helper: Secure API Key Access ---
+const getApiKey = () => {
+    // 1. Try window.process shim (injected by index.html)
+    // @ts-ignore
+    if (typeof window !== 'undefined' && window.process?.env?.API_KEY) {
+        // @ts-ignore
+        return window.process.env.API_KEY;
+    }
+    // 2. Try standard process.env (bundler replacement)
+    try {
+        if (process.env.API_KEY) return process.env.API_KEY;
+    } catch (e) {}
+    
+    return null;
 };
 
 // --- Mock Services ---
@@ -114,13 +127,13 @@ const ChatPage: React.FC = () => {
   useEffect(() => {
     const initChat = async () => {
         try {
-            if (!process.env.API_KEY) {
+            const apiKey = getApiKey();
+            if (!apiKey) {
                 console.warn("API Key missing");
-                // Don't error out yet, just wait for user action to show toast
                 return;
             }
 
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey });
             const history = cleanHistory(messages);
 
             chatSessionRef.current = ai.chats.create({
@@ -137,11 +150,11 @@ const ChatPage: React.FC = () => {
         }
     };
 
-    // Re-initialize if chat session is lost or history changes significantly (e.g. clear)
+    // Re-initialize if chat session is lost or history changes significantly
     if (!chatSessionRef.current || messages.length === 1) {
         initChat();
     }
-  }, [messages.length === 1]); // Only re-init on fresh start or clear
+  }, [messages.length === 1]); 
 
   // --- Context Logic ---
   useEffect(() => {
@@ -199,7 +212,6 @@ const ChatPage: React.FC = () => {
           }];
           setMessages(resetMsg);
           sessionStorage.removeItem('news_club_chat_session');
-          // Force re-init next effect cycle
           chatSessionRef.current = null; 
       }
   };
@@ -220,8 +232,9 @@ const ChatPage: React.FC = () => {
   const handleSend = async (text: string) => {
     if (!text.trim()) return;
 
-    if (!process.env.API_KEY) {
-        setToastMessage("API Key is missing in environment.");
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        setToastMessage("API Key is missing. Please check configuration.");
         setShowToast(true);
         return;
     }
@@ -252,8 +265,8 @@ const ChatPage: React.FC = () => {
 
     try {
         if (!chatSessionRef.current) {
-             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-             const history = cleanHistory(messages); // Use the currently displayed messages as source of truth
+             const ai = new GoogleGenAI({ apiKey });
+             const history = cleanHistory(messages);
              chatSessionRef.current = ai.chats.create({
                 model: 'gemini-2.5-flash',
                 history: history,
@@ -298,7 +311,6 @@ const ChatPage: React.FC = () => {
     } catch (error: any) {
         console.error("Gemini Error:", error);
         
-        // Handle specific error codes if needed, but for now generic fallback
         let errorMsg = "I'm having trouble connecting to the news servers.";
         if (error.message?.includes("API key")) errorMsg = "Invalid API Key configuration.";
         if (error.message?.includes("fetch")) errorMsg = "Network error. Please check your connection.";
@@ -307,7 +319,6 @@ const ChatPage: React.FC = () => {
             m.id === aiMsgId ? { ...m, content: errorMsg + " Please try again.", isStreaming: false } : m
         ));
         
-        // Reset chat session to force re-clean of history on next attempt
         chatSessionRef.current = null;
         
         setIsLoading(false);
