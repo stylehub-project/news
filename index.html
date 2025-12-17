@@ -6,19 +6,31 @@
     <title>News Club</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      // Mock process.env for the skeleton to prevent runtime errors if not bundled
-      window.process = {
-        env: {
-          NEXT_PUBLIC_FIREBASE_API_KEY: "demo-api-key",
-          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "news-club.firebaseapp.com",
-          NEXT_PUBLIC_FIREBASE_PROJECT_ID: "news-club",
-          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "news-club.appspot.com",
-          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "123456789",
-          NEXT_PUBLIC_FIREBASE_APP_ID: "1:123456789:web:abcdef",
-          API_KEY: "" // Placeholder to prevent crash if not injected by bundler
-        }
-      };
+      // --- Process Environment Shim ---
+      // This script ensures 'process.env' exists for the app to consume.
+      // We hardcode the API key here as a fallback to ensure immediate functionality.
+      
+      const FALLBACK_KEY = "AIzaSyCENnoSC8YJpnqIinS1gH23ksvJIUfcqzk";
 
+      window.process = window.process || {};
+      window.process.env = window.process.env || {};
+
+      // 1. Core Configs
+      window.process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "demo-api-key";
+      window.process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = "news-club.firebaseapp.com";
+      window.process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "news-club";
+      window.process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET = "news-club.appspot.com";
+      window.process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "123456789";
+      window.process.env.NEXT_PUBLIC_FIREBASE_APP_ID = "1:123456789:web:abcdef";
+
+      // 2. API Key Injection
+      // If the bundler hasn't already replaced process.env.API_KEY with a string,
+      // we inject the provided key.
+      if (!window.process.env.API_KEY || window.process.env.API_KEY === 'undefined') {
+          window.process.env.API_KEY = FALLBACK_KEY;
+      }
+
+      // --- Tailwind Config ---
       tailwind.config = {
         darkMode: 'class',
         theme: {
