@@ -11,14 +11,15 @@ interface HeatmapLayerProps {
 const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ markers, visible, mode, onZoneClick }) => {
   if (!visible) return null;
 
-  // Advanced Clustering
+  // Advanced Clustering with Sentiment Calculation
   const clusters = useMemo(() => {
       const zones: any[] = [];
       const threshold = 15; // Distance threshold %
 
       markers.forEach(marker => {
           let added = false;
-          // Convert text sentiment to score
+          
+          // Convert text sentiment to numerical score for averaging
           let sentimentScore = 0;
           if (marker.sentiment === 'Positive') sentimentScore = 1;
           else if (marker.sentiment === 'Tense' || marker.sentiment === 'Negative') sentimentScore = -1;
@@ -26,12 +27,13 @@ const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ markers, visible, mode, onZ
           for (const zone of zones) {
               const dx = Math.abs(zone.x - marker.x);
               const dy = Math.abs(zone.y - marker.y);
+              
               if (dx < threshold && dy < threshold) {
                   zone.markers.push(marker);
                   zone.intensity += marker.impactRadius;
                   zone.totalSentiment += sentimentScore;
                   
-                  // Re-center zone weighted avg
+                  // Weighted re-centering of zone
                   zone.x = (zone.x * zone.count + marker.x) / (zone.count + 1);
                   zone.y = (zone.y * zone.count + marker.y) / (zone.count + 1);
                   zone.count += 1;
@@ -58,15 +60,14 @@ const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ markers, visible, mode, onZ
 
   const getSentimentColor = (totalScore: number, count: number) => {
       const avg = totalScore / count;
-      if (avg > 0.3) return 'bg-green-500';
-      if (avg < -0.3) return 'bg-red-500';
-      return 'bg-yellow-400';
+      if (avg > 0.3) return 'bg-green-500'; // Positive
+      if (avg < -0.3) return 'bg-red-600'; // Negative/Tense
+      return 'bg-yellow-400'; // Neutral
   };
 
   return (
     <div className="absolute inset-0 z-0 overflow-hidden animate-in fade-in duration-1000 pointer-events-none">
       {clusters.map((zone) => {
-        // Visual Logic
         const isHot = zone.intensity > 10;
         const avgSentiment = zone.totalSentiment / zone.count;
         
@@ -74,11 +75,12 @@ const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ markers, visible, mode, onZ
         let colorClass = 'bg-orange-400';
         let opacityClass = isHot ? 'opacity-30' : 'opacity-20';
 
+        // 8.13.6 Sentiment Map Logic
         if (mode === 'sentiment') {
             colorClass = getSentimentColor(zone.totalSentiment, zone.count);
-            // Sentiment blobs are slightly more opaque to see the color clearly
-            opacityClass = 'opacity-40'; 
+            opacityClass = 'opacity-40'; // Slightly more opaque for color visibility
         } else {
+            // Intensity Mode
             colorClass = isHot ? 'bg-red-500' : 'bg-orange-400';
         }
 
@@ -98,7 +100,7 @@ const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ markers, visible, mode, onZ
                     style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
                 />
 
-                {/* Interactive Trigger */}
+                {/* Interactive Trigger & Icon */}
                 {isHot && (
                     <button
                         onClick={(e) => {

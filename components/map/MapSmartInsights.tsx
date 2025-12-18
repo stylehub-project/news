@@ -28,7 +28,7 @@ const MapSmartInsights: React.FC = () => {
   if (!show) return null;
 
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 animate-in slide-in-from-top-4 fade-in duration-500">
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 animate-in slide-in-from-top-4 fade-in duration-500 pointer-events-auto">
       <div className="bg-white/90 backdrop-blur-md pl-3 pr-8 py-2 rounded-full shadow-lg border border-indigo-100 flex items-center gap-2 max-w-[280px] md:max-w-md relative">
         <Sparkles size={14} className="text-indigo-600 animate-pulse shrink-0" />
         <p className="text-xs font-medium text-gray-700 truncate">{insight}</p>

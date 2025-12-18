@@ -23,7 +23,7 @@ const MapToolbar: React.FC<MapToolbarProps> = ({
   isCompareMode
 }) => {
   return (
-    <div className="absolute top-20 right-4 flex flex-col gap-3 z-20" role="toolbar" aria-label="Map controls">
+    <div className="absolute top-20 right-4 flex flex-col gap-3 z-20 pointer-events-auto" role="toolbar" aria-label="Map controls">
       {/* Zoom Controls */}
       <div className="flex flex-col bg-white/90 backdrop-blur-md rounded-xl shadow-lg border border-white/20 overflow-hidden">
         <button onClick={onZoomIn} className="p-3 hover:bg-gray-100 border-b border-gray-100 text-gray-700">
