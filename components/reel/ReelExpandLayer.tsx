@@ -6,6 +6,7 @@ interface ReelExpandLayerProps {
   isOpen: boolean;
   onClose: () => void;
   data: {
+    id: string;
     title: string;
     description: string;
     source: string;
@@ -21,7 +22,24 @@ interface ReelExpandLayerProps {
 const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data }) => {
   const navigate = useNavigate();
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
+  // Load voices securely
+  useEffect(() => {
+    const loadVoices = () => {
+      const vs = window.speechSynthesis.getVoices();
+      setVoices(vs);
+    };
+    
+    loadVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+    
+    return () => { window.speechSynthesis.onvoiceschanged = null; };
+  }, []);
+
+  // Stop voice when closing
   useEffect(() => {
     if (!isOpen) {
       window.speechSynthesis.cancel();
@@ -29,30 +47,65 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
     }
   }, [isOpen]);
 
+  const getBestVoice = () => {
+      return voices.find(v => v.name === "Google US English") || 
+             voices.find(v => v.name === "Microsoft Zira - English (United States)") || 
+             voices.find(v => v.name.includes("Samantha")) || 
+             voices.find(v => v.name.includes("Female") && v.lang.startsWith("en")) ||
+             voices.find(v => v.lang.startsWith("en")) ||
+             voices[0];
+  };
+
   const toggleVoice = () => {
     if (isPlayingVoice) {
       window.speechSynthesis.cancel();
       setIsPlayingVoice(false);
     } else {
+      // Prioritize AI summary, fallback to description
       const text = data.aiSummary || data.description;
+      if (!text) return;
+
+      // Cancel any ongoing speech first
+      window.speechSynthesis.cancel();
+
       const utterance = new SpeechSynthesisUtterance(text);
+      const voice = getBestVoice();
+      if (voice) utterance.voice = voice;
+      
+      utterance.pitch = 1.1; // Sweet/Cute pitch
+      utterance.rate = 1.0;
+      utterance.volume = 1.0;
+
       utterance.onend = () => setIsPlayingVoice(false);
+      utterance.onerror = (e) => {
+          console.error("Speech Error", e);
+          setIsPlayingVoice(false);
+      };
+
       window.speechSynthesis.speak(utterance);
       setIsPlayingVoice(true);
     }
   };
 
   const handleChat = () => {
-      // In a real app, we'd pass the reel ID or context
-      navigate('/ai-chat?context=reel');
+      navigate(`/ai-chat?context=reel&headline=${encodeURIComponent(data.title)}`);
+  };
+
+  const handleFullArticle = () => {
+      navigate(`/news/${data.id}`);
+  };
+
+  const handleLocationClick = () => {
+      navigate('/map');
   };
 
   return (
     <div 
       className={`absolute inset-0 z-50 bg-gray-900/95 backdrop-blur-xl transition-transform duration-500 ease-out flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+      onClick={(e) => e.stopPropagation()} // Stop click propagation to parent
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-800 bg-gray-900/50 backdrop-blur-md sticky top-0 z-20">
+      <div className="flex items-center justify-between p-4 border-b border-gray-800 bg-gray-900/50 backdrop-blur-md sticky top-0 z-20 shrink-0">
         <div className="flex items-center gap-2 text-indigo-400">
             <Sparkles size={18} className="animate-pulse" />
             <span className="font-bold text-sm tracking-wider uppercase">AI Analysis</span>
@@ -62,8 +115,8 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
         </button>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-6 pb-20 custom-scrollbar">
+      {/* Content - flex-1 and overflow-y-auto ensures scrolling */}
+      <div className="flex-1 overflow-y-auto p-5 pb-24 space-y-6 custom-scrollbar overscroll-contain">
         
         {/* Fact Check Badge */}
         {data.factCheck && (
@@ -91,12 +144,12 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
                 </h3>
                 <button 
                     onClick={toggleVoice}
-                    className="p-2 rounded-full bg-indigo-600/30 hover:bg-indigo-600/50 text-white transition-colors"
+                    className={`p-2 rounded-full transition-all ${isPlayingVoice ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.6)] animate-pulse' : 'bg-indigo-600/30 text-white hover:bg-indigo-600/50'}`}
                 >
                     {isPlayingVoice ? <Pause size={16} /> : <Volume2 size={16} />}
                 </button>
             </div>
-            <p className="text-gray-200 text-sm leading-relaxed relative z-10 font-medium">
+            <p className="text-gray-200 text-sm leading-relaxed relative z-10 font-medium whitespace-pre-wrap">
                 {data.aiSummary || data.description}
             </p>
         </div>
@@ -120,14 +173,14 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
 
         {/* Location Insight */}
         {data.location ? (
-            <div>
-                <h4 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
+            <div onClick={handleLocationClick} className="cursor-pointer group">
+                <h4 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2 group-hover:text-white transition-colors">
                     <MapPin size={14} /> Location Context
                 </h4>
-                <div className="h-32 w-full bg-gray-800 rounded-xl overflow-hidden relative border border-gray-700 group">
+                <div className="h-32 w-full bg-gray-800 rounded-xl overflow-hidden relative border border-gray-700 group-hover:border-emerald-500/50 transition-colors">
                     <div className="absolute inset-0 bg-[url('https://upload.wikimedia.org/wikipedia/commons/e/ec/World_map_blank_without_borders.svg')] bg-cover bg-center opacity-40 group-hover:opacity-60 transition-opacity group-hover:scale-105 duration-700"></div>
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="flex items-center gap-2 bg-black/60 px-4 py-2 rounded-full backdrop-blur-md border border-gray-600 shadow-lg">
+                        <div className="flex items-center gap-2 bg-black/60 px-4 py-2 rounded-full backdrop-blur-md border border-gray-600 shadow-lg group-hover:bg-emerald-900/80 group-hover:border-emerald-500/50 transition-colors">
                             <Globe size={14} className="text-emerald-400" />
                             <span className="text-xs font-bold text-white">{data.location.name}</span>
                         </div>
@@ -167,7 +220,7 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
       </div>
 
       {/* Footer CTA */}
-      <div className="p-4 border-t border-gray-800 bg-gray-900/90 backdrop-blur-md sticky bottom-0 z-20 flex gap-3">
+      <div className="p-4 border-t border-gray-800 bg-gray-900/90 backdrop-blur-md sticky bottom-0 z-20 flex gap-3 shrink-0 shadow-[0_-10px_20px_rgba(0,0,0,0.5)]">
           <button 
             onClick={handleChat} 
             className="p-3.5 bg-gray-800 text-indigo-400 rounded-xl hover:bg-gray-700 transition-colors border border-gray-700"
@@ -175,7 +228,10 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
           >
               <MessageSquare size={18} />
           </button>
-          <button className="flex-1 py-3.5 bg-white text-black font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors shadow-lg active:scale-95">
+          <button 
+            onClick={handleFullArticle}
+            className="flex-1 py-3.5 bg-white text-black font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors shadow-lg active:scale-95"
+          >
               Read Full Article <ArrowRight size={18} />
           </button>
       </div>

@@ -53,9 +53,8 @@ const ReelInfoBar: React.FC<ReelInfoBarProps> = ({
   }
 
   return (
-    // Reduced bottom padding (pb-8) since full-screen reels don't have bottom nav
-    <div className="absolute left-0 bottom-0 w-full p-5 pb-8 z-10 pointer-events-none flex flex-col items-start gap-3">
-      {/* Width limited to avoid right action bar overlap */}
+    // Increase bottom padding from pb-24 to pb-32 to clear safe areas on mobile
+    <div className="absolute left-0 bottom-0 w-full p-5 pb-32 z-10 pointer-events-none flex flex-col items-start gap-3">
       <div className="pointer-events-auto w-[82%] max-w-[500px]">
         
         {/* Personalization Signal */}
@@ -100,15 +99,6 @@ const ReelInfoBar: React.FC<ReelInfoBarProps> = ({
                 <HighlightText text={description} highlights={tags} />
             </p>
         </div>
-
-        {/* Tags */}
-        {tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-4 animate-in slide-in-from-bottom-5 duration-1000 delay-100">
-            {tags.slice(0, 3).map((tag, i) => (
-                <span key={i} className="text-[10px] text-gray-400 font-medium">#{tag}</span>
-            ))}
-            </div>
-        )}
 
         {/* CTA */}
         <button 

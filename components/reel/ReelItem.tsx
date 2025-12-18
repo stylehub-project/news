@@ -32,14 +32,12 @@ interface ReelItemProps {
   };
   isActive: boolean;
   isAutoScroll: boolean;
-  isMuted: boolean;
   onFinished: () => void;
 }
 
-const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMuted, onFinished }) => {
+const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFinished }) => {
   // --- Media State ---
   const [isVideo] = useState(!!data.videoUrl);
-  const [isPlaying, setIsPlaying] = useState(true);
   const [isBuffering, setIsBuffering] = useState(false);
   const [progress, setProgress] = useState(0);
   const [mediaLoaded, setMediaLoaded] = useState(false);
@@ -48,7 +46,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false); // AI Explain
+  const [isExpanded, setIsExpanded] = useState(false); 
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [showLikeAnimation, setShowLikeAnimation] = useState(false);
@@ -60,48 +58,33 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const wasPlayingBeforeLongPress = useRef(true);
 
-  const REEL_DURATION = 10000;
+  const REEL_DURATION = 15000; 
   const UPDATE_INTERVAL = 50;
-
-  // --- Lifecycle & Logic ---
 
   useEffect(() => {
     if (!isActive) {
       setProgress(0);
-      setIsPlaying(false);
       setIsExpanded(false);
       setIsCommentsOpen(false);
       setIsShareOpen(false);
       setIsOptionsOpen(false);
-      window.speechSynthesis.cancel();
       
       if (videoRef.current) {
         videoRef.current.pause();
         videoRef.current.currentTime = 0;
       }
     } else {
-      setIsPlaying(true);
       if (videoRef.current && mediaLoaded) {
-        videoRef.current.play().catch(() => setIsPlaying(false));
+        videoRef.current.play().catch(() => {});
       }
     }
-    return () => {
-       if (progressInterval.current) clearInterval(progressInterval.current);
-       window.speechSynthesis.cancel();
-    };
   }, [isActive, mediaLoaded]);
-
-  useEffect(() => {
-      if (videoRef.current) videoRef.current.muted = isMuted;
-  }, [isMuted]);
 
   useEffect(() => {
     const isPausedInteraction = isExpanded || isCommentsOpen || isShareOpen || isOptionsOpen;
 
-    if (isActive && isPlaying && !isPausedInteraction) {
+    if (isActive && !isPausedInteraction) {
       if (isVideo) {
           if (videoRef.current && videoRef.current.paused && mediaLoaded) {
               videoRef.current.play().catch(() => {});
@@ -111,7 +94,6 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
             setProgress((prev) => {
               if (prev >= 100) {
                 if (isAutoScroll) onFinished();
-                else setIsPlaying(false);
                 return 100;
               }
               return prev + (UPDATE_INTERVAL / REEL_DURATION) * 100;
@@ -121,15 +103,12 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
     } else {
       if (progressInterval.current) clearInterval(progressInterval.current);
       if (videoRef.current && !videoRef.current.paused) videoRef.current.pause();
-      window.speechSynthesis.pause();
     }
 
     return () => {
       if (progressInterval.current) clearInterval(progressInterval.current);
     };
-  }, [isActive, isPlaying, isVideo, isAutoScroll, onFinished, isExpanded, isCommentsOpen, isShareOpen, isOptionsOpen, mediaLoaded]);
-
-  // --- Handlers ---
+  }, [isActive, isVideo, isAutoScroll, onFinished, isExpanded, isCommentsOpen, isShareOpen, isOptionsOpen, mediaLoaded]);
 
   const handleVideoTimeUpdate = () => {
       if (videoRef.current && videoRef.current.duration > 0) {
@@ -138,11 +117,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
   };
 
   const handleVideoEnded = () => {
-      if (isAutoScroll) {
-          onFinished();
-      } else {
-          setIsPlaying(false);
-      }
+      if (isAutoScroll) onFinished();
   };
 
   const handleLike = (e?: React.MouseEvent) => {
@@ -169,7 +144,6 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
 
   const handleShare = async (e?: React.MouseEvent) => {
       e?.stopPropagation();
-      // Try Native Share
       if (navigator.share) {
           try {
               await navigator.share({
@@ -177,53 +151,29 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
                   text: data.description,
                   url: window.location.href,
               });
-          } catch (err) {
-              console.log('Share canceled');
-          }
+          } catch (err) {}
       } else {
-          // Fallback
           setIsShareOpen(true);
       }
   };
 
-  // Only handle touch events if not expanded
   const handleTouchStart = (e: React.TouchEvent) => {
     if (isExpanded) return;
     touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, time: Date.now() };
-    longPressTimerRef.current = setTimeout(() => {
-        wasPlayingBeforeLongPress.current = isPlaying;
-        setIsPlaying(false); 
-    }, 200); 
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (isExpanded) return;
-    if (!touchStartRef.current) return;
-    if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); longPressTimerRef.current = null; }
+    if (isExpanded || !touchStartRef.current) return;
 
     const diffX = e.changedTouches[0].clientX - touchStartRef.current.x;
+    const diffY = e.changedTouches[0].clientY - touchStartRef.current.y;
     const diffTime = Date.now() - touchStartRef.current.time;
 
-    if (diffTime > 200 && Math.abs(diffX) < 10) {
-        if (wasPlayingBeforeLongPress.current) setIsPlaying(true);
-        return; 
+    // Small movement and short time = Click/Tap
+    // REPLACE PAUSE WITH EXPAND AS REQUESTED
+    if (diffTime < 250 && Math.abs(diffX) < 10 && Math.abs(diffY) < 10) {
+        setIsExpanded(true);
     }
-    if (diffTime < 200 && Math.abs(diffX) < 10) {
-        setIsPlaying(prev => !prev);
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-      if (isExpanded) return;
-      if (!touchStartRef.current) return;
-      const diffX = e.touches[0].clientX - touchStartRef.current.x;
-      const diffY = e.touches[0].clientY - touchStartRef.current.y;
-
-      // Swipe Left to Expand
-      if (diffX < -60 && Math.abs(diffY) < 50) {
-          if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
-          setIsExpanded(true);
-      }
   };
 
   const handleDoubleClick = (e: React.MouseEvent) => {
@@ -241,10 +191,8 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
         className="h-full w-full relative bg-gray-900 flex items-center justify-center overflow-hidden select-none touch-pan-y"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        onTouchMove={handleTouchMove}
         onDoubleClick={handleDoubleClick}
     >
-      {/* --- Toast Notification --- */}
       {toast.show && (
           <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[60]">
               <Toast 
@@ -256,12 +204,11 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
           </div>
       )}
 
-      {/* --- Media Layer --- */}
       <div className="absolute inset-0 bg-black">
         <img 
             src={data.imageUrl}
             className={`absolute inset-0 w-full h-full object-cover blur-2xl scale-110 transition-opacity duration-700 ${mediaLoaded ? 'opacity-0' : 'opacity-100'}`}
-            alt="Blur Placeholder"
+            alt=""
         />
         
         {isVideo ? (
@@ -272,7 +219,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
                 className={`w-full h-full object-cover transition-opacity duration-500 ${mediaLoaded ? 'opacity-100' : 'opacity-0'}`}
                 loop={!isAutoScroll}
                 playsInline
-                muted={isMuted}
+                muted
                 onLoadedData={() => setMediaLoaded(true)}
                 onTimeUpdate={handleVideoTimeUpdate}
                 onEnded={handleVideoEnded}
@@ -283,15 +230,14 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
             <img 
                 src={data.imageUrl} 
                 onLoad={() => setMediaLoaded(true)}
-                className={`w-full h-full object-cover transition-all duration-[15000ms] ease-linear will-change-transform ${mediaLoaded ? 'opacity-90' : 'opacity-0'} ${isActive && isPlaying ? 'scale-110' : 'scale-100'}`}
-                alt="News Content" 
+                className={`w-full h-full object-cover transition-all duration-[15000ms] ease-linear will-change-transform ${mediaLoaded ? 'opacity-90' : 'opacity-0'} ${isActive ? 'scale-110' : 'scale-100'}`}
+                alt="" 
             />
         )}
         
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/90 pointer-events-none" />
       </div>
 
-      {/* --- Overlays --- */}
       {isBuffering && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
               <Loader2 size={48} className="text-white/80 animate-spin" />
@@ -305,28 +251,17 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
         />
       </div>
 
-      {!isPlaying && !isExpanded && !isBuffering && (
-        <div className="absolute inset-0 flex items-center justify-center z-30 bg-black/10 backdrop-blur-[1px] animate-in fade-in duration-200 pointer-events-none">
-            <div className="p-4 bg-black/40 rounded-full text-white backdrop-blur-md border border-white/10">
-                <Play size={48} fill="currentColor" />
-            </div>
-        </div>
-      )}
-
       {showLikeAnimation && <LikeAnimation />}
 
-      {/* Expanded Layer (AI Analysis) */}
       <ReelExpandLayer 
         isOpen={isExpanded} 
         onClose={() => setIsExpanded(false)} 
         data={data}
       />
 
-      {/* --- UI Controls --- */}
-      {/* Hide controls when expanded to clear view */}
       <div className={`transition-opacity duration-300 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <ReelActionBar 
-            likes={isLiked ? (parseInt(data.likes) + 1).toString() : data.likes} // Optimistic update
+            likes={isLiked ? (parseInt(data.likes) + 1).toString() : data.likes}
             comments={data.comments}
             isLiked={isLiked}
             isSaved={isSaved}
@@ -354,20 +289,9 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, isMut
       </div>
 
       <div onClick={(e) => e.stopPropagation()}>
-        <ReelCommentsSheet 
-            isOpen={isCommentsOpen} 
-            onClose={() => setIsCommentsOpen(false)} 
-        />
-        <ReelShareSheet
-            isOpen={isShareOpen}
-            onClose={() => setIsShareOpen(false)}
-        />
-        <ReelOptionsSheet
-            isOpen={isOptionsOpen}
-            onClose={() => setIsOptionsOpen(false)}
-            category={data.category}
-            source={data.source}
-        />
+        <ReelCommentsSheet isOpen={isCommentsOpen} onClose={() => setIsCommentsOpen(false)} />
+        <ReelShareSheet isOpen={isShareOpen} onClose={() => setIsShareOpen(false)} />
+        <ReelOptionsSheet isOpen={isOptionsOpen} onClose={() => setIsOptionsOpen(false)} category={data.category} source={data.source} />
       </div>
     </div>
   );

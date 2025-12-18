@@ -59,9 +59,10 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoa
         </button>
 
         {/* Send Button */}
+        {/* Fix: Changed size from 'icon-button' to 'md' because 'icon-button' is not a valid size type. The layout is handled by custom classes. */}
         <Button 
             variant="primary" 
-            size="icon-button"
+            size="md"
             className={`rounded-full w-10 h-10 flex items-center justify-center transition-all duration-300 ${text.trim() ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
             onClick={() => handleSubmit()}
             disabled={!text.trim() || isLoading}

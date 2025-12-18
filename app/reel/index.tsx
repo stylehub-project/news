@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, Zap, Volume2, VolumeX, PlayCircle, Loader2 } from 'lucide-react';
+import { ChevronLeft, Zap, PlayCircle, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ReelContainer from '../../components/reel/ReelContainer';
 import ReelItem from '../../components/reel/ReelItem';
@@ -13,7 +13,8 @@ const INITIAL_REELS = [
     id: '1',
     title: 'Global Markets Rally as Tech Giants Announce New AI Partnership',
     description: 'Major tech companies have agreed on a unified framework for AI development, causing stock markets to surge globally. Analysts predict this could be the biggest shift in the industry since the internet.',
-    imageUrl: 'https://images.unsplash.com/photo-1611974765270-ca1258634369?q=80&w=1000&auto=format&fit=crop',
+    // Updated Image URL to a reliable source
+    imageUrl: 'https://images.unsplash.com/photo-1611974765270-ca12586343bb?q=80&w=1000&auto=format&fit=crop', 
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-futuristic-robotic-arm-working-on-a-circuit-board-42996-large.mp4',
     source: 'TechCrunch',
     category: 'Technology',
@@ -42,7 +43,6 @@ const INITIAL_REELS = [
     title: 'SpaceX Successfully Launches Starship on Historic Mars Mission Test',
     description: 'The massive rocket cleared the tower and successfully separated its booster, marking a major milestone for interplanetary travel. Elon Musk declares "Mars awaits".',
     imageUrl: 'https://images.unsplash.com/photo-1517976487492-5750f3195933?q=80&w=1000&auto=format&fit=crop',
-    // Keeping this as an Image reel for variety
     source: 'SpaceNews',
     category: 'Space',
     aiEnhanced: false,
@@ -89,31 +89,6 @@ const INITIAL_REELS = [
         { id: 'r7', title: 'Lithium mining impact', image: 'https://picsum.photos/150/150?random=7', time: '2d ago' }
     ],
     personalizationReason: "Popular in Science"
-  },
-  {
-    id: '4',
-    title: 'Digital Art Sold for Record $50 Million at NFT Auction',
-    description: 'The digital masterpiece titled "The Future is Now" has shattered records, reigniting the debate about the value of digital assets.',
-    imageUrl: 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?q=80&w=1000&auto=format&fit=crop',
-    source: 'ArtWorld',
-    category: 'Culture',
-    aiEnhanced: false,
-    timeAgo: '2d ago',
-    likes: '2.1k',
-    comments: '150',
-    tags: ['NFT', 'Art', 'Crypto'],
-    aiSummary: "A digital artwork has set a new auction record, validating the high-end NFT market despite recent volatility. The piece explores themes of transhumanism.",
-    keyPoints: [
-        "Sold for $50M at Christie's.",
-        "Artist remains anonymous.",
-        "Crypto market sees slight bump."
-    ],
-    factCheck: { status: 'Verified', score: 99 },
-    location: { name: 'New York, NY', lat: 40.7128, lng: -74.0060 },
-    relatedNews: [
-        { id: 'r8', title: 'Crypto regulation updates', image: 'https://picsum.photos/150/150?random=8', time: '2d ago' }
-    ],
-    personalizationReason: "Nearby Event"
   }
 ];
 
@@ -123,10 +98,9 @@ const ReelPage: React.FC = () => {
   const [reels, setReels] = useState(INITIAL_REELS);
   const [activeReelId, setActiveReelId] = useState<string>(INITIAL_REELS[0].id);
   const [isAutoScroll, setIsAutoScroll] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
   const [isLoading, setIsLoading] = useState(!isLoaded('reel'));
   const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [showHint, setShowHint] = useState(true);
+  const [showHint, setShowHint] = useState(false);
   const [hasRestoredPosition, setHasRestoredPosition] = useState(false);
 
   // 1. Initial Load Simulation
@@ -135,6 +109,13 @@ const ReelPage: React.FC = () => {
           const timer = setTimeout(() => {
               setIsLoading(false);
               markAsLoaded('reel');
+              
+              // Only show hint to new users
+              const hintShown = localStorage.getItem('swipe_hint_shown');
+              if (!hintShown) {
+                  setShowHint(true);
+                  localStorage.setItem('swipe_hint_shown', 'true');
+              }
           }, 1500);
           return () => clearTimeout(timer);
       }
@@ -164,17 +145,12 @@ const ReelPage: React.FC = () => {
         // Find index
         const currentIndex = reels.findIndex(r => r.id === activeReelId);
         
-        // Preload next images (Video preload handled by browser usually, but we can hint)
+        // Preload next images
         const nextReels = reels.slice(currentIndex + 1, currentIndex + 3);
         nextReels.forEach(reel => {
             const img = new Image();
             img.src = reel.imageUrl;
         });
-
-        // Haptic Feedback
-        if (typeof navigator !== 'undefined' && navigator.vibrate) {
-            navigator.vibrate(15);
-        }
 
         // Trigger Infinite Fetch
         if (currentIndex >= reels.length - 2 && !isFetchingMore) {
@@ -187,12 +163,10 @@ const ReelPage: React.FC = () => {
   const fetchMoreReels = useCallback(() => {
       setIsFetchingMore(true);
       setTimeout(() => {
-          // In a real app, this would be an API call with pagination
-          // Here we recycle initial reels with new IDs to simulate infinite content
           const newReels = INITIAL_REELS.map(r => ({
               ...r,
               id: `${r.id}-${Date.now()}-${Math.random()}`,
-              title: `${r.title} (Page ${Math.floor(reels.length / 4) + 1})`
+              title: `${r.title} (Updated Feed)`
           }));
           
           setReels(prev => [...prev, ...newReels]);
@@ -211,7 +185,6 @@ const ReelPage: React.FC = () => {
             const id = entry.target.getAttribute('data-id');
             if (id) {
                 setActiveReelId(id);
-                if (id !== INITIAL_REELS[0].id) setShowHint(false);
             }
           }
         });
@@ -243,7 +216,7 @@ const ReelPage: React.FC = () => {
   return (
     <div className="h-full w-full bg-black relative">
       
-      {showHint && activeReelId === INITIAL_REELS[0].id && <SwipeHint />}
+      {showHint && activeReelId === reels[0].id && <SwipeHint />}
 
       {/* Top Header Overlay */}
       <div className="absolute top-0 left-0 w-full z-40 p-4 pt-4 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
@@ -268,14 +241,6 @@ const ReelPage: React.FC = () => {
                 <PlayCircle size={14} className={isAutoScroll ? 'animate-pulse' : ''} />
                 Auto-Scroll
              </button>
-
-             <button 
-                onClick={() => setIsMuted(!isMuted)}
-                className="p-2 bg-black/30 backdrop-blur-md border border-white/20 rounded-full text-white hover:bg-white/10"
-                aria-label={isMuted ? "Unmute" : "Mute"}
-             >
-                {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-             </button>
          </div>
       </div>
 
@@ -286,13 +251,11 @@ const ReelPage: React.FC = () => {
                 data={reel} 
                 isActive={activeReelId === reel.id} 
                 isAutoScroll={isAutoScroll}
-                isMuted={isMuted}
                 onFinished={handleNext}
              />
           </div>
         ))}
         
-        {/* Infinite Loading Indicator */}
         <div className="h-48 w-full snap-start flex items-center justify-center bg-black text-white">
             <div className="text-center p-4">
                 <Loader2 size={32} className="mx-auto mb-2 animate-spin text-blue-500" />

@@ -12,7 +12,7 @@ const BottomNav: React.FC = () => {
   const navItems = [
     { icon: Home, label: 'Home', path: '/' },
     { icon: Grid, label: 'Categories', path: '/categories' },
-    { icon: PlaySquare, label: 'Reel', path: '/reel' },
+    { icon: PlaySquare, label: 'News', path: '/reel' },
     { icon: MessageSquare, label: 'AI Chat', path: '/ai-chat' },
     { icon: User, label: 'Profile', path: '/profile' },
   ];

@@ -9,7 +9,9 @@ import {
     Bookmark, 
     Headphones, 
     Zap,
-    Mic
+    Mic,
+    MapPin,
+    ArrowRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import NewsCardBasic from '../../components/cards/NewsCardBasic';
@@ -155,6 +157,25 @@ const HomePage: React.FC = () => {
                      </div>
                  )
              })}
+          </div>
+      </div>
+
+      {/* 8.1 Map Entry Point (News Around You) */}
+      <div className="px-4 mb-4">
+          <div 
+            onClick={() => navigate('/map')}
+            className="w-full h-24 bg-gray-800 rounded-xl relative overflow-hidden flex items-center justify-between p-5 cursor-pointer shadow-sm group"
+          >
+              <div className="absolute inset-0 opacity-20 bg-[url('https://upload.wikimedia.org/wikipedia/commons/e/ec/World_map_blank_without_borders.svg')] bg-cover bg-center invert filter"></div>
+              <div className="relative z-10 text-white">
+                  <h3 className="font-bold text-lg flex items-center gap-2">
+                      <MapPin size={18} className="text-red-500" /> News Around You
+                  </h3>
+                  <p className="text-xs text-gray-300">Explore breaking news on the live map.</p>
+              </div>
+              <div className="relative z-10 bg-white/20 backdrop-blur-sm p-2 rounded-full group-hover:scale-110 transition-transform">
+                  <ArrowRight size={20} className="text-white" />
+              </div>
           </div>
       </div>
 
