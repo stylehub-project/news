@@ -1,4 +1,5 @@
 import React from 'react';
+import { Quote } from 'lucide-react';
 
 interface SmartTextRendererProps {
   content: string;
@@ -14,19 +15,20 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
     const imageMatch = trimmed.match(/^!\[(.*?)\]\((.*?)\)$/);
     if (imageMatch) {
         return (
-            <div key={index} className="my-4 rounded-xl overflow-hidden border border-white/10 bg-black/20 max-w-sm">
+            <div key={index} className="my-4 rounded-xl overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-black/20 max-w-sm">
                 <img src={imageMatch[2]} alt={imageMatch[1]} className="w-full h-auto object-cover" loading="lazy" />
-                {imageMatch[1] && <div className="p-2 text-xs text-gray-400 bg-black/40 text-center">{imageMatch[1]}</div>}
+                {imageMatch[1] && <div className="p-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-black/40 text-center">{imageMatch[1]}</div>}
             </div>
         );
     }
 
-    // 2. Callouts / Quotes
+    // 2. Callouts / Summaries (Lines starting with >)
     if (trimmed.startsWith('>')) {
       const cleanLine = trimmed.substring(1).trim();
       return (
-        <div key={index} className="my-3 pl-4 border-l-4 border-indigo-500 dark:border-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/20 py-2 pr-2 rounded-r-lg">
-          <p className="text-indigo-900 dark:text-indigo-200 italic font-medium">
+        <div key={index} className="my-3 flex gap-3 p-4 bg-indigo-50 dark:bg-indigo-900/20 border-l-4 border-indigo-500 rounded-r-xl shadow-sm">
+          <Quote size={18} className="text-indigo-400 shrink-0 mt-0.5 fill-indigo-200 dark:fill-indigo-900" />
+          <p className="text-indigo-900 dark:text-indigo-200 italic font-medium text-sm leading-relaxed">
             {parseInline(cleanLine)}
           </p>
         </div>
@@ -36,9 +38,9 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
     // 3. Bullet Points (Handle both '- ' and '* ')
     if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
         return (
-            <div key={index} className="flex gap-2 mb-1 pl-1 items-start">
-                <span className="text-indigo-500 dark:text-indigo-400 font-bold mt-[7px] text-[6px] shrink-0">●</span>
-                <p className="text-gray-800 dark:text-gray-200 leading-relaxed">{parseInline(trimmed.substring(2))}</p>
+            <div key={index} className="flex gap-3 mb-2 pl-2 items-start">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 dark:bg-indigo-400 mt-2 shrink-0"></span>
+                <p className="text-gray-800 dark:text-slate-200 leading-relaxed">{parseInline(trimmed.substring(2))}</p>
             </div>
         )
     }
@@ -46,7 +48,7 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
     // 4. Headers (###)
     if (trimmed.startsWith('### ')) {
         return (
-            <h3 key={index} className="text-base font-bold text-gray-900 dark:text-white mt-4 mb-2">
+            <h3 key={index} className="text-base font-bold text-gray-900 dark:text-white mt-5 mb-2">
                 {parseInline(trimmed.substring(4))}
             </h3>
         );
@@ -55,7 +57,7 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
     // 5. Headers (##)
     if (trimmed.startsWith('## ')) {
         return (
-            <h2 key={index} className="text-lg font-bold text-indigo-700 dark:text-indigo-300 mt-5 mb-2 border-b border-gray-100 dark:border-gray-700 pb-1">
+            <h2 key={index} className="text-lg font-black text-indigo-700 dark:text-indigo-300 mt-6 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
                 {parseInline(trimmed.substring(3))}
             </h2>
         );
@@ -63,11 +65,11 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
 
     // 6. Spacing
     if (trimmed === '') {
-        return <div key={index} className="h-3"></div>;
+        return <div key={index} className="h-2"></div>;
     }
 
     return (
-      <p key={index} className="mb-1 text-gray-800 dark:text-gray-200 leading-relaxed">
+      <p key={index} className="mb-2 text-gray-800 dark:text-slate-200 leading-relaxed">
         {parseInline(line)}
       </p>
     );
@@ -89,7 +91,7 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
       if (imgMatch) {
           return (
               <span key={i} className="inline-block align-middle mx-1">
-                  <a href={imgMatch[2]} target="_blank" rel="noopener noreferrer" className="text-blue-400 underline text-xs">
+                  <a href={imgMatch[2]} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 underline text-xs">
                       View Image ({imgMatch[1] || 'Link'})
                   </a>
               </span>
@@ -98,7 +100,7 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
 
       // Bold
       if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
-        return <strong key={i} className="font-bold text-gray-900 dark:text-white">{part.slice(2, -2)}</strong>;
+        return <strong key={i} className="font-extrabold text-gray-900 dark:text-white bg-gray-100 dark:bg-white/10 px-1 rounded-md mx-0.5">{part.slice(2, -2)}</strong>;
       }
       
       // Italic
@@ -111,7 +113,7 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
       // Entity Chip
       if (part.startsWith('[[') && part.endsWith(']]')) {
         return (
-          <span key={i} className="inline-block bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded text-xs font-bold mx-0.5 border border-blue-200 dark:border-blue-800 shadow-sm align-middle">
+          <span key={i} className="inline-flex items-center bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-200 px-2 py-0.5 rounded-full text-xs font-bold mx-1 border border-blue-200 dark:border-blue-700 shadow-sm align-middle select-all hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors cursor-default">
             {part.slice(2, -2)}
           </span>
         );

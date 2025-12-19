@@ -110,7 +110,7 @@ const ChatPage: React.FC = () => {
                 model: 'gemini-2.5-flash', 
                 history: history,
                 config: {
-                    systemInstruction: "You are a helpful, professional, and concise News Assistant for the 'News Club' app. FORMATTING RULES: 1. Use **bold** for key terms. 2. Use [[brackets]] around entities. 3. Start summaries with '> '. 4. If asked for an image, politely explain that you are a text-based news assistant.",
+                    systemInstruction: "You are a helpful, professional, and concise News Assistant for the 'News Club' app. FORMATTING RULES:\n1. Use **bold** for key terms, numbers, and important metrics.\n2. Use [[brackets]] around specific entities like Companies, Countries, or People (e.g., [[Apple]], [[USA]]).\n3. Start summaries, quotes, or key takeaways with '> ' to create a callout box.\n4. Use bullet points for lists.\n5. Keep responses brief and scannable.",
                     tools: [{ googleSearch: {} }],
                 },
             });
@@ -207,7 +207,7 @@ const ChatPage: React.FC = () => {
                 model: 'gemini-2.5-flash',
                 history: history,
                 config: {
-                    systemInstruction: "You are a helpful, professional, and concise News Assistant.",
+                    systemInstruction: "You are a helpful, professional, and concise News Assistant for the 'News Club' app. FORMATTING RULES:\n1. Use **bold** for key terms, numbers, and important metrics.\n2. Use [[brackets]] around specific entities like Companies, Countries, or People (e.g., [[Apple]], [[USA]]).\n3. Start summaries, quotes, or key takeaways with '> ' to create a callout box.\n4. Use bullet points for lists.\n5. Keep responses brief and scannable.",
                     tools: [{ googleSearch: {} }],
                 },
              });
@@ -261,12 +261,12 @@ const ChatPage: React.FC = () => {
   if (isInitializing) return <SmartLoader type="chat" />;
 
   return (
-    <div className="flex flex-col h-full relative transition-colors duration-300 overflow-hidden bg-[#0f172a] pb-[85px]">
+    <div className="flex flex-col h-full relative transition-colors duration-300 overflow-hidden bg-gray-50 dark:bg-[#0f172a] pb-[85px]">
       
       {/* Background Wallpaper */}
       <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
-          <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-indigo-900/20 to-transparent pointer-events-none"></div>
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 dark:opacity-5 mix-blend-multiply dark:mix-blend-normal"></div>
+          <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-blue-50/50 to-transparent dark:from-indigo-900/20 dark:to-transparent pointer-events-none"></div>
       </div>
 
       {showToast && (
@@ -279,7 +279,7 @@ const ChatPage: React.FC = () => {
       {isVoiceMode && <VoiceMode onClose={() => setIsVoiceMode(false)} />}
 
       {/* Premium Header */}
-      <div className="shrink-0 bg-[#0f172a]/80 backdrop-blur-xl border-b border-white/5 z-20">
+      <div className="shrink-0 bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-xl border-b border-gray-200 dark:border-white/5 z-20">
         <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
                 <div className="relative">
@@ -294,8 +294,8 @@ const ChatPage: React.FC = () => {
                     />
                 </div>
                 <div>
-                    <h1 className="font-bold text-white leading-none tracking-tight">News Gemini</h1>
-                    <span className="text-[10px] text-indigo-300 font-medium flex items-center gap-1 mt-1 uppercase tracking-wider">
+                    <h1 className="font-bold text-gray-900 dark:text-white leading-none tracking-tight">News Gemini</h1>
+                    <span className="text-[10px] text-indigo-600 dark:text-indigo-300 font-medium flex items-center gap-1 mt-1 uppercase tracking-wider">
                         {!navigator.onLine ? <><WifiOff size={8} className="text-red-500"/> Offline</> : 
                          isLoading ? 'Processing...' : 
                          isStreaming ? 'Streaming...' : 
@@ -305,7 +305,7 @@ const ChatPage: React.FC = () => {
             </div>
             
             <div className="flex gap-2">
-                <button onClick={handleClearChat} className="p-2 bg-white/5 rounded-full hover:bg-white/10 text-gray-400 transition-colors">
+                <button onClick={handleClearChat} className="p-2 bg-gray-100 dark:bg-white/5 rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-gray-400 transition-colors">
                     <Trash2 size={16} />
                 </button>
             </div>
@@ -325,22 +325,22 @@ const ChatPage: React.FC = () => {
                         <div className="absolute -bottom-2 -right-2 bg-white text-indigo-600 text-xs font-black px-2 py-1 rounded-lg shadow-sm">AI</div>
                     </div>
                     
-                    <h2 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-200 to-indigo-400 mb-4 tracking-tight">
+                    <h2 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-white dark:via-indigo-200 dark:to-indigo-400 mb-4 tracking-tight">
                         News Intelligence Hub
                     </h2>
                     
-                    <p className="text-slate-400 max-w-sm mb-10 text-sm leading-relaxed font-medium">
+                    <p className="text-gray-500 dark:text-slate-400 max-w-sm mb-10 text-sm leading-relaxed font-medium">
                         I am your advanced AI assistant. I can analyze complex market trends, visualize data, and provide real-time news summaries.
                     </p>
 
                     <div className="grid grid-cols-1 gap-3 w-full max-w-xs">
-                        <button onClick={() => handleSend("Analyze today's top headlines")} className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-2xl text-left transition-all group hover:border-indigo-500/50 flex items-center gap-4">
-                            <div className="bg-indigo-500/20 p-2 rounded-lg">
-                                <Zap size={20} className="text-yellow-400 group-hover:scale-110 transition-transform" />
+                        <button onClick={() => handleSend("Analyze today's top headlines")} className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10 p-4 rounded-2xl text-left transition-all group hover:border-indigo-500/50 flex items-center gap-4 shadow-sm dark:shadow-none">
+                            <div className="bg-indigo-100 dark:bg-indigo-500/20 p-2 rounded-lg">
+                                <Zap size={20} className="text-indigo-600 dark:text-yellow-400 group-hover:scale-110 transition-transform" />
                             </div>
                             <div>
-                                <span className="text-xs font-bold text-slate-200 block">Brief Me</span>
-                                <span className="text-[10px] text-slate-500">Global summary</span>
+                                <span className="text-xs font-bold text-gray-900 dark:text-slate-200 block">Brief Me</span>
+                                <span className="text-[10px] text-gray-500 dark:text-slate-500">Global summary</span>
                             </div>
                         </button>
                     </div>
@@ -353,9 +353,15 @@ const ChatPage: React.FC = () => {
                 ))}
                 {isLoading && <ThinkingIndicator />}
                 {(isLoading || isStreaming) && (
-                    <div className="flex justify-center mt-4 animate-in fade-in slide-in-from-bottom-2">
-                        <Button variant="secondary" size="sm" className="bg-white/5 backdrop-blur-md border border-white/10 text-white hover:bg-white/10" onClick={handleStopGeneration} leftIcon={<StopCircle size={14} />}>
-                            Stop
+                    <div className="flex justify-center mt-4 animate-in fade-in slide-in-from-bottom-2 sticky bottom-4 z-30">
+                        <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            className="bg-red-500/90 hover:bg-red-600 text-white border-none shadow-lg backdrop-blur-md px-6 py-2 rounded-full font-bold" 
+                            onClick={handleStopGeneration} 
+                            leftIcon={<StopCircle size={16} fill="currentColor" />}
+                        >
+                            Stop Generating
                         </Button>
                     </div>
                 )}
@@ -364,7 +370,7 @@ const ChatPage: React.FC = () => {
       </div>
 
       {/* Input Area - Fixed Bottom */}
-      <div className="shrink-0 w-full z-20 relative bg-[#0f172a]">
+      <div className="shrink-0 w-full z-20 relative bg-gray-50 dark:bg-[#0f172a]">
          {!hasInteracted && !isLoading && !isStreaming && messages.length > 0 && <QuickQuestions onSelect={handleSend} />}
          <ChatInputBar onSend={handleSend} isLoading={isLoading || isStreaming} onVoiceClick={() => setIsVoiceMode(true)} />
       </div>
