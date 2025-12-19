@@ -33,7 +33,8 @@ const getApiKey = () => {
   }
   
   if (!apiKey) {
-    throw new Error("API Key is missing. Please check your environment variables.");
+    // Graceful return for UI handling instead of throwing
+    return '';
   }
   return apiKey;
 };
@@ -65,10 +66,12 @@ const ChatPage: React.FC = () => {
   useEffect(() => {
     const initChat = async () => {
         try {
-            const apiKey = getApiKey(); // Use the robust helper
+            const apiKey = getApiKey(); 
+            if (!apiKey) return;
+
             const ai = new GoogleGenAI({ apiKey });
             chatSessionRef.current = ai.chats.create({
-                model: 'gemini-3-flash-preview', 
+                model: 'gemini-2.0-flash-exp', 
                 config: {
                     systemInstruction: "You are News Gemini 🤖, a helpful news expert! 🚀\n\nRULES:\n1. Be friendly and use LOTS of emojis in every message! ✨🎉\n2. Summarize news accurately and format with **bold text** 📰.\n3. Keep it brief and engaging! 🏃‍♂️💨\n4. ALWAYS provide 3 relevant follow-up questions at the end of your response! 🕵️‍♂️💡",
                     tools: [{ googleSearch: {} }],
@@ -76,7 +79,6 @@ const ChatPage: React.FC = () => {
             });
         } catch (error) { 
             console.error("Init Error", error);
-            // Don't show error state immediately on init, wait for user interaction
         }
     };
     if (!chatSessionRef.current) initChat();
@@ -130,12 +132,15 @@ const ChatPage: React.FC = () => {
     setMessages(prev => [...prev, { id: aiMsgId, role: 'ai', content: '', isStreaming: true, timestamp: 'Just now' }]);
 
     try {
-        const apiKey = getApiKey(); // Retrieve key here to catch errors during interaction
+        const apiKey = getApiKey(); 
+        if (!apiKey) {
+            throw new Error("API_KEY_MISSING");
+        }
 
         if (!chatSessionRef.current) {
             const ai = new GoogleGenAI({ apiKey });
             chatSessionRef.current = ai.chats.create({ 
-                model: 'gemini-3-flash-preview',
+                model: 'gemini-2.0-flash-exp',
                 config: {
                     systemInstruction: "You are News Gemini 🤖. Be expressive with emojis! ✨ Suggest 3 follow-up questions! 💡",
                     tools: [{ googleSearch: {} }]
@@ -182,8 +187,12 @@ const ChatPage: React.FC = () => {
         console.error("Chat Error:", error);
         
         let errorMessage = "Oops! My antennas got crossed. Let's try that again! 🔄🛰️";
-        if (error.message.includes("API Key is missing")) {
+        if (error.message === "API_KEY_MISSING") {
             errorMessage = "I seem to be missing my API Key! 🔑 Please check your Vercel configuration (VITE_API_KEY).";
+        } else if (error.status === 404) {
+            errorMessage = "I couldn't connect to the AI model. It might be sleeping! 😴 (Model not found)";
+        } else if (error.status === 429) {
+            errorMessage = "Whoa, too many requests! 🤯 Let me catch my breath.";
         }
 
         setMessages(prev => prev.map(m => m.id === aiMsgId ? { 
