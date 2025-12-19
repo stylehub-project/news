@@ -47,7 +47,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
   };
 
   return (
-    <div className="w-full px-2 mb-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+    <div className="w-full px-1 mb-4 animate-in fade-in slide-in-from-bottom-2 duration-300 group">
         <div 
             className={`relative w-full rounded-2xl p-4 overflow-hidden border transition-all duration-300 ${
                 isUser 
@@ -55,10 +55,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                 : 'bg-white/5 border-white/10 shadow-lg backdrop-blur-sm'
             }`}
         >
-            {/* Avatar Positioned Inside */}
-            <div className={`absolute top-4 ${isUser ? 'right-4' : 'left-4'}`}>
+            {/* Floated Avatar */}
+            <div className={`mb-1 ${isUser ? 'float-right ml-4' : 'float-left mr-4'}`}>
                 {isUser ? (
-                    <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg text-xs font-bold border border-white/20">
+                    <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg text-xs font-bold border border-white/20">
                         ME
                     </div>
                 ) : (
@@ -66,19 +66,20 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                         <div className="absolute inset-0 bg-indigo-500 blur-md opacity-30 rounded-full"></div>
                         <InteractiveAvatar 
                             state={message.isStreaming ? 'speaking' : aiState} 
-                            size={32} 
+                            size={36} 
                             onClick={handleAvatarClick}
                         />
                     </div>
                 )}
             </div>
 
-            {/* Content Container - Padded to avoid avatar */}
-            <div className={`${isUser ? 'mr-12 text-right' : 'ml-12 text-left'}`}>
+            {/* Content Container - Wraps around floated avatar */}
+            <div className={`relative ${isUser ? 'text-right' : 'text-left'}`}>
+                
                 {/* Text Content */}
-                <div className={`text-sm leading-relaxed ${isUser ? 'text-blue-100 font-medium' : 'text-slate-200'}`}>
+                <div className={`text-sm leading-relaxed tracking-wide ${isUser ? 'text-blue-100 font-medium' : 'text-slate-200'}`}>
                     {isUser ? (
-                        <p className="whitespace-pre-wrap">{message.content}</p>
+                        <p className="whitespace-pre-wrap inline-block text-left">{message.content}</p>
                     ) : (
                         <div className="relative min-h-[20px] w-full">
                             <SmartTextRenderer content={message.content} />
@@ -88,6 +89,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                         </div>
                     )}
                 </div>
+
+                {/* Clear Float for Attachments if needed, usually overflow-hidden on parent handles it, but explicit clear is safer for flex children */}
+                <div className="clear-both"></div>
 
                 {/* Attachments */}
                 {message.attachments && message.attachments.length > 0 && (
@@ -107,9 +111,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                     </div>
                 )}
 
-                {/* Footer Sources & Metadata */}
+                {/* Footer Sources & Metadata (Only for AI) */}
                 {!isUser && !message.isStreaming && (
-                    <div className="mt-4 pt-3 border-t border-white/5 flex flex-col gap-2 opacity-60 hover:opacity-100 transition-opacity">
+                    <div className="mt-4 pt-3 border-t border-white/5 flex flex-col gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
                         {message.sources && message.sources.length > 0 && (
                             <div className="flex flex-wrap gap-2 mb-1">
                                 {message.sources.map((src, i) => (
