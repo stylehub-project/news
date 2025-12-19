@@ -59,9 +59,9 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
                       setIsPlayingHistory(false);
                       return 0;
                   }
-                  return prev + 0.05;
+                  return prev + 0.02; // Slower, smoother autoplay
               });
-          }, 100);
+          }, 50);
       }
       return () => clearInterval(interval);
   }, [isPlayingHistory]);
@@ -84,6 +84,9 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
   });
 
   const handleWheel = (e: React.WheelEvent) => {
+    // Check if we are hovering over an interactive element that should scroll itself
+    if ((e.target as HTMLElement).closest('.overscroll-contain')) return;
+    
     e.preventDefault();
     const scaleFactor = 0.001;
     const delta = -e.deltaY * scaleFactor;
@@ -103,24 +106,27 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
 
   const handleLocateMe = () => {
       if ("geolocation" in navigator) {
-          setToast({ message: "Locating...", type: 'info' });
+          setToast({ message: "Locating news near you...", type: 'info' });
           setTimeout(() => {
               setTransform({ x: 150, y: 50, k: 3 });
               setToast(null);
-          }, 1000);
+          }, 1200);
       }
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return;
     setIsDragging(true);
     setStartPan({ x: e.clientX - transform.x, y: e.clientY - transform.y });
   };
+
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return;
     const newX = e.clientX - startPan.x;
     const newY = e.clientY - startPan.y;
     setTransform(prev => ({ ...prev, x: newX, y: newY }));
   };
+
   const handleMouseUp = () => setIsDragging(false);
   
   const handleMarkerClick = (id: string) => {
@@ -182,7 +188,13 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        onClick={() => { setActiveMarkerId(null); setShowAIAnalysis(false); setActiveZone(null); }}
+        onClick={() => { 
+            if (!isDragging) {
+                setActiveMarkerId(null); 
+                setShowAIAnalysis(false); 
+                setActiveZone(null); 
+            }
+        }}
       >
         <div 
             className="relative w-full max-w-[1200px] aspect-[16/9] transition-transform duration-200 ease-out origin-center will-change-transform"

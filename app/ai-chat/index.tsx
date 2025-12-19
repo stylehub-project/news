@@ -51,7 +51,7 @@ const ChatPage: React.FC = () => {
             chatSessionRef.current = ai.chats.create({
                 model: 'gemini-3-flash-preview', 
                 config: {
-                    systemInstruction: "You are a friendly, enthusiastic News Gemini assistant 🤖. \n\nRULES:\n1. Use EMOJIS in every response to make it engaging ✨.\n2. Summarize news accurately but concisely 📰.\n3. Format with bold terms **like this**.\n4. Always suggest 3 relevant follow-up questions at the end of long responses.",
+                    systemInstruction: "You are News Gemini 🤖, a super-smart news companion! 🚀\n\nSTYLE GUIDE:\n1. Use LOTS of emojis to be expressive and friendly! ✨🎉\n2. Summarize news clearly and use **bold text** for key facts 📰.\n3. Be concise—people are on the go 🏃‍♂️💨.\n4. ALWAYS provide 3 relevant follow-up questions at the end of your response to keep the conversation going! 🕵️‍♂️💡",
                     tools: [{ googleSearch: {} }],
                 },
             });
@@ -69,10 +69,14 @@ const ChatPage: React.FC = () => {
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    // Persist session
+    if (messages.length > 0) {
+        sessionStorage.setItem('news_club_chat_session', JSON.stringify(messages));
+    }
   }, [messages, isLoading, isStreaming]);
 
   const handleClearChat = () => {
-      if (window.confirm("Start new conversation?")) {
+      if (window.confirm("Do you want to start a fresh conversation? 🧹")) {
           setMessages([]);
           setHasInteracted(false);
           sessionStorage.removeItem('news_club_chat_session');
@@ -84,7 +88,7 @@ const ChatPage: React.FC = () => {
     if (!text.trim()) return;
     setHasInteracted(true);
     const apiKey = getApiKey();
-    if (!apiKey) { setToastMessage("API Key missing."); setShowToast(true); return; }
+    if (!apiKey) { setToastMessage("API Key missing. Please check your config! 🔑"); setShowToast(true); return; }
 
     const newUserMsg: Message = { id: Date.now().toString(), role: 'user', content: text, timestamp: 'Just now' };
     setMessages(prev => [...prev, newUserMsg]);
@@ -97,7 +101,13 @@ const ChatPage: React.FC = () => {
     try {
         if (!chatSessionRef.current) {
              const ai = new GoogleGenAI({ apiKey });
-             chatSessionRef.current = ai.chats.create({ model: 'gemini-3-flash-preview', tools: [{googleSearch: {}}] });
+             chatSessionRef.current = ai.chats.create({ 
+                 model: 'gemini-3-flash-preview', 
+                 config: {
+                    systemInstruction: "You are News Gemini 🤖. Use emojis! ✨ Provide follow-up questions! 💡",
+                    tools: [{googleSearch: {}}] 
+                 }
+             });
         }
 
         const result = await chatSessionRef.current.sendMessageStream({ message: text });
@@ -106,8 +116,6 @@ const ChatPage: React.FC = () => {
         setAvatarState('speaking');
 
         let accumulatedText = "";
-        let suggestedActions: string[] = [];
-
         for await (const chunk of result) {
             const chunkText = chunk.text;
             if (chunkText) {
@@ -116,16 +124,23 @@ const ChatPage: React.FC = () => {
             }
         }
 
-        // Simulate prompt suggestions based on content
-        if (accumulatedText.toLowerCase().includes('tech')) suggestedActions = ["Explain more on AI", "Latest Stocks", "Future Trends"];
-        else if (accumulatedText.toLowerCase().includes('world')) suggestedActions = ["Global Markets", "Climate updates", "Travel advisories"];
-        else suggestedActions = ["Tell me more", "Related stories", "Simplify this"];
+        // Logic to suggest related prompts based on the conversation context
+        let suggestedActions: string[] = ["Tell me more! 🗣️", "What else is trending? 🔥", "Explain it simply 👶"];
+        const lowerText = accumulatedText.toLowerCase();
+        
+        if (lowerText.includes('tech') || lowerText.includes('ai')) {
+            suggestedActions = ["Latest stock news 📈", "Future predictions? 🔮", "Top tech gadgets 📱"];
+        } else if (lowerText.includes('world') || lowerText.includes('politics')) {
+            suggestedActions = ["Global impact? 🌍", "Local reactions? 🏘️", "Historical context 🏛️"];
+        } else if (lowerText.includes('sport')) {
+            suggestedActions = ["Next big match? ⚽", "Player rankings 🏆", "Season highlights 📺"];
+        }
 
         setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: accumulatedText, isStreaming: false, suggestedActions } : m));
         setIsStreaming(false);
         setAvatarState('idle');
     } catch (error: any) {
-        setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: "❌ Connection error. Try again! 🔄", isStreaming: false } : m));
+        setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: "Oops! I hit a snag. Let's try that again? 🔄🌀", isStreaming: false } : m));
         setIsLoading(false); setIsStreaming(false); setAvatarState('error');
     }
   };
@@ -155,7 +170,10 @@ const ChatPage: React.FC = () => {
                 </div>
                 <div>
                     <h1 className="font-bold text-gray-900 dark:text-white leading-none tracking-tight">News Gemini ✨</h1>
-                    <span className="text-[10px] text-indigo-600 dark:text-indigo-300 font-bold uppercase tracking-wider mt-1 block">Live & Ready 🚀</span>
+                    <div className="flex items-center gap-1.5 mt-1">
+                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                        <span className="text-[10px] text-indigo-600 dark:text-indigo-300 font-bold uppercase tracking-wider block">Live Intel Hub 🚀</span>
+                    </div>
                 </div>
             </div>
             <button onClick={handleClearChat} className="p-2 bg-gray-100 dark:bg-white/5 rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-gray-400">
@@ -169,12 +187,12 @@ const ChatPage: React.FC = () => {
             {!hasInteracted && messages.length === 0 && (
                 <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 animate-in zoom-in-95 duration-700">
                     <div className="w-24 h-24 bg-gradient-to-tr from-indigo-500 to-blue-600 rounded-3xl flex items-center justify-center shadow-2xl mb-8 relative group">
-                        <Bot size={48} className="text-white drop-shadow-lg" />
+                        <Bot size={48} className="text-white drop-shadow-lg group-hover:scale-110 transition-transform" />
                     </div>
-                    <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-4">Hello! I'm Gemini 🤖</h2>
-                    <p className="text-gray-500 dark:text-slate-400 max-w-sm mb-10 text-sm font-medium">Ask me anything about today's news! I can summarize, explain, or even predict trends for you ✨.</p>
-                    <button onClick={() => handleSend("Give me a morning briefing ☀️")} className="bg-indigo-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2">
-                        <Zap size={18} className="fill-yellow-300" /> Start Briefing
+                    <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-4">Hey there! 👋</h2>
+                    <p className="text-gray-500 dark:text-slate-400 max-w-sm mb-10 text-sm font-medium">I'm your AI news partner. Ask me to summarize the day, analyze a trend, or just chat about what's happening! ✨🤖</p>
+                    <button onClick={() => handleSend("Give me a morning briefing ☀️")} className="bg-indigo-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2 hover:scale-105 active:scale-95">
+                        <Zap size={18} className="fill-yellow-300" /> Start Daily Briefing
                     </button>
                 </div>
             )}
@@ -186,8 +204,8 @@ const ChatPage: React.FC = () => {
                 {isLoading && <ThinkingIndicator />}
                 {(isLoading || isStreaming) && (
                     <div className="flex justify-center mt-4 sticky bottom-4 z-30">
-                        <Button variant="danger" size="sm" className="rounded-full px-6 py-2 font-bold" onClick={() => {setIsLoading(false); setIsStreaming(false); setAvatarState('idle');}} leftIcon={<StopCircle size={16} />}>
-                            Stop Generating
+                        <Button variant="danger" size="sm" className="rounded-full px-6 py-2 font-bold shadow-xl" onClick={() => {setIsLoading(false); setIsStreaming(false); setAvatarState('idle');}} leftIcon={<StopCircle size={16} />}>
+                            Stop AI Generation
                         </Button>
                     </div>
                 )}
