@@ -320,7 +320,7 @@ const ChatPage: React.FC = () => {
   if (isInitializing) return <SmartLoader type="chat" />;
 
   return (
-    <div className="flex flex-col h-full relative transition-colors duration-300 overflow-hidden bg-[#0f172a]">
+    <div className="flex flex-col h-full relative transition-colors duration-300 overflow-hidden bg-[#0f172a] pb-[85px]">
       
       {/* Background Wallpaper */}
       <div className="absolute inset-0 z-0">

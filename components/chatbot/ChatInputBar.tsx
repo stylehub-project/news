@@ -34,7 +34,7 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoa
   };
 
   return (
-    <div className="w-full p-3 bg-[#0f172a] border-t border-white/10 pb-safe transition-colors duration-300">
+    <div className="w-full p-3 bg-[#0f172a] border-t border-white/10 transition-colors duration-300">
       <div className="flex items-center gap-2 max-w-4xl mx-auto">
         {/* Attachments */}
         <button className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-colors shrink-0">
@@ -49,7 +49,7 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoa
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask a question or type 'draw a cat'..." 
+              placeholder="Ask a question..." 
               className="bg-transparent w-full outline-none text-sm placeholder:text-gray-400 disabled:opacity-50 text-white font-medium min-w-0"
               disabled={isLoading}
               autoComplete="off"
