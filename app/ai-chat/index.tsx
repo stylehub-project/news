@@ -7,7 +7,7 @@ import QuickQuestions from '../../components/chatbot/QuickQuestions';
 import VoiceMode from '../../components/chatbot/VoiceMode';
 import ThinkingIndicator from '../../components/chatbot/ThinkingIndicator';
 import InteractiveAvatar from '../../components/chatbot/InteractiveAvatar';
-import { Trash2, StopCircle, Bot, Zap } from 'lucide-react';
+import { Trash2, StopCircle, Bot, Zap, RefreshCw } from 'lucide-react';
 import SmartLoader from '../../components/loaders/SmartLoader';
 import { useLoading } from '../../context/LoadingContext';
 import Button from '../../components/ui/Button';
@@ -64,7 +64,7 @@ const ChatPage: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatSessionRef = useRef<Chat | null>(null);
 
-  // Initialize Chat Session
+  // Initialize Chat Session with Lite model for better availability
   useEffect(() => {
     const initChat = async () => {
         try {
@@ -73,9 +73,9 @@ const ChatPage: React.FC = () => {
 
             const ai = new GoogleGenAI({ apiKey });
             chatSessionRef.current = ai.chats.create({
-                model: 'gemini-2.0-flash', 
+                model: 'gemini-flash-lite-latest', 
                 config: {
-                    systemInstruction: "You are News Gemini 🤖, a helpful news expert! 🚀\n\nRULES:\n1. Be friendly and use LOTS of emojis in every message! ✨🎉\n2. Summarize news accurately and format with **bold text** 📰.\n3. Keep it brief and engaging! 🏃‍♂️💨\n4. ALWAYS provide 3 relevant follow-up questions at the end of your response! 🕵️‍♂️💡",
+                    systemInstruction: "You are News Gemini 🤖. Summarize news, use bold for key facts, and be emoji-friendly! ✨",
                     tools: [{ googleSearch: {} }],
                 },
             });
@@ -114,6 +114,23 @@ const ChatPage: React.FC = () => {
       }
   };
 
+  // Force reset the chat session (useful for error recovery)
+  const resetConnection = () => {
+      chatSessionRef.current = null;
+      const apiKey = getApiKey();
+      if (apiKey) {
+          const ai = new GoogleGenAI({ apiKey });
+          chatSessionRef.current = ai.chats.create({ 
+              model: 'gemini-flash-lite-latest',
+              config: {
+                  systemInstruction: "You are News Gemini 🤖. Be expressive with emojis! ✨ Suggest 3 follow-up questions! 💡",
+                  tools: [{ googleSearch: {} }]
+              }
+          });
+      }
+      setAvatarState('idle');
+  };
+
   const attemptSendMessage = async (text: string, attempt = 1): Promise<void> => {
       try {
           if (!chatSessionRef.current) {
@@ -122,7 +139,7 @@ const ChatPage: React.FC = () => {
               
               const ai = new GoogleGenAI({ apiKey });
               chatSessionRef.current = ai.chats.create({ 
-                  model: 'gemini-2.0-flash',
+                  model: 'gemini-flash-lite-latest',
                   config: {
                       systemInstruction: "You are News Gemini 🤖. Be expressive with emojis! ✨ Suggest 3 follow-up questions! 💡",
                       tools: [{ googleSearch: {} }]
@@ -136,14 +153,7 @@ const ChatPage: React.FC = () => {
           setAvatarState('speaking');
 
           let accumulatedText = "";
-          // Find the message ID to update (it's the last one)
-          setMessages(currentMessages => {
-              const lastMsg = currentMessages[currentMessages.length - 1];
-              // Small hack: we need the ID from state, but inside async loop we rely on closure or finding it.
-              // Assuming last message is the AI placeholder.
-              return currentMessages;
-          });
-
+          
           for await (const chunk of result) {
               const chunkText = chunk.text;
               if (chunkText) {
@@ -186,10 +196,14 @@ const ChatPage: React.FC = () => {
       } catch (error: any) {
           console.error(`Chat Error (Attempt ${attempt}):`, error);
           
-          // Retry logic for 429 or 503
-          if ((error.status === 429 || error.status === 503) && attempt < 3) {
-              console.log(`Retrying in ${attempt * 2} seconds...`);
-              await delay(attempt * 2000); // 2s, 4s wait
+          // Retry logic for 429 (Rate Limit) or 503 (Service Unavailable)
+          if ((error.status === 429 || error.status === 503) && attempt < 2) {
+              console.log(`Retrying in ${attempt * 1.5} seconds...`);
+              await delay(attempt * 1500); 
+              
+              // Force recreation of session on 429 to be safe
+              chatSessionRef.current = null;
+              
               return attemptSendMessage(text, attempt + 1);
           }
 
@@ -203,6 +217,7 @@ const ChatPage: React.FC = () => {
               errorMessage = "I couldn't connect to the AI model. It might be sleeping! 😴 (Model not found)";
           } else if (error.status === 429) {
               errorMessage = "Whoa, too many requests! 🤯 I'm cooling down. Please wait a moment.";
+              suggestedRetry = ["Try Again", "Reset Connection"];
           }
 
           setMessages(prev => {
@@ -223,24 +238,26 @@ const ChatPage: React.FC = () => {
   const handleSend = async (text: string) => {
     if (!text.trim()) return;
     
-    // If it's a retry action, we might want to remove the previous error message, 
-    // but for simplicity, we just append new interaction.
-    
-    // Check if the last message was a retry click (don't duplicate user message if it's "Retry ↻")
-    const isRetry = text === "Retry ↻";
+    if (text === "Reset Connection") {
+        resetConnection();
+        // Remove the error message from view for cleaner UX
+        setMessages(prev => prev.slice(0, -1));
+        return;
+    }
+
+    // Check if the last message was a retry click
+    const isRetry = text === "Retry ↻" || text === "Try Again";
     let messageToSend = text;
 
     if (isRetry) {
-        // Find the last user message to resend
         const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
         if (lastUserMsg) {
             messageToSend = lastUserMsg.content;
         } else {
-            return; // Nothing to retry
+            return; 
         }
     } else {
         setHasInteracted(true);
-        // 1. Add User Message
         const newUserMsg: Message = { 
             id: Date.now().toString(), 
             role: 'user', 
@@ -257,7 +274,6 @@ const ChatPage: React.FC = () => {
     const aiMsgId = (Date.now() + 1).toString();
     setMessages(prev => [...prev, { id: aiMsgId, role: 'ai', content: '', isStreaming: true, timestamp: 'Just now' }]);
 
-    // Start sending
     await attemptSendMessage(messageToSend);
   };
 
@@ -287,9 +303,14 @@ const ChatPage: React.FC = () => {
                     </div>
                 </div>
             </div>
-            <button onClick={handleClearChat} className="p-2 bg-gray-100 dark:bg-white/5 rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-gray-400">
-                <Trash2 size={16} />
-            </button>
+            <div className="flex gap-2">
+                <button onClick={resetConnection} className="p-2 bg-gray-100 dark:bg-white/5 rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-gray-400" title="Reset Connection">
+                    <RefreshCw size={16} />
+                </button>
+                <button onClick={handleClearChat} className="p-2 bg-gray-100 dark:bg-white/5 rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-gray-400" title="Clear Chat">
+                    <Trash2 size={16} />
+                </button>
+            </div>
         </div>
       </div>
       
