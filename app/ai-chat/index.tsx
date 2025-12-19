@@ -12,18 +12,26 @@ import SmartLoader from '../../components/loaders/SmartLoader';
 import { useLoading } from '../../context/LoadingContext';
 import Button from '../../components/ui/Button';
 
-// Helper to get API Key safely
+// Helper to get API Key safely checking multiple environments
 const getApiKey = () => {
   let apiKey = '';
+  
+  // 1. Check Vite/Modern Environment
   if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
     apiKey = (import.meta as any).env.VITE_API_KEY || (import.meta as any).env.API_KEY;
   }
+  
+  // 2. Check Standard Process Environment (Next.js / CRA)
   if (!apiKey && typeof process !== 'undefined' && process.env) {
-    apiKey = process.env.NEXT_PUBLIC_API_KEY;
+    // @ts-ignore
+    apiKey = process.env.NEXT_PUBLIC_API_KEY || process.env.API_KEY || process.env.REACT_APP_API_KEY;
   }
-  if (!apiKey && typeof process !== 'undefined' && process.env) {
-    apiKey = process.env.API_KEY || process.env.REACT_APP_API_KEY;
+  
+  // 3. Fallback: Window Shim (from index.html)
+  if (!apiKey && typeof window !== 'undefined' && (window as any).process?.env) {
+      apiKey = (window as any).process.env.API_KEY;
   }
+  
   if (!apiKey) {
     throw new Error("API Key is missing. Please check your environment variables.");
   }
