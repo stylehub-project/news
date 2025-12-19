@@ -23,19 +23,48 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoa
 
   // --- Voice Input Implementation ---
   useEffect(() => {
+    // Browser Shim for Web Speech API
     // @ts-ignore
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
+      recognition.continuous = false; // Stop after one sentence for quick queries
+      recognition.interimResults = true; // Show results as they speak
       recognition.lang = 'en-US';
 
-      recognition.onstart = () => setIsListening(true);
-      recognition.onend = () => setIsListening(false);
+      recognition.onstart = () => {
+          setIsListening(true);
+      };
+
+      recognition.onend = () => {
+          setIsListening(false);
+      };
+
+      recognition.onerror = (event: any) => {
+          console.error("Speech recognition error", event.error);
+          setIsListening(false);
+          alert("Voice input error: " + event.error);
+      };
+
       recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setText(prev => (prev ? prev + ' ' + transcript : transcript));
+        let finalTranscript = '';
+        let interimTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+
+        if (finalTranscript) {
+             setText(prev => {
+                 const spacer = prev && !prev.endsWith(' ') ? ' ' : '';
+                 return prev + spacer + finalTranscript;
+             });
+        }
       };
       
       recognitionRef.current = recognition;
@@ -44,13 +73,18 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoa
 
   const toggleVoice = () => {
     if (!recognitionRef.current) {
-        alert("Voice input not supported in this browser.");
+        alert("Voice input is not supported in this browser. Please use Chrome, Edge, or Safari.");
         return;
     }
+    
     if (isListening) {
       recognitionRef.current.stop();
     } else {
-      recognitionRef.current.start();
+      try {
+          recognitionRef.current.start();
+      } catch(e) {
+          console.error("Mic start error", e);
+      }
     }
   };
 
@@ -77,23 +111,24 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoa
       <div className="flex items-center gap-2 max-w-4xl mx-auto">
         
         {/* Input Field Container */}
-        <div className="flex-1 bg-white dark:bg-gray-800/80 border border-gray-300 dark:border-gray-700 rounded-3xl px-4 py-3 flex items-center focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-indigo-500/50 transition-all shadow-sm">
+        <div className={`flex-1 bg-white dark:bg-gray-800/80 border rounded-3xl px-4 py-3 flex items-center transition-all shadow-sm ${isListening ? 'border-red-500 ring-2 ring-red-500/20' : 'border-gray-300 dark:border-gray-700 focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-indigo-500/50'}`}>
             <input 
               ref={inputRef}
               type="text" 
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={isListening ? "Listening..." : "Ask a question..."}
+              placeholder={isListening ? "Listening... Speak now" : "Ask a question..."}
               className="bg-transparent w-full outline-none text-sm placeholder:text-gray-400 disabled:opacity-50 text-gray-900 dark:text-white font-medium min-w-0"
               disabled={isLoading}
               autoComplete="off"
             />
             {isListening && (
-                <div className="flex gap-1 ml-2">
-                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-bounce"></div>
-                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-bounce delay-100"></div>
-                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-bounce delay-200"></div>
+                <div className="flex gap-1 ml-2 items-center">
+                    <span className="text-xs font-bold text-red-500 animate-pulse uppercase tracking-wider hidden sm:block mr-1">Rec</span>
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce delay-100"></div>
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce delay-200"></div>
                 </div>
             )}
         </div>
@@ -101,7 +136,7 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoa
         {/* Voice Dictation Trigger */}
         <button 
             onClick={toggleVoice}
-            className={`p-3 rounded-full transition-all active:scale-90 shrink-0 ${isListening ? 'bg-red-500 text-white shadow-lg shadow-red-500/30 animate-pulse' : 'text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400'}`}
+            className={`p-3 rounded-full transition-all active:scale-90 shrink-0 border ${isListening ? 'bg-red-500 border-red-600 text-white shadow-lg shadow-red-500/30 animate-pulse' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400'}`}
             title="Voice Dictation"
         >
             {isListening ? <MicOff size={22} /> : <Mic size={22} />}

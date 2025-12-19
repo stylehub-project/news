@@ -23,6 +23,7 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
     }
 
     // 2. Callouts / Summaries (Lines starting with >)
+    // Uses strict equality to catch the '> ' instruction
     if (trimmed.startsWith('>')) {
       const cleanLine = trimmed.substring(1).trim();
       return (
@@ -76,48 +77,38 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
   };
 
   const parseInline = (text: string) => {
-    // Regex logic:
-    // 1. Bold: **text**
-    // 2. Italic: *text* (but ignore * if it was part of **)
-    // 3. Entity: [[text]]
-    // 4. Inline Image: ![alt](url) inside text
-    
-    // Split by complex token including images
-    const parts = text.split(/(!\[.*?\]\(.*?\)| \*\*.*?\*\*|\[\[.*?\]\]|\*.*?\*)/g);
+    // Advanced Regex to split complex tokens
+    // Captures: **bold**, [[entity]], *italic*
+    // The capture groups in split() allow us to keep the delimiters in the resulting array
+    const parts = text.split(/(\*\*.*?\*\*|\[\[.*?\]\]|\*.*?\*)/g);
     
     return parts.map((part, i) => {
-      // Inline Markdown Image
-      const imgMatch = part.match(/^!\[(.*?)\]\((.*?)\)$/);
-      if (imgMatch) {
-          return (
-              <span key={i} className="inline-block align-middle mx-1">
-                  <a href={imgMatch[2]} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 underline text-xs">
-                      View Image ({imgMatch[1] || 'Link'})
-                  </a>
-              </span>
-          );
-      }
-
-      // Bold
+      // Bold: **text**
       if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
-        return <strong key={i} className="font-extrabold text-gray-900 dark:text-white bg-gray-100 dark:bg-white/10 px-1 rounded-md mx-0.5">{part.slice(2, -2)}</strong>;
+        return (
+            <strong key={i} className="font-extrabold text-gray-900 dark:text-white">
+                {part.slice(2, -2)}
+            </strong>
+        );
       }
       
-      // Italic
-      if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
-         if (!part.startsWith('**')) {
-             return <em key={i} className="italic text-gray-700 dark:text-gray-300">{part.slice(1, -1)}</em>;
-         }
-      }
-
-      // Entity Chip
-      if (part.startsWith('[[') && part.endsWith(']]')) {
+      // Entity: [[text]]
+      if (part.startsWith('[[') && part.endsWith(']]') && part.length > 4) {
         return (
           <span key={i} className="inline-flex items-center bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-200 px-2 py-0.5 rounded-full text-xs font-bold mx-1 border border-blue-200 dark:border-blue-700 shadow-sm align-middle select-all hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors cursor-default">
             {part.slice(2, -2)}
           </span>
         );
       }
+
+      // Italic: *text* (but ignore * if it was part of ** or other chars)
+      if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+         // Double check it's not **
+         if (!part.startsWith('**')) {
+             return <em key={i} className="italic text-gray-700 dark:text-gray-300">{part.slice(1, -1)}</em>;
+         }
+      }
+
       return part;
     });
   };

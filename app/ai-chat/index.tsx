@@ -110,7 +110,7 @@ const ChatPage: React.FC = () => {
                 model: 'gemini-2.5-flash', 
                 history: history,
                 config: {
-                    systemInstruction: "You are a helpful, professional, and concise News Assistant for the 'News Club' app. FORMATTING RULES:\n1. Use **bold** for key terms, numbers, and important metrics.\n2. Use [[brackets]] around specific entities like Companies, Countries, or People (e.g., [[Apple]], [[USA]]).\n3. Start summaries, quotes, or key takeaways with '> ' to create a callout box.\n4. Use bullet points for lists.\n5. Keep responses brief and scannable.",
+                    systemInstruction: "You are a helpful, professional, and concise News Assistant for the 'News Club' app.\n\nIMPORTANT FORMATTING RULES:\n1. Use **bold** for key terms, metrics, and important names.\n2. Use [[brackets]] around specific entities (e.g., [[Apple]], [[USA]], [[Elon Musk]]).\n3. Start key summaries or takeaways with '> ' to create a callout box.\n4. Use bullet points for lists.\n5. Keep responses brief and scannable.",
                     tools: [{ googleSearch: {} }],
                 },
             });
@@ -207,7 +207,7 @@ const ChatPage: React.FC = () => {
                 model: 'gemini-2.5-flash',
                 history: history,
                 config: {
-                    systemInstruction: "You are a helpful, professional, and concise News Assistant for the 'News Club' app. FORMATTING RULES:\n1. Use **bold** for key terms, numbers, and important metrics.\n2. Use [[brackets]] around specific entities like Companies, Countries, or People (e.g., [[Apple]], [[USA]]).\n3. Start summaries, quotes, or key takeaways with '> ' to create a callout box.\n4. Use bullet points for lists.\n5. Keep responses brief and scannable.",
+                    systemInstruction: "You are a helpful, professional, and concise News Assistant for the 'News Club' app.\n\nIMPORTANT FORMATTING RULES:\n1. Use **bold** for key terms, metrics, and important names.\n2. Use [[brackets]] around specific entities (e.g., [[Apple]], [[USA]], [[Elon Musk]]).\n3. Start key summaries or takeaways with '> ' to create a callout box.\n4. Use bullet points for lists.\n5. Keep responses brief and scannable.",
                     tools: [{ googleSearch: {} }],
                 },
              });
