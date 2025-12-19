@@ -8,7 +8,7 @@ import NotebookMode from '../../components/chatbot/NotebookMode';
 import VoiceMode from '../../components/chatbot/VoiceMode';
 import ThinkingIndicator from '../../components/chatbot/ThinkingIndicator';
 import InteractiveAvatar from '../../components/chatbot/InteractiveAvatar';
-import { Trash2, StopCircle, WifiOff, Bot, Zap, Image as ImageIcon } from 'lucide-react';
+import { Trash2, StopCircle, WifiOff, Bot, Zap } from 'lucide-react';
 import SmartLoader from '../../components/loaders/SmartLoader';
 import { useLoading } from '../../context/LoadingContext';
 import Button from '../../components/ui/Button';
@@ -110,7 +110,7 @@ const ChatPage: React.FC = () => {
                 model: 'gemini-2.5-flash', 
                 history: history,
                 config: {
-                    systemInstruction: "You are a helpful, professional, and concise News Assistant for the 'News Club' app. FORMATTING RULES: 1. Use **bold** for key terms. 2. Use [[brackets]] around entities. 3. Start summaries with '> '. 4. If asked for an image, try to find a relevant Markdown image link from search results or simply describe it.",
+                    systemInstruction: "You are a helpful, professional, and concise News Assistant for the 'News Club' app. FORMATTING RULES: 1. Use **bold** for key terms. 2. Use [[brackets]] around entities. 3. Start summaries with '> '. 4. If asked for an image, politely explain that you are a text-based news assistant.",
                     tools: [{ googleSearch: {} }],
                 },
             });
@@ -194,65 +194,6 @@ const ChatPage: React.FC = () => {
     setMessages(prev => [...prev, newUserMsg]);
     setIsLoading(true);
     setAvatarState('thinking');
-
-    const lowerText = text.toLowerCase();
-    const isImageRequest = lowerText.startsWith('draw') || 
-                           lowerText.includes('generate image') || 
-                           lowerText.includes('create image') ||
-                           lowerText.startsWith('image of') ||
-                           lowerText.includes('show me');
-
-    // --- Search for Image Logic (Replaces Generation) ---
-    if (isImageRequest) {
-        const aiMsgId = (Date.now() + 1).toString();
-        // Feedback: Searching instead of Generating
-        setMessages(prev => [...prev, { id: aiMsgId, role: 'ai', content: 'Searching web for images...', isStreaming: true, timestamp: 'Just now' }]);
-
-        try {
-            const ai = new GoogleGenAI({ apiKey });
-            
-            // Use Text Model with Search Tool to find an image
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash', 
-                contents: {
-                    parts: [{ text: `Find a publicly available image of "${text}" on the web. If you find one, return it using standard Markdown image syntax: ![Description](ImageURL). Also provide a brief description of what you found.` }]
-                },
-                config: {
-                    tools: [{ googleSearch: {} }] // Enable search
-                }
-            });
-
-            let finalText = response.text || "I couldn't find a specific image, but I can describe it.";
-            let sources: { name: string; url: string }[] = [];
-
-            // Extract sources from grounding metadata
-            if (response.candidates?.[0]?.groundingMetadata?.groundingChunks) {
-                response.candidates[0].groundingMetadata.groundingChunks.forEach((c: any) => {
-                    if (c.web?.uri && c.web?.title) {
-                        sources.push({ name: c.web.title, url: c.web.uri });
-                    }
-                });
-            }
-
-            setMessages(prev => prev.map(m => m.id === aiMsgId ? { 
-                ...m, 
-                content: finalText, 
-                isStreaming: false,
-                sources: sources.length > 0 ? sources : undefined
-            } : m));
-
-            setIsLoading(false);
-            setAvatarState('idle');
-            return;
-
-        } catch (error) {
-            console.error("Search Error", error);
-            setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: "I encountered an issue searching for that. Please try again.", isStreaming: false } : m));
-            setIsLoading(false);
-            setAvatarState('error');
-            return;
-        }
-    }
 
     // --- Standard Text Chat ---
     const aiMsgId = (Date.now() + 1).toString();
@@ -389,19 +330,18 @@ const ChatPage: React.FC = () => {
                     </h2>
                     
                     <p className="text-slate-400 max-w-sm mb-10 text-sm leading-relaxed font-medium">
-                        I am your advanced AI assistant. I can analyze complex market trends, visualize data, find images from the web, and provide real-time news summaries.
+                        I am your advanced AI assistant. I can analyze complex market trends, visualize data, and provide real-time news summaries.
                     </p>
 
-                    <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
-                        <button onClick={() => handleSend("Analyze today's top headlines")} className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-2xl text-left transition-all group hover:border-indigo-500/50">
-                            <Zap size={20} className="text-yellow-400 mb-2 group-hover:scale-110 transition-transform" />
-                            <span className="text-xs font-bold text-slate-200 block">Brief Me</span>
-                            <span className="text-[10px] text-slate-500">Global summary</span>
-                        </button>
-                        <button onClick={() => handleSend("Show me an image of a futuristic city")} className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-2xl text-left transition-all group hover:border-purple-500/50">
-                            <ImageIcon size={20} className="text-purple-400 mb-2 group-hover:scale-110 transition-transform" />
-                            <span className="text-xs font-bold text-slate-200 block">Find Image</span>
-                            <span className="text-[10px] text-slate-500">Search web</span>
+                    <div className="grid grid-cols-1 gap-3 w-full max-w-xs">
+                        <button onClick={() => handleSend("Analyze today's top headlines")} className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-2xl text-left transition-all group hover:border-indigo-500/50 flex items-center gap-4">
+                            <div className="bg-indigo-500/20 p-2 rounded-lg">
+                                <Zap size={20} className="text-yellow-400 group-hover:scale-110 transition-transform" />
+                            </div>
+                            <div>
+                                <span className="text-xs font-bold text-slate-200 block">Brief Me</span>
+                                <span className="text-[10px] text-slate-500">Global summary</span>
+                            </div>
                         </button>
                     </div>
                 </div>

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Image as ImageIcon, Mic } from 'lucide-react';
+import { Send, Mic } from 'lucide-react';
 import Button from '../ui/Button';
 
 interface ChatInputBarProps {
@@ -36,10 +36,6 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoa
   return (
     <div className="w-full p-3 bg-[#0f172a] border-t border-white/10 transition-colors duration-300">
       <div className="flex items-center gap-2 max-w-4xl mx-auto">
-        {/* Attachments */}
-        <button className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-colors shrink-0">
-            <ImageIcon size={20} />
-        </button>
         
         {/* Input Field Container */}
         <div className="flex-1 bg-gray-800/80 border border-gray-700 rounded-3xl px-4 py-3 flex items-center focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-indigo-500/50 transition-all hover:bg-gray-800">
@@ -62,19 +58,19 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoa
             className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-full transition-colors active:scale-90 shrink-0"
             title="Voice Conversation"
         >
-            <Mic size={20} />
+            <Mic size={24} />
         </button>
 
         {/* Send Button */}
         <Button 
             variant="primary" 
             size="md"
-            className={`rounded-full w-10 h-10 flex items-center justify-center transition-all duration-300 shadow-lg shrink-0 ${text.trim() ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : 'bg-white/10 text-slate-500'}`}
+            className={`rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 shadow-lg shrink-0 ${text.trim() ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : 'bg-white/10 text-slate-500'}`}
             onClick={() => handleSubmit()}
             disabled={!text.trim() || isLoading}
             isLoading={isLoading}
         >
-            <Send size={18} className={text.trim() ? 'ml-0.5' : ''} />
+            <Send size={24} className={text.trim() ? 'ml-0.5' : ''} />
         </Button>
       </div>
     </div>
