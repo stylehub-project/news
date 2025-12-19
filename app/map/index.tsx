@@ -4,14 +4,21 @@ import WorldMap from '../../components/map/WorldMap';
 import MapTicker from '../../components/map/MapTicker';
 import SmartLoader from '../../components/loaders/SmartLoader';
 import { useLoading } from '../../context/LoadingContext';
+import MapFilterPanel, { MapFilters } from '../../components/map/MapFilterPanel';
 
 const MapPage: React.FC = () => {
   const { isLoaded, markAsLoaded } = useLoading();
   const [isLoading, setIsLoading] = useState(!isLoaded('map'));
+  
+  // Lifted state for filters to be used in Header and Map
+  const [filters, setFilters] = useState<MapFilters>({
+      category: 'All',
+      time: 'Today',
+      type: 'All'
+  });
 
   useEffect(() => {
     if (isLoading) {
-        // Simulate initial map data fetch and satellite connection
         const timer = setTimeout(() => {
             setIsLoading(false);
             markAsLoaded('map');
@@ -29,15 +36,25 @@ const MapPage: React.FC = () => {
   }
 
   return (
-    // pb-[110px] allows space for BottomNav + MapTicker
     <div className="relative w-full h-full bg-slate-100 overflow-hidden flex flex-col pb-[70px]">
+        {/* Navbar with Integrated Filter Dropside */}
         <div className="absolute top-0 left-0 right-0 z-30">
-             <PageHeader title="Global News Map" />
+             <PageHeader 
+                title="Global News Map" 
+                action={
+                    <MapFilterPanel 
+                        filters={filters} 
+                        onChange={(k, v) => setFilters(prev => ({ ...prev, [k]: v }))} 
+                    />
+                }
+             />
         </div>
         
         <div className="flex-1 w-full h-full mt-[52px] relative animate-in fade-in duration-700">
-            <WorldMap />
-            {/* 7.2 Live Update Ticker */}
+            <WorldMap 
+                filters={filters}
+                onResetFilters={() => setFilters({ category: 'All', time: 'Today', type: 'All' })}
+            />
             <MapTicker />
         </div>
     </div>

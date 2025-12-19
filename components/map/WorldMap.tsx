@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import LocationMarker, { MarkerType } from './LocationMarker';
 import MapNewsSheet from './MapNewsSheet';
 import MapToolbar from './MapToolbar';
-import MapFilterPanel, { MapFilters } from './MapFilterPanel';
+import { MapFilters } from './MapFilterPanel';
 import MapAIOverlay from './MapAIOverlay';
 import HeatmapLayer from './HeatmapLayer';
 import TimeScrubber from './TimeScrubber';
@@ -22,35 +22,28 @@ const MARKERS = [
   { id: '8', x: 52, y: 20, type: 'general', title: 'Nordic renewable energy surplus', source: 'Reuters', time: '3d ago', timestamp: 2.5, imageUrl: 'https://picsum.photos/200/150?random=8', category: 'Environment', locationName: 'Oslo, Norway', impactRadius: 3, momentum: 'Low', sentiment: 'Positive' },
 ];
 
-const WorldMap: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  
-  // Map State
+interface WorldMapProps {
+    filters: MapFilters;
+    onResetFilters: () => void;
+}
+
+const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
   const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const [isMapReady, setIsMapReady] = useState(false);
   const [toast, setToast] = useState<{message: string, type: 'error' | 'info'} | null>(null);
   
-  // Feature State
-  const [showHeatmap, setShowHeatmap] = useState(true);
   const [timeValue, setTimeValue] = useState(0); 
   const [isPlayingHistory, setIsPlayingHistory] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(true);
   
-  // Selection & Filters
   const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
   const [activeZone, setActiveZone] = useState<any>(null); 
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
   
-  // 8.13.8 Comparison Mode State
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [compareSelection, setCompareSelection] = useState<string[]>([]);
-  
-  const [filters, setFilters] = useState<MapFilters>({
-      category: 'All',
-      time: 'Today',
-      type: 'All'
-  });
 
   useEffect(() => {
       const timer = setTimeout(() => setIsMapReady(true), 100);
@@ -73,7 +66,6 @@ const WorldMap: React.FC = () => {
       return () => clearInterval(interval);
   }, [isPlayingHistory]);
 
-  // Filtering Logic
   const filteredMarkers = useMemo(() => {
       return MARKERS.filter(m => {
           if (filters.category !== 'All' && m.category !== filters.category) return false;
@@ -85,12 +77,19 @@ const WorldMap: React.FC = () => {
       });
   }, [filters, transform.k, activeMarkerId, timeValue, compareSelection]);
 
-  // Zoom Handlers
   const handleZoomIn = () => setTransform(prev => ({ ...prev, k: Math.min(prev.k * 1.5, 6) }));
   const handleZoomOut = () => setTransform(prev => {
       const newK = Math.max(prev.k / 1.5, 1);
       return { ...prev, k: newK, x: newK <= 1.2 ? 0 : prev.x, y: newK <= 1.2 ? 0 : prev.y };
   });
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const scaleFactor = 0.001;
+    const delta = -e.deltaY * scaleFactor;
+    const newK = Math.min(Math.max(1, transform.k + delta), 6);
+    setTransform(prev => ({ ...prev, k: newK }));
+  };
   
   const handleRecenter = () => {
     setTransform({ x: 0, y: 0, k: 1 });
@@ -99,57 +98,37 @@ const WorldMap: React.FC = () => {
     setShowAIAnalysis(false);
     setIsCompareMode(false);
     setCompareSelection([]);
+    setShowTimeline(true);
   };
 
   const handleLocateMe = () => {
       if ("geolocation" in navigator) {
           setToast({ message: "Locating...", type: 'info' });
           setTimeout(() => {
-              const success = Math.random() > 0.3; 
-              if (success) {
-                  setTransform({ x: 200, y: 100, k: 3 });
-                  setToast(null);
-              } else {
-                  setToast({ message: "Location access denied.", type: 'error' });
-              }
+              setTransform({ x: 150, y: 50, k: 3 });
+              setToast(null);
           }, 1000);
       }
   };
 
-  // Keyboard
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-      const PAN_STEP = 50;
-      if (e.key === 'ArrowUp') setTransform(prev => ({ ...prev, y: prev.y + PAN_STEP }));
-      if (e.key === 'ArrowDown') setTransform(prev => ({ ...prev, y: prev.y - PAN_STEP }));
-      if (e.key === 'ArrowLeft') setTransform(prev => ({ ...prev, x: prev.x + PAN_STEP }));
-      if (e.key === 'ArrowRight') setTransform(prev => ({ ...prev, x: prev.x - PAN_STEP }));
-      if (e.key === '+' || e.key === '=') handleZoomIn();
-      if (e.key === '-') handleZoomOut();
-  };
-
-  // Dragging
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
     setStartPan({ x: e.clientX - transform.x, y: e.clientY - transform.y });
   };
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return;
-    e.preventDefault();
     const newX = e.clientX - startPan.x;
     const newY = e.clientY - startPan.y;
     setTransform(prev => ({ ...prev, x: newX, y: newY }));
   };
   const handleMouseUp = () => setIsDragging(false);
   
-  // Marker Interaction
   const handleMarkerClick = (id: string) => {
       if (isCompareMode) {
           if (compareSelection.includes(id)) {
               setCompareSelection(prev => prev.filter(mid => mid !== id));
           } else if (compareSelection.length < 2) {
               setCompareSelection(prev => [...prev, id]);
-          } else {
-              setToast({ message: "Max 2 regions for comparison", type: 'info' });
           }
       } else {
           setActiveMarkerId(id);
@@ -158,52 +137,16 @@ const WorldMap: React.FC = () => {
 
   const activeMarkerData = MARKERS.find(m => m.id === activeMarkerId);
 
-  // Global AI Analyze
-  const handleAIAnalyze = () => {
-      setShowAIAnalysis(true);
-      setActiveMarkerId(null);
-      setActiveZone(null);
-  };
-
-  // Zone Click
-  const handleZoneClick = (zone: any) => {
-      if (isCompareMode) return;
-      setActiveZone({
-          region: "Regional Hotspot",
-          summary: `Activity is spiking due to ${zone.mainCategory} events.`,
-          momentum: 'High',
-          sentiment: 'Tense',
-          stats: [
-              { label: 'Events', value: zone.markers.length.toString(), icon: Users },
-              { label: 'Intensity', value: Math.round(zone.intensity).toString(), icon: AlertTriangle },
-          ],
-          categories: [
-              { label: zone.mainCategory || 'General', percentage: 70, color: '#4f46e5' },
-              { label: 'Other', percentage: 30, color: '#94a3b8' }
-          ]
-      });
-      setActiveMarkerId(null);
-      setShowAIAnalysis(false);
-  };
-
-  // Helper for Comparison Data
   const getComparisonData = (id: string) => {
       const m = MARKERS.find(marker => marker.id === id);
       if (!m) return null;
-      return {
-          id: m.id,
-          name: m.locationName,
-          sentiment: m.sentiment,
-          volume: m.impactRadius * 1240,
-          momentum: m.momentum
-      };
+      return { id: m.id, name: m.locationName, sentiment: m.sentiment, volume: m.impactRadius * 1240, momentum: m.momentum };
   };
 
   return (
     <div 
         className="relative w-full h-full bg-[#1a1d21] overflow-hidden group select-none outline-none"
-        tabIndex={0}
-        onKeyDown={handleKeyDown}
+        onWheel={handleWheel}
     >
        {toast && (
            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-xs px-4">
@@ -211,67 +154,26 @@ const WorldMap: React.FC = () => {
            </div>
        )}
 
-       <MapFilterPanel 
-          filters={filters} 
-          onChange={(k, v) => setFilters(prev => ({ ...prev, [k]: v }))} 
-       />
-
-       {/* 8.13.9 Smart Insights */}
        <MapSmartInsights />
 
-       {/* 8.13.8 Comparison Overlay */}
        {isCompareMode && compareSelection.length > 0 && (
            <MapComparisonOverlay 
               itemA={compareSelection[0] ? getComparisonData(compareSelection[0]) : null}
               itemB={compareSelection[1] ? getComparisonData(compareSelection[1]) : null}
-              onClose={() => {
-                  setIsCompareMode(false);
-                  setCompareSelection([]);
-              }}
+              onClose={() => { setIsCompareMode(false); setCompareSelection([]); }}
            />
        )}
 
-       {/* Global AI Overlay */}
-       {showAIAnalysis && (
+       {(showAIAnalysis || activeZone) && (
            <MapAIOverlay 
-              region="Global View"
-              summary="Significant activity detected in Western Markets."
-              momentum="Medium"
-              sentiment="Neutral"
-              stats={[
-                  { label: 'Trending', value: 'Technology', icon: TrendingUp },
-                  { label: 'Impact', value: 'High', icon: AlertTriangle },
-              ]}
-              categories={[
-                  { label: 'Technology', percentage: 45, color: '#4f46e5' },
-                  { label: 'Business', percentage: 30, color: '#0ea5e9' },
-                  { label: 'Politics', percentage: 25, color: '#f59e0b' }
-              ]}
-              onClose={() => setShowAIAnalysis(false)}
+              region={activeZone?.region || "Global View"}
+              summary={activeZone?.summary || "Significant activity detected in Western Markets."}
+              momentum={activeZone?.momentum || "Medium"}
+              sentiment={activeZone?.sentiment || "Neutral"}
+              stats={activeZone?.stats || [{ label: 'Trending', value: 'Technology', icon: TrendingUp }, { label: 'Impact', value: 'High', icon: AlertTriangle }]}
+              categories={activeZone?.categories || [{ label: 'Tech', percentage: 45, color: '#4f46e5' }, { label: 'Biz', percentage: 30, color: '#0ea5e9' }]}
+              onClose={() => { setShowAIAnalysis(false); setActiveZone(null); }}
            />
-       )}
-
-       {/* Zone Specific AI Overlay */}
-       {activeZone && (
-           <MapAIOverlay 
-              region={activeZone.region}
-              summary={activeZone.summary}
-              momentum={activeZone.momentum}
-              sentiment={activeZone.sentiment}
-              stats={activeZone.stats}
-              categories={activeZone.categories}
-              onClose={() => setActiveZone(null)}
-           />
-       )}
-
-       {!activeMarkerId && !showAIAnalysis && !activeZone && !isCompareMode && filteredMarkers.length > 0 && (
-           <button 
-              onClick={handleAIAnalyze}
-              className="absolute bottom-28 left-1/2 -translate-x-1/2 z-20 bg-indigo-600 text-white px-5 py-2.5 rounded-full shadow-lg shadow-indigo-500/30 flex items-center gap-2 font-bold text-xs animate-in slide-in-from-bottom-10 hover:scale-105 transition-transform focus:outline-none focus:ring-2 focus:ring-white"
-           >
-               <Sparkles size={14} className="text-yellow-300 animate-pulse" />
-               Analyze View
-           </button>
        )}
 
       <div 
@@ -280,25 +182,19 @@ const WorldMap: React.FC = () => {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        onClick={() => { 
-            setActiveMarkerId(null); 
-            setShowAIAnalysis(false); 
-            setActiveZone(null); 
-        }}
+        onClick={() => { setActiveMarkerId(null); setShowAIAnalysis(false); setActiveZone(null); }}
       >
         <div 
             className="relative w-full max-w-[1200px] aspect-[16/9] transition-transform duration-200 ease-out origin-center will-change-transform"
             style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.k})` }}
         >
            <div className="absolute inset-0 opacity-40 bg-[url('https://upload.wikimedia.org/wikipedia/commons/e/ec/World_map_blank_without_borders.svg')] bg-contain bg-no-repeat bg-center pointer-events-none filter invert contrast-125"></div>
-           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/grid-me.png')] opacity-10 pointer-events-none"></div>
-
-           {/* Heatmap Layer - Defaulting to Intensity */}
+           
            <HeatmapLayer 
                 markers={filteredMarkers} 
-                visible={showHeatmap} 
-                mode={'intensity'}
-                onZoneClick={handleZoneClick}
+                visible={true} 
+                mode='intensity'
+                onZoneClick={setActiveZone}
            />
 
            {isMapReady && filteredMarkers.map((marker, index) => (
@@ -313,7 +209,6 @@ const WorldMap: React.FC = () => {
                isCompareSelected={compareSelection.includes(marker.id)}
                isCompareMode={isCompareMode}
                zoomLevel={transform.k}
-               impactRadius={marker.impactRadius}
                onClick={() => handleMarkerClick(marker.id)}
                delay={index * 100}
              />
@@ -321,45 +216,20 @@ const WorldMap: React.FC = () => {
         </div>
       </div>
 
-      {/* Empty State */}
-      {isMapReady && filteredMarkers.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="bg-gray-900/80 backdrop-blur-md p-6 rounded-2xl border border-gray-700 text-center max-w-xs animate-in zoom-in-95 pointer-events-auto">
-                  <div className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <MapPinOff size={24} className="text-gray-400" />
-                  </div>
-                  <h3 className="text-white font-bold mb-1">No News Found</h3>
-                  <p className="text-gray-400 text-sm mb-4">Try adjusting time slider or filters.</p>
-                  <button 
-                    onClick={() => {
-                        setFilters({ category: 'All', time: 'Today', type: 'All' });
-                        setTimeValue(2);
-                    }}
-                    className="text-blue-400 text-sm font-bold hover:text-blue-300"
-                  >
-                      Reset All
-                  </button>
-              </div>
-          </div>
-      )}
-
-      {/* Time Scrubber - Hide in Compare Mode */}
-      {!isCompareMode && (
+      {showTimeline && !isCompareMode && (
           <TimeScrubber 
             value={timeValue}
             onChange={setTimeValue}
             isPlaying={isPlayingHistory}
             onTogglePlay={() => setIsPlayingHistory(!isPlayingHistory)}
+            onClose={() => setShowTimeline(false)}
           />
       )}
 
       <MapNewsSheet 
         isOpen={!!activeMarkerId && !isCompareMode} 
         onClose={() => setActiveMarkerId(null)}
-        data={activeMarkerData ? {
-            ...activeMarkerData,
-            description: `Analyzing ${activeMarkerData.locationName}: This event has a regional impact score of ${activeMarkerData.impactRadius}/10. Local sources report significant engagement.`
-        } : null}
+        data={activeMarkerData ? { ...activeMarkerData, description: `Analyzing ${activeMarkerData.locationName}: This event has a regional impact score of ${activeMarkerData.impactRadius}/10.` } : null}
       />
 
       <MapToolbar 
@@ -367,16 +237,9 @@ const WorldMap: React.FC = () => {
         onZoomOut={handleZoomOut} 
         onRecenter={handleRecenter}
         onLocateMe={handleLocateMe}
-        onToggleCompare={() => {
-            if (isCompareMode) setCompareSelection([]); // clear on exit
-            setIsCompareMode(!isCompareMode);
-        }}
+        onToggleCompare={() => { if (isCompareMode) setCompareSelection([]); setIsCompareMode(!isCompareMode); }}
         isCompareMode={isCompareMode}
       />
-      
-      <div className="absolute bottom-1 right-2 text-[8px] text-gray-600 pointer-events-none">
-          Powered by NewsClub GeoEngine
-      </div>
     </div>
   );
 };

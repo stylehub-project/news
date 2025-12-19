@@ -1,28 +1,31 @@
 import React from 'react';
-import { Play, Pause, Clock } from 'lucide-react';
+import { Play, Pause, Clock, X } from 'lucide-react';
 
 interface TimeScrubberProps {
-  value: number; // 0 (Today) to 2 (Week)
+  value: number; 
   onChange: (val: number) => void;
   isPlaying: boolean;
   onTogglePlay: () => void;
+  onClose?: () => void;
 }
 
-const TimeScrubber: React.FC<TimeScrubberProps> = ({ value, onChange, isPlaying, onTogglePlay }) => {
-  const steps = ['Live', '24 Hours', '7 Days'];
-
-  // Calculate current label based on value
-  const getCurrentLabel = () => {
-      if (value < 0.5) return "Live Updates";
-      if (value < 1.5) return "Past 24 Hours";
-      return "Past Week";
-  };
+const TimeScrubber: React.FC<TimeScrubberProps> = ({ value, onChange, isPlaying, onTogglePlay, onClose }) => {
+  const steps = ['Live', '24h', '7d'];
 
   return (
-    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-30 w-[90%] max-w-sm bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 rounded-2xl p-3 shadow-2xl animate-in slide-in-from-bottom-4 flex flex-col gap-2">
+    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-30 w-[90%] max-w-sm bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 rounded-2xl p-3 shadow-2xl animate-in slide-in-from-bottom-4 flex flex-col gap-2 relative">
+        {onClose && (
+            <button 
+                onClick={onClose}
+                className="absolute -top-2 -right-2 bg-gray-800 text-gray-400 hover:text-white p-1 rounded-full border border-gray-600 shadow-lg hover:bg-red-500 transition-colors z-50"
+            >
+                <X size={12} />
+            </button>
+        )}
+
         <div className="flex items-center justify-between text-xs font-bold text-gray-400 px-1">
-            <span className="flex items-center gap-1 text-blue-400"><Clock size={12}/> {getCurrentLabel()}</span>
-            <span className="uppercase tracking-wider opacity-50">Timeline</span>
+            <span className="flex items-center gap-1 text-blue-400"><Clock size={12}/> Live Intelligence</span>
+            <span className="uppercase tracking-widest text-[9px] opacity-50">Timeline</span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -33,7 +36,7 @@ const TimeScrubber: React.FC<TimeScrubberProps> = ({ value, onChange, isPlaying,
                 {isPlaying ? <Pause size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" className="ml-0.5" />}
             </button>
             
-            <div className="flex-1 relative pt-1 group">
+            <div className="flex-1 relative pt-1">
                 <input 
                     type="range" 
                     min="0" 
@@ -41,20 +44,11 @@ const TimeScrubber: React.FC<TimeScrubberProps> = ({ value, onChange, isPlaying,
                     step="0.05"
                     value={value}
                     onChange={(e) => onChange(parseFloat(e.target.value))}
-                    className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:h-1.5 transition-all"
+                    className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
                 />
-                
-                {/* Ticks */}
                 <div className="flex justify-between mt-2 px-1">
                     {steps.map((step, i) => (
-                        <div key={step} className="flex flex-col items-center gap-1">
-                            <div className={`w-0.5 h-1 ${Math.round(value) >= i ? 'bg-blue-500' : 'bg-gray-700'}`}></div>
-                            <span 
-                                className={`text-[9px] font-bold uppercase tracking-wider transition-colors ${Math.round(value) === i ? 'text-white' : 'text-gray-600'}`}
-                            >
-                                {step}
-                            </span>
-                        </div>
+                        <span key={step} className={`text-[8px] font-black uppercase tracking-widest ${Math.round(value) === i ? 'text-blue-400' : 'text-gray-600'}`}>{step}</span>
                     ))}
                 </div>
             </div>
