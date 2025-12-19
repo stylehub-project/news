@@ -35,16 +35,12 @@ const ChatPage: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatSessionRef = useRef<Chat | null>(null);
 
-  // Initialize Chat Session
+  // Initialize Chat Session (Silent)
   useEffect(() => {
     const initChat = async () => {
         try {
-            // Direct access for Vercel/Build env replacement
-            const apiKey = process.env.API_KEY; 
-            if (!apiKey) {
-                console.warn("API Key not found in environment variables");
-                return;
-            }
+            const apiKey = process.env.API_KEY;
+            if (!apiKey) return; // Don't crash, just wait for send to catch it
 
             const ai = new GoogleGenAI({ apiKey });
             chatSessionRef.current = ai.chats.create({
@@ -56,10 +52,9 @@ const ChatPage: React.FC = () => {
             });
         } catch (error) { 
             console.error("Init Error", error);
-            setAvatarState('error'); 
         }
     };
-    if (!chatSessionRef.current) initChat();
+    initChat();
   }, []);
 
   // Handle Loader
@@ -94,23 +89,36 @@ const ChatPage: React.FC = () => {
     if (!text.trim()) return;
     setHasInteracted(true);
     
+    // 1. Add User Message
     const newUserMsg: Message = { 
         id: Date.now().toString(), 
         role: 'user', 
         content: text, 
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
     };
-    
     setMessages(prev => [...prev, newUserMsg]);
+    
+    // 2. Validate API Key
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+        const errorMsg: Message = {
+            id: (Date.now() + 1).toString(),
+            role: 'ai',
+            content: "I seem to be missing my API Key! 🔑 Please check your configuration.",
+            timestamp: 'System'
+        };
+        setMessages(prev => [...prev, errorMsg]);
+        return;
+    }
+
+    // 3. Prepare AI Response
     setIsLoading(true);
     setAvatarState('thinking');
-
     const aiMsgId = (Date.now() + 1).toString();
     setMessages(prev => [...prev, { id: aiMsgId, role: 'ai', content: '', isStreaming: true, timestamp: 'Just now' }]);
 
     try {
         if (!chatSessionRef.current) {
-            const apiKey = process.env.API_KEY;
             const ai = new GoogleGenAI({ apiKey });
             chatSessionRef.current = ai.chats.create({ 
                 model: 'gemini-3-flash-preview',
@@ -135,11 +143,11 @@ const ChatPage: React.FC = () => {
             }
         }
 
-        // Generate context-aware prompt suggestions for the UI
+        // Logic to suggest related prompts based on the conversation context
         let suggestedActions: string[] = ["Tell me more! 🗣️", "What else is trending? 🔥", "Explain it simply 👶"];
         const lowerText = accumulatedText.toLowerCase();
         
-        if (lowerText.includes('market') || lowerText.includes('stock') || lowerText.includes('business')) {
+        if (lowerText.includes('market') || lowerText.includes('stock')) {
             suggestedActions = ["Stock predictions 📈", "Company insights 🏢", "Market risks? ⚠️"];
         } else if (lowerText.includes('tech') || lowerText.includes('ai')) {
             suggestedActions = ["Future of AI 🤖", "Tech stock news 💻", "Is it safe? 🛡️"];
