@@ -6,10 +6,12 @@ interface SmartTextRendererProps {
 }
 
 const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
+  // Normalize newlines
   const lines = content.split('\n');
 
   const parseLine = (line: string, index: number) => {
     const trimmed = line.trim();
+    if (!trimmed) return <div key={index} className="h-2" />;
 
     // 1. Markdown Images: ![Alt](URL)
     const imageMatch = trimmed.match(/^!\[(.*?)\]\((.*?)\)$/);
@@ -23,7 +25,6 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
     }
 
     // 2. Callouts / Summaries (Lines starting with >)
-    // Uses strict equality to catch the '> ' instruction
     if (trimmed.startsWith('>')) {
       const cleanLine = trimmed.substring(1).trim();
       return (
@@ -36,7 +37,7 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
       );
     }
 
-    // 3. Bullet Points (Handle both '- ' and '* ')
+    // 3. Bullet Points
     if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
         return (
             <div key={index} className="flex gap-3 mb-2 pl-2 items-start">
@@ -46,29 +47,15 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
         )
     }
 
-    // 4. Headers (###)
+    // 4. Headers
     if (trimmed.startsWith('### ')) {
-        return (
-            <h3 key={index} className="text-base font-bold text-gray-900 dark:text-white mt-5 mb-2">
-                {parseInline(trimmed.substring(4))}
-            </h3>
-        );
+        return <h3 key={index} className="text-base font-bold text-gray-900 dark:text-white mt-5 mb-2">{parseInline(trimmed.substring(4))}</h3>;
     }
-
-    // 5. Headers (##)
     if (trimmed.startsWith('## ')) {
-        return (
-            <h2 key={index} className="text-lg font-black text-indigo-700 dark:text-indigo-300 mt-6 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                {parseInline(trimmed.substring(3))}
-            </h2>
-        );
+        return <h2 key={index} className="text-lg font-black text-indigo-700 dark:text-indigo-300 mt-6 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">{parseInline(trimmed.substring(3))}</h2>;
     }
 
-    // 6. Spacing
-    if (trimmed === '') {
-        return <div key={index} className="h-2"></div>;
-    }
-
+    // 5. Standard Paragraph
     return (
       <p key={index} className="mb-2 text-gray-800 dark:text-slate-200 leading-relaxed">
         {parseInline(line)}
@@ -77,38 +64,35 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
   };
 
   const parseInline = (text: string) => {
-    // Advanced Regex to split complex tokens
-    // Captures: **bold**, [[entity]], *italic*
-    // The capture groups in split() allow us to keep the delimiters in the resulting array
-    const parts = text.split(/(\*\*.*?\*\*|\[\[.*?\]\]|\*.*?\*)/g);
+    // Regex Logic:
+    // Capture group 1: **bold** (lazy match)
+    // Capture group 2: [[entity]] (lazy match)
+    const regex = /(\*\*.*?\*\*|\[\[.*?\]\])/g;
+    
+    const parts = text.split(regex);
     
     return parts.map((part, i) => {
-      // Bold: **text**
-      if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+      // Handle Bold: **text**
+      if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+        const content = part.slice(2, -2);
         return (
             <strong key={i} className="font-extrabold text-gray-900 dark:text-white">
-                {part.slice(2, -2)}
+                {content}
             </strong>
         );
       }
       
-      // Entity: [[text]]
-      if (part.startsWith('[[') && part.endsWith(']]') && part.length > 4) {
+      // Handle Entities: [[text]]
+      if (part.startsWith('[[') && part.endsWith(']]') && part.length >= 4) {
+        const content = part.slice(2, -2);
         return (
-          <span key={i} className="inline-flex items-center bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-200 px-2 py-0.5 rounded-full text-xs font-bold mx-1 border border-blue-200 dark:border-blue-700 shadow-sm align-middle select-all hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors cursor-default">
-            {part.slice(2, -2)}
+          <span key={i} className="inline-flex items-center bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 px-2 py-0.5 rounded-full text-xs font-bold mx-1 border border-blue-100 dark:border-blue-800 align-middle">
+            {content}
           </span>
         );
       }
 
-      // Italic: *text* (but ignore * if it was part of ** or other chars)
-      if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
-         // Double check it's not **
-         if (!part.startsWith('**')) {
-             return <em key={i} className="italic text-gray-700 dark:text-gray-300">{part.slice(1, -1)}</em>;
-         }
-      }
-
+      // Return plain text
       return part;
     });
   };

@@ -42,20 +42,24 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoa
       };
 
       recognition.onerror = (event: any) => {
-          console.error("Speech recognition error", event.error);
+          console.error("Speech recognition error:", event.error);
           setIsListening(false);
-          alert("Voice input error: " + event.error);
+          
+          if (event.error === 'not-allowed') {
+              alert("Microphone access blocked. Please allow microphone permissions in your browser settings (click the lock icon in the URL bar).");
+          } else if (event.error === 'no-speech') {
+              // Ignore no-speech, just stop listening
+          } else {
+              alert("Voice input error: " + event.error);
+          }
       };
 
       recognition.onresult = (event: any) => {
         let finalTranscript = '';
-        let interimTranscript = '';
-
+        
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
             finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
           }
         }
 
@@ -84,6 +88,11 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoa
           recognitionRef.current.start();
       } catch(e) {
           console.error("Mic start error", e);
+          // If it's already started, stop it first then start (reset)
+          recognitionRef.current.stop();
+          setTimeout(() => {
+              try { recognitionRef.current.start(); } catch(err) {}
+          }, 300);
       }
     }
   };
