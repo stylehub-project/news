@@ -10,7 +10,18 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
   const parseLine = (line: string, index: number) => {
     const trimmed = line.trim();
 
-    // 1. Callouts / Quotes
+    // 1. Markdown Images: ![Alt](URL)
+    const imageMatch = trimmed.match(/^!\[(.*?)\]\((.*?)\)$/);
+    if (imageMatch) {
+        return (
+            <div key={index} className="my-4 rounded-xl overflow-hidden border border-white/10 bg-black/20 max-w-sm">
+                <img src={imageMatch[2]} alt={imageMatch[1]} className="w-full h-auto object-cover" loading="lazy" />
+                {imageMatch[1] && <div className="p-2 text-xs text-gray-400 bg-black/40 text-center">{imageMatch[1]}</div>}
+            </div>
+        );
+    }
+
+    // 2. Callouts / Quotes
     if (trimmed.startsWith('>')) {
       const cleanLine = trimmed.substring(1).trim();
       return (
@@ -22,7 +33,7 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
       );
     }
 
-    // 2. Bullet Points (Handle both '- ' and '* ')
+    // 3. Bullet Points (Handle both '- ' and '* ')
     if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
         return (
             <div key={index} className="flex gap-2 mb-1 pl-1 items-start">
@@ -32,7 +43,7 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
         )
     }
 
-    // 3. Headers (###)
+    // 4. Headers (###)
     if (trimmed.startsWith('### ')) {
         return (
             <h3 key={index} className="text-base font-bold text-gray-900 dark:text-white mt-4 mb-2">
@@ -41,7 +52,7 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
         );
     }
 
-    // 4. Headers (##)
+    // 5. Headers (##)
     if (trimmed.startsWith('## ')) {
         return (
             <h2 key={index} className="text-lg font-bold text-indigo-700 dark:text-indigo-300 mt-5 mb-2 border-b border-gray-100 dark:border-gray-700 pb-1">
@@ -50,7 +61,7 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
         );
     }
 
-    // 5. Spacing
+    // 6. Spacing
     if (trimmed === '') {
         return <div key={index} className="h-3"></div>;
     }
@@ -67,11 +78,24 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
     // 1. Bold: **text**
     // 2. Italic: *text* (but ignore * if it was part of **)
     // 3. Entity: [[text]]
+    // 4. Inline Image: ![alt](url) inside text
     
-    // We split by tokens. Note: This simple splitter might be fragile with nested MD, but sufficient for GenAI output.
-    const parts = text.split(/(\*\*.*?\*\*|\[\[.*?\]\]|\*.*?\*)/g);
+    // Split by complex token including images
+    const parts = text.split(/(!\[.*?\]\(.*?\)| \*\*.*?\*\*|\[\[.*?\]\]|\*.*?\*)/g);
     
     return parts.map((part, i) => {
+      // Inline Markdown Image
+      const imgMatch = part.match(/^!\[(.*?)\]\((.*?)\)$/);
+      if (imgMatch) {
+          return (
+              <span key={i} className="inline-block align-middle mx-1">
+                  <a href={imgMatch[2]} target="_blank" rel="noopener noreferrer" className="text-blue-400 underline text-xs">
+                      View Image ({imgMatch[1] || 'Link'})
+                  </a>
+              </span>
+          );
+      }
+
       // Bold
       if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
         return <strong key={i} className="font-bold text-gray-900 dark:text-white">{part.slice(2, -2)}</strong>;
@@ -79,7 +103,6 @@ const SmartTextRenderer: React.FC<SmartTextRendererProps> = ({ content }) => {
       
       // Italic
       if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
-         // check if it's not actually bold (handled above, but safety check)
          if (!part.startsWith('**')) {
              return <em key={i} className="italic text-gray-700 dark:text-gray-300">{part.slice(1, -1)}</em>;
          }

@@ -48,11 +48,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
 
   return (
     <div className="w-full mb-6 animate-in fade-in slide-in-from-bottom-2 duration-300 group clearfix">
-        {/* Container for message content */}
+        {/* Bubble Container */}
         <div className={`relative w-full rounded-2xl p-4 transition-all duration-300 ${isUser ? 'bg-indigo-600/10 border border-indigo-500/30' : 'bg-white/5 border border-white/10 shadow-lg backdrop-blur-sm'}`}>
             
-            {/* Floated Avatar - This enables text wrapping under the avatar */}
-            <div className={`mb-1 ${isUser ? 'float-right ml-4' : 'float-left mr-4'}`}>
+            {/* Floated Avatar */}
+            {/* Using block flow so text wraps naturally under it */}
+            <div className={`mb-1 ${isUser ? 'float-right ml-3' : 'float-left mr-3'}`}>
                 {isUser ? (
                     <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg text-xs font-bold border border-white/20">
                         ME
@@ -69,21 +70,24 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                 )}
             </div>
 
-            {/* Text Content */}
+            {/* Text Content - No overflow hidden, allowing wrap around float */}
             <div className={`text-sm leading-relaxed tracking-wide ${isUser ? 'text-indigo-100 font-medium text-right' : 'text-slate-200 text-left'}`}>
-                {isUser ? (
-                    <div className="whitespace-pre-wrap inline-block text-left">{message.content}</div>
-                ) : (
-                    <div className="relative min-h-[20px] w-full">
-                        <SmartTextRenderer content={message.content} />
-                        {message.isStreaming && (
-                            <span className="inline-block w-1.5 h-4 bg-indigo-400 ml-1 align-middle animate-pulse rounded-sm"></span>
-                        )}
-                    </div>
-                )}
+                {/* Wrapper to ensure formatting context is inline-block like or block */}
+                <div className="inline">
+                    {isUser ? (
+                        <span className="whitespace-pre-wrap">{message.content}</span>
+                    ) : (
+                        <div className="relative min-h-[20px]">
+                            <SmartTextRenderer content={message.content} />
+                            {message.isStreaming && (
+                                <span className="inline-block w-1.5 h-4 bg-indigo-400 ml-1 align-middle animate-pulse rounded-sm"></span>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Clear floats before attachments if needed, but flex containers below usually handle it */}
+            {/* Clear Float */}
             <div className="clear-both"></div>
 
             {/* Attachments */}

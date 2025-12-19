@@ -110,7 +110,7 @@ const ChatPage: React.FC = () => {
                 model: 'gemini-2.5-flash', 
                 history: history,
                 config: {
-                    systemInstruction: "You are a helpful, professional, and concise News Assistant for the 'News Club' app. FORMATTING RULES: 1. Use **bold** for key terms. 2. Use [[brackets]] around entities. 3. Start summaries with '> '.",
+                    systemInstruction: "You are a helpful, professional, and concise News Assistant for the 'News Club' app. FORMATTING RULES: 1. Use **bold** for key terms. 2. Use [[brackets]] around entities. 3. Start summaries with '> '. 4. If asked for an image, try to find a relevant Markdown image link from search results or simply describe it.",
                     tools: [{ googleSearch: {} }],
                 },
             });
@@ -195,48 +195,50 @@ const ChatPage: React.FC = () => {
     setIsLoading(true);
     setAvatarState('thinking');
 
-    // --- Image Generation Logic ---
     const lowerText = text.toLowerCase();
     const isImageRequest = lowerText.startsWith('draw') || 
                            lowerText.includes('generate image') || 
                            lowerText.includes('create image') ||
-                           lowerText.startsWith('image of');
+                           lowerText.startsWith('image of') ||
+                           lowerText.includes('show me');
 
+    // --- Search for Image Logic (Replaces Generation) ---
     if (isImageRequest) {
         const aiMsgId = (Date.now() + 1).toString();
-        setMessages(prev => [...prev, { id: aiMsgId, role: 'ai', content: 'Generating visual...', isStreaming: true, timestamp: 'Just now' }]);
+        // Feedback: Searching instead of Generating
+        setMessages(prev => [...prev, { id: aiMsgId, role: 'ai', content: 'Searching web for images...', isStreaming: true, timestamp: 'Just now' }]);
 
         try {
             const ai = new GoogleGenAI({ apiKey });
             
+            // Use Text Model with Search Tool to find an image
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash-image', 
+                model: 'gemini-2.5-flash', 
                 contents: {
-                    parts: [{ text: text }]
+                    parts: [{ text: `Find a publicly available image of "${text}" on the web. If you find one, return it using standard Markdown image syntax: ![Description](ImageURL). Also provide a brief description of what you found.` }]
                 },
                 config: {
-                    imageConfig: { aspectRatio: "1:1" }
+                    tools: [{ googleSearch: {} }] // Enable search
                 }
             });
 
-            let imageUrl = '';
-            let caption = '';
+            let finalText = response.text || "I couldn't find a specific image, but I can describe it.";
+            let sources: { name: string; url: string }[] = [];
 
-            if (response.candidates?.[0]?.content?.parts) {
-                for (const part of response.candidates[0].content.parts) {
-                    if (part.inlineData) {
-                        imageUrl = `data:image/png;base64,${part.inlineData.data}`;
-                    } else if (part.text) {
-                        caption = part.text;
+            // Extract sources from grounding metadata
+            if (response.candidates?.[0]?.groundingMetadata?.groundingChunks) {
+                response.candidates[0].groundingMetadata.groundingChunks.forEach((c: any) => {
+                    if (c.web?.uri && c.web?.title) {
+                        sources.push({ name: c.web.title, url: c.web.uri });
                     }
-                }
+                });
             }
 
             setMessages(prev => prev.map(m => m.id === aiMsgId ? { 
                 ...m, 
-                content: caption || "I've generated an image based on your description.", 
+                content: finalText, 
                 isStreaming: false,
-                attachments: imageUrl ? [{ type: 'image', url: imageUrl, title: text }] : undefined
+                sources: sources.length > 0 ? sources : undefined
             } : m));
 
             setIsLoading(false);
@@ -244,8 +246,8 @@ const ChatPage: React.FC = () => {
             return;
 
         } catch (error) {
-            console.error("Image Gen Error", error);
-            setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: "I encountered an issue generating that image. Please try a different prompt.", isStreaming: false } : m));
+            console.error("Search Error", error);
+            setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: "I encountered an issue searching for that. Please try again.", isStreaming: false } : m));
             setIsLoading(false);
             setAvatarState('error');
             return;
@@ -387,7 +389,7 @@ const ChatPage: React.FC = () => {
                     </h2>
                     
                     <p className="text-slate-400 max-w-sm mb-10 text-sm leading-relaxed font-medium">
-                        I am your advanced AI assistant. I can analyze complex market trends, visualize data, generate images from text, and provide real-time news summaries.
+                        I am your advanced AI assistant. I can analyze complex market trends, visualize data, find images from the web, and provide real-time news summaries.
                     </p>
 
                     <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
@@ -396,10 +398,10 @@ const ChatPage: React.FC = () => {
                             <span className="text-xs font-bold text-slate-200 block">Brief Me</span>
                             <span className="text-[10px] text-slate-500">Global summary</span>
                         </button>
-                        <button onClick={() => handleSend("Draw a futuristic smart city")} className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-2xl text-left transition-all group hover:border-purple-500/50">
+                        <button onClick={() => handleSend("Show me an image of a futuristic city")} className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-2xl text-left transition-all group hover:border-purple-500/50">
                             <ImageIcon size={20} className="text-purple-400 mb-2 group-hover:scale-110 transition-transform" />
-                            <span className="text-xs font-bold text-slate-200 block">Generate Art</span>
-                            <span className="text-[10px] text-slate-500">Create visual</span>
+                            <span className="text-xs font-bold text-slate-200 block">Find Image</span>
+                            <span className="text-[10px] text-slate-500">Search web</span>
                         </button>
                     </div>
                 </div>
