@@ -28,23 +28,23 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoa
   };
 
   return (
-    <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)] pb-safe transition-colors duration-300">
-      <div className="flex items-center gap-2">
+    <div className="p-3 bg-gray-900/90 backdrop-blur-xl border-t border-white/10 pb-safe transition-colors duration-300">
+      <div className="flex items-center gap-2 max-w-4xl mx-auto">
         {/* Attachments */}
-        <button className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+        <button className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-colors">
             <ImageIcon size={20} />
         </button>
         
         {/* Input Field */}
-        <div className="flex-1 bg-gray-100 dark:bg-gray-700/50 rounded-3xl px-4 py-2.5 flex items-center focus-within:ring-2 focus-within:ring-indigo-100 dark:focus-within:ring-indigo-900 focus-within:bg-white dark:focus-within:bg-gray-700 transition-all">
+        <div className="flex-1 bg-black/40 border border-white/10 rounded-3xl px-4 py-3 flex items-center focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-indigo-500/50 transition-all">
             <input 
               ref={inputRef}
               type="text" 
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask AI about the news..." 
-              className="bg-transparent w-full outline-none text-sm placeholder:text-gray-400 disabled:opacity-50 text-gray-900 dark:text-white"
+              placeholder="Ask anything or generate an image..." 
+              className="bg-transparent w-full outline-none text-sm placeholder:text-slate-500 disabled:opacity-50 text-white font-medium"
               disabled={isLoading}
             />
         </div>
@@ -52,18 +52,17 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoa
         {/* Voice Mode Trigger */}
         <button 
             onClick={onVoiceClick}
-            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-full transition-colors active:scale-90"
+            className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-full transition-colors active:scale-90"
             title="Voice Conversation"
         >
             <Mic size={20} />
         </button>
 
         {/* Send Button */}
-        {/* Fix: Changed size from 'icon-button' to 'md' because 'icon-button' is not a valid size type. The layout is handled by custom classes. */}
         <Button 
             variant="primary" 
             size="md"
-            className={`rounded-full w-10 h-10 flex items-center justify-center transition-all duration-300 ${text.trim() ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
+            className={`rounded-full w-10 h-10 flex items-center justify-center transition-all duration-300 shadow-lg ${text.trim() ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : 'bg-white/10 text-slate-500'}`}
             onClick={() => handleSubmit()}
             disabled={!text.trim() || isLoading}
             isLoading={isLoading}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, ExternalLink, ArrowRight, Flag, Info, CheckCircle2 } from 'lucide-react';
+import { User, ExternalLink, ArrowRight, Flag, Info, CheckCircle2, Wand2 } from 'lucide-react';
 import HighlightReadingMode from '../HighlightReadingMode';
 import StoryboardAttachment, { StoryboardData } from './StoryboardAttachment';
 import ImageAttachment from './ImageAttachment';
@@ -42,62 +42,63 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
   };
 
   const handleAvatarClick = () => {
-      // Simple interaction triggering a brief animation state
       setAiState('speaking');
       setTimeout(() => setAiState('idle'), 1500);
   };
 
   return (
-    <div className={`flex flex-col mb-6 animate-in fade-in slide-in-from-bottom-2 duration-300 ${isUser ? 'items-end' : 'items-start'}`}>
-        <div className={`flex gap-3 w-full ${isUser ? 'flex-row-reverse max-w-[90%]' : 'flex-row max-w-full'}`}>
-            {/* Avatar */}
-            <div className="shrink-0 mt-1">
+    <div className="w-full px-2 mb-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div 
+            className={`relative w-full rounded-2xl p-4 overflow-hidden border transition-all duration-300 ${
+                isUser 
+                ? 'bg-blue-600/10 border-blue-500/30' 
+                : 'bg-white/5 border-white/10 shadow-lg backdrop-blur-sm'
+            }`}
+        >
+            {/* Avatar Positioned Inside */}
+            <div className={`absolute top-4 ${isUser ? 'right-4' : 'left-4'}`}>
                 {isUser ? (
-                    <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 flex items-center justify-center shadow-sm border border-white dark:border-gray-800">
-                        <User size={16} />
+                    <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg text-xs font-bold border border-white/20">
+                        ME
                     </div>
                 ) : (
                     <div className="relative">
+                        <div className="absolute inset-0 bg-indigo-500 blur-md opacity-30 rounded-full"></div>
                         <InteractiveAvatar 
                             state={message.isStreaming ? 'speaking' : aiState} 
-                            size={34} 
+                            size={32} 
                             onClick={handleAvatarClick}
                         />
                     </div>
                 )}
             </div>
 
-            {/* Message Bubble */}
-            <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} min-w-0 flex-1`}>
-                <div 
-                className={`p-4 shadow-sm relative overflow-hidden text-sm leading-relaxed group transition-colors duration-300 ${
-                    isUser 
-                    ? 'bg-blue-600 text-white rounded-2xl rounded-tr-none max-w-full' 
-                    : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-none w-full'
-                }`}
-                >
-                {/* Content */}
-                {isUser ? (
-                    <p className="whitespace-pre-wrap font-medium">{message.content}</p>
-                ) : (
-                    <div className="relative min-h-[20px] w-full">
-                        <SmartTextRenderer content={message.content} />
-                        {message.isStreaming && (
-                            <span className="inline-block w-2 h-4 bg-indigo-500 dark:bg-indigo-400 ml-1 align-middle animate-pulse rounded-sm"></span>
-                        )}
-                    </div>
-                )}
+            {/* Content Container - Padded to avoid avatar */}
+            <div className={`${isUser ? 'mr-12 text-right' : 'ml-12 text-left'}`}>
+                {/* Text Content */}
+                <div className={`text-sm leading-relaxed ${isUser ? 'text-blue-100 font-medium' : 'text-slate-200'}`}>
+                    {isUser ? (
+                        <p className="whitespace-pre-wrap">{message.content}</p>
+                    ) : (
+                        <div className="relative min-h-[20px] w-full">
+                            <SmartTextRenderer content={message.content} />
+                            {message.isStreaming && (
+                                <span className="inline-block w-1.5 h-4 bg-indigo-400 ml-1 align-middle animate-pulse rounded-sm"></span>
+                            )}
+                        </div>
+                    )}
+                </div>
 
                 {/* Attachments */}
                 {message.attachments && message.attachments.length > 0 && (
-                    <div className="mt-3 space-y-3 w-full">
+                    <div className={`mt-4 space-y-3 w-full max-w-md ${isUser ? 'ml-auto' : ''}`}>
                     {message.attachments.map((att, idx) => (
                         <div key={idx} className="animate-in fade-in zoom-in-95 duration-500">
                             {att.type === 'storyboard' && att.data && <StoryboardAttachment data={att.data as StoryboardData} />}
                             {att.type === 'image' && att.url && <ImageAttachment url={att.url} title={att.title} />}
                             {att.type === 'reading' && (
-                                <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-100 dark:border-gray-600">
-                                    <div className="text-xs font-bold text-gray-400 dark:text-gray-300 mb-2 uppercase tracking-wider">AI Read Aloud</div>
+                                <div className="bg-black/20 p-3 rounded-xl border border-white/10">
+                                    <div className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">Read Aloud</div>
                                     <HighlightReadingMode text={att.content || "Content unavailable."} theme="dark" />
                                 </div>
                             )}
@@ -106,11 +107,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                     </div>
                 )}
 
-                {/* Sources & Footer */}
+                {/* Footer Sources & Metadata */}
                 {!isUser && !message.isStreaming && (
-                    <div className="mt-3 pt-3 border-t border-gray-50 dark:border-gray-700 flex flex-col gap-2 opacity-80 hover:opacity-100 transition-opacity">
-                        
-                        {/* Sources Grid */}
+                    <div className="mt-4 pt-3 border-t border-white/5 flex flex-col gap-2 opacity-60 hover:opacity-100 transition-opacity">
                         {message.sources && message.sources.length > 0 && (
                             <div className="flex flex-wrap gap-2 mb-1">
                                 {message.sources.map((src, i) => (
@@ -119,28 +118,26 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                                         href={src.url} 
                                         target="_blank" 
                                         rel="noopener noreferrer"
-                                        className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-gray-200 dark:border-gray-600 px-2 py-1 rounded-md text-[10px] text-gray-600 dark:text-gray-300 font-medium transition-colors"
+                                        className="flex items-center gap-1.5 bg-black/20 hover:bg-white/10 border border-white/10 px-2 py-1 rounded text-[10px] text-slate-300 font-medium transition-colors"
                                     >
                                         <ExternalLink size={10} />
-                                        <span className="truncate max-w-[150px]">{src.name}</span>
+                                        <span className="truncate max-w-[120px]">{src.name}</span>
                                     </a>
                                 ))}
                             </div>
                         )}
 
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5 text-[10px] text-gray-400 dark:text-gray-500">
-                                <Info size={10} />
-                                <span>AI-generated. Verify details.</span>
-                            </div>
+                            <span className="text-[10px] text-slate-500 font-mono">
+                                Generated by Gemini • {message.timestamp || 'Just now'}
+                            </span>
                             <div className="flex gap-2">
                                 {isReported ? (
-                                    <span className="text-[10px] text-green-600 flex items-center gap-1"><CheckCircle2 size={10}/> Reported</span>
+                                    <span className="text-[10px] text-green-500 flex items-center gap-1"><CheckCircle2 size={10}/> Feedback Sent</span>
                                 ) : (
                                     <button 
                                         onClick={handleReport}
-                                        className="p-1 hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-300 dark:text-gray-600 hover:text-red-50 dark:hover:text-red-400 rounded transition-colors" 
-                                        title="Report inaccurate answer"
+                                        className="p-1 hover:bg-white/10 text-slate-500 hover:text-slate-300 rounded transition-colors" 
                                     >
                                         <Flag size={10} />
                                     </button>
@@ -149,33 +146,23 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                         </div>
                     </div>
                 )}
-                </div>
-                
-                {/* Timestamp */}
-                <div className="flex items-center gap-2 mt-1 px-1 flex-wrap">
-                    {message.timestamp && (
-                        <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">
-                            {message.timestamp}
-                        </span>
-                    )}
-                </div>
-                
-                {/* Suggested Actions */}
-                {!isUser && !message.isStreaming && message.suggestedActions && (
-                    <div className="flex flex-wrap gap-2 mt-2 w-full">
-                        {message.suggestedActions.map((action, i) => (
-                            <button
-                                key={i}
-                                onClick={() => onActionClick?.(action)}
-                                className="bg-white dark:bg-gray-800 border border-indigo-100 dark:border-indigo-900 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-full text-xs font-medium hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors shadow-sm flex items-center gap-1"
-                            >
-                                {action} <ArrowRight size={12} />
-                            </button>
-                        ))}
-                    </div>
-                )}
             </div>
         </div>
+        
+        {/* Suggested Actions Chips (Outside bubble) */}
+        {!isUser && !message.isStreaming && message.suggestedActions && (
+            <div className="flex flex-wrap gap-2 mt-2 ml-4">
+                {message.suggestedActions.map((action, i) => (
+                    <button
+                        key={i}
+                        onClick={() => onActionClick?.(action)}
+                        className="bg-white/5 border border-white/10 text-indigo-300 px-3 py-1.5 rounded-full text-xs font-medium hover:bg-white/10 transition-colors shadow-sm flex items-center gap-1 backdrop-blur-sm"
+                    >
+                        {action} <ArrowRight size={12} />
+                    </button>
+                ))}
+            </div>
+        )}
     </div>
   );
 };
