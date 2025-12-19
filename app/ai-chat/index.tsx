@@ -33,11 +33,13 @@ const getApiKey = () => {
   }
   
   if (!apiKey) {
-    // Graceful return for UI handling instead of throwing
     return '';
   }
   return apiKey;
 };
+
+// Utility for delay
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const ChatPage: React.FC = () => {
   const navigate = useNavigate();
@@ -71,7 +73,7 @@ const ChatPage: React.FC = () => {
 
             const ai = new GoogleGenAI({ apiKey });
             chatSessionRef.current = ai.chats.create({
-                model: 'gemini-2.0-flash-exp', 
+                model: 'gemini-2.0-flash', 
                 config: {
                     systemInstruction: "You are News Gemini 🤖, a helpful news expert! 🚀\n\nRULES:\n1. Be friendly and use LOTS of emojis in every message! ✨🎉\n2. Summarize news accurately and format with **bold text** 📰.\n3. Keep it brief and engaging! 🏃‍♂️💨\n4. ALWAYS provide 3 relevant follow-up questions at the end of your response! 🕵️‍♂️💡",
                     tools: [{ googleSearch: {} }],
@@ -112,99 +114,151 @@ const ChatPage: React.FC = () => {
       }
   };
 
+  const attemptSendMessage = async (text: string, attempt = 1): Promise<void> => {
+      try {
+          if (!chatSessionRef.current) {
+              const apiKey = getApiKey();
+              if (!apiKey) throw new Error("API_KEY_MISSING");
+              
+              const ai = new GoogleGenAI({ apiKey });
+              chatSessionRef.current = ai.chats.create({ 
+                  model: 'gemini-2.0-flash',
+                  config: {
+                      systemInstruction: "You are News Gemini 🤖. Be expressive with emojis! ✨ Suggest 3 follow-up questions! 💡",
+                      tools: [{ googleSearch: {} }]
+                  }
+              });
+          }
+
+          const result = await chatSessionRef.current.sendMessageStream({ message: text });
+          setIsLoading(false);
+          setIsStreaming(true);
+          setAvatarState('speaking');
+
+          let accumulatedText = "";
+          // Find the message ID to update (it's the last one)
+          setMessages(currentMessages => {
+              const lastMsg = currentMessages[currentMessages.length - 1];
+              // Small hack: we need the ID from state, but inside async loop we rely on closure or finding it.
+              // Assuming last message is the AI placeholder.
+              return currentMessages;
+          });
+
+          for await (const chunk of result) {
+              const chunkText = chunk.text;
+              if (chunkText) {
+                  accumulatedText += chunkText;
+                  setMessages(prev => {
+                      const newMsgs = [...prev];
+                      const lastMsg = newMsgs[newMsgs.length - 1];
+                      if (lastMsg.role === 'ai') {
+                          lastMsg.content = accumulatedText;
+                      }
+                      return newMsgs;
+                  });
+              }
+          }
+
+          // Generate context-aware prompt suggestions
+          let suggestedActions: string[] = ["Tell me more! 🗣️", "What else is trending? 🔥", "Explain it simply 👶"];
+          const lowerText = accumulatedText.toLowerCase();
+          
+          if (lowerText.includes('market') || lowerText.includes('stock') || lowerText.includes('business')) {
+              suggestedActions = ["Stock predictions 📈", "Company insights 🏢", "Market risks? ⚠️"];
+          } else if (lowerText.includes('tech') || lowerText.includes('ai')) {
+              suggestedActions = ["Future of AI 🤖", "Tech stock news 💻", "Is it safe? 🛡️"];
+          } else if (lowerText.includes('world') || lowerText.includes('politic')) {
+              suggestedActions = ["Global impact? 🌍", "Local reactions 🏘️", "Historical context 🏛️"];
+          }
+
+          setMessages(prev => {
+              const newMsgs = [...prev];
+              const lastMsg = newMsgs[newMsgs.length - 1];
+              lastMsg.isStreaming = false;
+              lastMsg.suggestedActions = suggestedActions;
+              lastMsg.timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              return newMsgs;
+          });
+          
+          setIsStreaming(false);
+          setAvatarState('idle');
+
+      } catch (error: any) {
+          console.error(`Chat Error (Attempt ${attempt}):`, error);
+          
+          // Retry logic for 429 or 503
+          if ((error.status === 429 || error.status === 503) && attempt < 3) {
+              console.log(`Retrying in ${attempt * 2} seconds...`);
+              await delay(attempt * 2000); // 2s, 4s wait
+              return attemptSendMessage(text, attempt + 1);
+          }
+
+          let errorMessage = "Oops! My antennas got crossed. Let's try that again! 🔄🛰️";
+          let suggestedRetry = ["Retry ↻"];
+
+          if (error.message === "API_KEY_MISSING") {
+              errorMessage = "I seem to be missing my API Key! 🔑 Please check your Vercel configuration (VITE_API_KEY).";
+              suggestedRetry = [];
+          } else if (error.status === 404) {
+              errorMessage = "I couldn't connect to the AI model. It might be sleeping! 😴 (Model not found)";
+          } else if (error.status === 429) {
+              errorMessage = "Whoa, too many requests! 🤯 I'm cooling down. Please wait a moment.";
+          }
+
+          setMessages(prev => {
+              const newMsgs = [...prev];
+              const lastMsg = newMsgs[newMsgs.length - 1];
+              lastMsg.content = errorMessage;
+              lastMsg.isStreaming = false;
+              lastMsg.suggestedActions = suggestedRetry;
+              return newMsgs;
+          });
+          
+          setIsLoading(false); 
+          setIsStreaming(false); 
+          setAvatarState('error');
+      }
+  };
+
   const handleSend = async (text: string) => {
     if (!text.trim()) return;
-    setHasInteracted(true);
     
-    // 1. Add User Message
-    const newUserMsg: Message = { 
-        id: Date.now().toString(), 
-        role: 'user', 
-        content: text, 
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
-    };
-    setMessages(prev => [...prev, newUserMsg]);
+    // If it's a retry action, we might want to remove the previous error message, 
+    // but for simplicity, we just append new interaction.
+    
+    // Check if the last message was a retry click (don't duplicate user message if it's "Retry ↻")
+    const isRetry = text === "Retry ↻";
+    let messageToSend = text;
+
+    if (isRetry) {
+        // Find the last user message to resend
+        const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+        if (lastUserMsg) {
+            messageToSend = lastUserMsg.content;
+        } else {
+            return; // Nothing to retry
+        }
+    } else {
+        setHasInteracted(true);
+        // 1. Add User Message
+        const newUserMsg: Message = { 
+            id: Date.now().toString(), 
+            role: 'user', 
+            content: text, 
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+        };
+        setMessages(prev => [...prev, newUserMsg]);
+    }
     
     setIsLoading(true);
     setAvatarState('thinking');
 
+    // Add placeholder AI message
     const aiMsgId = (Date.now() + 1).toString();
     setMessages(prev => [...prev, { id: aiMsgId, role: 'ai', content: '', isStreaming: true, timestamp: 'Just now' }]);
 
-    try {
-        const apiKey = getApiKey(); 
-        if (!apiKey) {
-            throw new Error("API_KEY_MISSING");
-        }
-
-        if (!chatSessionRef.current) {
-            const ai = new GoogleGenAI({ apiKey });
-            chatSessionRef.current = ai.chats.create({ 
-                model: 'gemini-2.0-flash-exp',
-                config: {
-                    systemInstruction: "You are News Gemini 🤖. Be expressive with emojis! ✨ Suggest 3 follow-up questions! 💡",
-                    tools: [{ googleSearch: {} }]
-                }
-            });
-        }
-
-        const result = await chatSessionRef.current.sendMessageStream({ message: text });
-        setIsLoading(false);
-        setIsStreaming(true);
-        setAvatarState('speaking');
-
-        let accumulatedText = "";
-        for await (const chunk of result) {
-            const chunkText = chunk.text;
-            if (chunkText) {
-                accumulatedText += chunkText;
-                setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: accumulatedText } : m));
-            }
-        }
-
-        // Generate context-aware prompt suggestions
-        let suggestedActions: string[] = ["Tell me more! 🗣️", "What else is trending? 🔥", "Explain it simply 👶"];
-        const lowerText = accumulatedText.toLowerCase();
-        
-        if (lowerText.includes('market') || lowerText.includes('stock') || lowerText.includes('business')) {
-            suggestedActions = ["Stock predictions 📈", "Company insights 🏢", "Market risks? ⚠️"];
-        } else if (lowerText.includes('tech') || lowerText.includes('ai')) {
-            suggestedActions = ["Future of AI 🤖", "Tech stock news 💻", "Is it safe? 🛡️"];
-        } else if (lowerText.includes('world') || lowerText.includes('politic')) {
-            suggestedActions = ["Global impact? 🌍", "Local reactions 🏘️", "Historical context 🏛️"];
-        }
-
-        setMessages(prev => prev.map(m => m.id === aiMsgId ? { 
-            ...m, 
-            content: accumulatedText, 
-            isStreaming: false, 
-            suggestedActions,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        } : m));
-        setIsStreaming(false);
-        setAvatarState('idle');
-    } catch (error: any) {
-        console.error("Chat Error:", error);
-        
-        let errorMessage = "Oops! My antennas got crossed. Let's try that again! 🔄🛰️";
-        if (error.message === "API_KEY_MISSING") {
-            errorMessage = "I seem to be missing my API Key! 🔑 Please check your Vercel configuration (VITE_API_KEY).";
-        } else if (error.status === 404) {
-            errorMessage = "I couldn't connect to the AI model. It might be sleeping! 😴 (Model not found)";
-        } else if (error.status === 429) {
-            errorMessage = "Whoa, too many requests! 🤯 Let me catch my breath.";
-        }
-
-        setMessages(prev => prev.map(m => m.id === aiMsgId ? { 
-            ...m, 
-            content: errorMessage, 
-            isStreaming: false 
-        } : m));
-        
-        setIsLoading(false); 
-        setIsStreaming(false); 
-        setAvatarState('error');
-    }
+    // Start sending
+    await attemptSendMessage(messageToSend);
   };
 
   if (isInitializing) return <SmartLoader type="chat" />;
