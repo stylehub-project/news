@@ -19,10 +19,10 @@ const MapFilterPanel: React.FC<MapFilterPanelProps> = ({ filters, onChange }) =>
   const TYPES = ['All', 'Breaking', 'Trending', 'Top'];
 
   return (
-    <div className="absolute top-20 left-4 z-20 flex flex-col gap-3 pointer-events-auto max-w-[200px]">
+    <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-3 pointer-events-auto max-w-[90vw]">
       
-      {/* Header Row: Toggle & Types */}
-      <div className="flex items-center gap-2 max-w-[90vw]">
+      {/* Header Row: Toggle & Types - Row Reversed to keep toggle on right edge */}
+      <div className="flex items-center gap-2 flex-row-reverse">
         <button 
             onClick={() => setIsOpen(!isOpen)}
             className={`p-2 rounded-full backdrop-blur-md border shadow-sm transition-colors shrink-0 ${
@@ -34,7 +34,7 @@ const MapFilterPanel: React.FC<MapFilterPanelProps> = ({ filters, onChange }) =>
             <Filter size={16} />
         </button>
 
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide justify-end">
             {TYPES.map(t => (
                 <button
                     key={t}
@@ -51,9 +51,9 @@ const MapFilterPanel: React.FC<MapFilterPanelProps> = ({ filters, onChange }) =>
         </div>
       </div>
 
-      {/* Vertical Filter Stack */}
+      {/* Vertical Filter Stack - Aligned Right */}
       {isOpen && (
-          <div className="bg-white/90 backdrop-blur-xl p-3 rounded-2xl shadow-lg border border-white/40 space-y-3 animate-in slide-in-from-left-4 duration-500 relative">
+          <div className="bg-white/90 backdrop-blur-xl p-3 rounded-2xl shadow-lg border border-white/40 space-y-3 animate-in slide-in-from-right-4 duration-500 relative w-[200px]">
              <button 
                 onClick={() => setIsOpen(false)}
                 className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100/50 transition-colors"
@@ -66,7 +66,7 @@ const MapFilterPanel: React.FC<MapFilterPanelProps> = ({ filters, onChange }) =>
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                     <Layers size={10} /> Category
                 </label>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1.5 justify-end">
                     {CATEGORIES.map(cat => (
                         <button
                             key={cat}

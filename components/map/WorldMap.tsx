@@ -34,7 +34,6 @@ const WorldMap: React.FC = () => {
   
   // Feature State
   const [showHeatmap, setShowHeatmap] = useState(true);
-  const [heatmapMode, setHeatmapMode] = useState<'intensity' | 'sentiment'>('intensity'); // 8.13.6
   const [timeValue, setTimeValue] = useState(0); 
   const [isPlayingHistory, setIsPlayingHistory] = useState(false);
   
@@ -294,11 +293,11 @@ const WorldMap: React.FC = () => {
            <div className="absolute inset-0 opacity-40 bg-[url('https://upload.wikimedia.org/wikipedia/commons/e/ec/World_map_blank_without_borders.svg')] bg-contain bg-no-repeat bg-center pointer-events-none filter invert contrast-125"></div>
            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/grid-me.png')] opacity-10 pointer-events-none"></div>
 
-           {/* 8.13.6 Sentiment Layer Integration */}
+           {/* Heatmap Layer - Defaulting to Intensity */}
            <HeatmapLayer 
                 markers={filteredMarkers} 
                 visible={showHeatmap} 
-                mode={heatmapMode}
+                mode={'intensity'}
                 onZoneClick={handleZoneClick}
            />
 
@@ -368,8 +367,6 @@ const WorldMap: React.FC = () => {
         onZoomOut={handleZoomOut} 
         onRecenter={handleRecenter}
         onLocateMe={handleLocateMe}
-        onToggleHeatmapMode={() => setHeatmapMode(prev => prev === 'intensity' ? 'sentiment' : 'intensity')}
-        heatmapMode={heatmapMode}
         onToggleCompare={() => {
             if (isCompareMode) setCompareSelection([]); // clear on exit
             setIsCompareMode(!isCompareMode);
