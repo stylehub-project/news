@@ -10,7 +10,7 @@ import NotebookMode from '../../components/chatbot/NotebookMode';
 import VoiceMode from '../../components/chatbot/VoiceMode';
 import ThinkingIndicator from '../../components/chatbot/ThinkingIndicator';
 import InteractiveAvatar from '../../components/chatbot/InteractiveAvatar';
-import { BookOpen, Trash2, StopCircle, WifiOff, Sparkles, AlertTriangle, Command, Bot, Zap } from 'lucide-react';
+import { BookOpen, Trash2, StopCircle, WifiOff, Sparkles, AlertTriangle, Command, Bot, Zap, Image as ImageIcon } from 'lucide-react';
 import SmartLoader from '../../components/loaders/SmartLoader';
 import { useLoading } from '../../context/LoadingContext';
 import Button from '../../components/ui/Button';
@@ -77,7 +77,6 @@ const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>(() => {
       try {
           const saved = sessionStorage.getItem('news_club_chat_session');
-          // Start empty if no session, we render Premium Intro instead of a default message
           return saved ? JSON.parse(saved) : [];
       } catch (e) {
           return [];
@@ -93,11 +92,10 @@ const ChatPage: React.FC = () => {
   const [notebookTopic, setNotebookTopic] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
-  const [hasInteracted, setHasInteracted] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(messages.length > 0);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatSessionRef = useRef<Chat | null>(null);
-  const lastSentTime = useRef<number>(0);
   const processedContextRef = useRef<string | null>(null);
 
   // --- Chat Initialization ---
@@ -200,7 +198,11 @@ const ChatPage: React.FC = () => {
     setAvatarState('thinking');
 
     // --- Image Generation Logic ---
-    const isImageRequest = text.toLowerCase().startsWith('draw') || text.toLowerCase().startsWith('generate image') || text.toLowerCase().startsWith('create image');
+    const lowerText = text.toLowerCase();
+    const isImageRequest = lowerText.startsWith('draw') || 
+                           lowerText.includes('generate image') || 
+                           lowerText.includes('create image') ||
+                           lowerText.startsWith('image of');
 
     if (isImageRequest) {
         const aiMsgId = (Date.now() + 1).toString();
@@ -208,7 +210,8 @@ const ChatPage: React.FC = () => {
 
         try {
             const ai = new GoogleGenAI({ apiKey });
-            // Using older model as requested
+            
+            // Using older model as requested for free tier compatibility
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash-image', 
                 contents: {
@@ -234,7 +237,7 @@ const ChatPage: React.FC = () => {
 
             setMessages(prev => prev.map(m => m.id === aiMsgId ? { 
                 ...m, 
-                content: caption || "Here is the generated image based on your prompt.", 
+                content: caption || "I've generated an image based on your description.", 
                 isStreaming: false,
                 attachments: imageUrl ? [{ type: 'image', url: imageUrl, title: text }] : undefined
             } : m));
@@ -245,7 +248,7 @@ const ChatPage: React.FC = () => {
 
         } catch (error) {
             console.error("Image Gen Error", error);
-            setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: "Sorry, I couldn't generate that image right now.", isStreaming: false } : m));
+            setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: "I encountered an issue generating that image. Please try a different prompt.", isStreaming: false } : m));
             setIsLoading(false);
             setAvatarState('error');
             return;
@@ -318,14 +321,14 @@ const ChatPage: React.FC = () => {
   if (isInitializing) return <SmartLoader type="chat" />;
 
   return (
-    <div className="flex flex-col h-full relative transition-colors duration-300 overflow-hidden">
+    <div className="flex flex-col h-full relative transition-colors duration-300 overflow-hidden bg-gray-900">
       
       {/* Background Wallpaper */}
-      <div className="absolute inset-0 z-0 bg-[#0f172a]">
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] pointer-events-none"></div>
-          <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-indigo-900/40 to-transparent pointer-events-none"></div>
-          <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
-          <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-[#0f172a] to-transparent pointer-events-none"></div>
+      <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-[#0f172a] bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+          <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-indigo-900/30 to-transparent pointer-events-none"></div>
+          <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-600/20 rounded-full blur-[100px] pointer-events-none"></div>
+          <div className="absolute bottom-0 left-0 w-full h-48 bg-gradient-to-t from-[#0f172a] to-transparent pointer-events-none"></div>
       </div>
 
       {showToast && (
@@ -377,7 +380,7 @@ const ChatPage: React.FC = () => {
             
             {/* Premium Intro Screen */}
             {!hasInteracted && messages.length === 0 && (
-                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 animate-in zoom-in-95 duration-700">
+                <div className="flex flex-col items-center justify-center min-h-[65vh] text-center p-6 animate-in zoom-in-95 duration-700">
                     <div className="w-24 h-24 bg-gradient-to-tr from-indigo-500 to-blue-600 rounded-3xl flex items-center justify-center shadow-[0_0_40px_rgba(79,70,229,0.3)] mb-8 relative group">
                         <div className="absolute inset-0 bg-white/20 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <Bot size={48} className="text-white drop-shadow-lg" />
@@ -385,29 +388,29 @@ const ChatPage: React.FC = () => {
                     </div>
                     
                     <h2 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-200 to-indigo-400 mb-4 tracking-tight">
-                        How can I help you?
+                        News Intelligence Hub
                     </h2>
                     
-                    <p className="text-slate-400 max-w-sm mb-10 text-sm leading-relaxed">
-                        I am your advanced news intelligence. Ask me to analyze markets, explain complex topics, or generate visual summaries.
+                    <p className="text-slate-400 max-w-sm mb-10 text-sm leading-relaxed font-medium">
+                        I am your advanced AI assistant. I can analyze complex market trends, visualize data, generate images from text, and provide real-time news summaries.
                     </p>
 
                     <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
-                        <button onClick={() => handleSend("Analyze today's top headlines")} className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-2xl text-left transition-all group">
+                        <button onClick={() => handleSend("Analyze today's top headlines")} className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-2xl text-left transition-all group hover:border-indigo-500/50">
                             <Zap size={20} className="text-yellow-400 mb-2 group-hover:scale-110 transition-transform" />
                             <span className="text-xs font-bold text-slate-200 block">Brief Me</span>
                             <span className="text-[10px] text-slate-500">Global summary</span>
                         </button>
-                        <button onClick={() => handleSend("Generate image of a futuristic city")} className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-2xl text-left transition-all group">
-                            <Sparkles size={20} className="text-purple-400 mb-2 group-hover:scale-110 transition-transform" />
-                            <span className="text-xs font-bold text-slate-200 block">Create Art</span>
-                            <span className="text-[10px] text-slate-500">Visual generation</span>
+                        <button onClick={() => handleSend("Draw a futuristic smart city")} className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-2xl text-left transition-all group hover:border-purple-500/50">
+                            <ImageIcon size={20} className="text-purple-400 mb-2 group-hover:scale-110 transition-transform" />
+                            <span className="text-xs font-bold text-slate-200 block">Generate Art</span>
+                            <span className="text-[10px] text-slate-500">Create visual</span>
                         </button>
                     </div>
                 </div>
             )}
 
-            <div className="space-y-4 pt-4">
+            <div className="space-y-6 pt-4 px-1">
                 {messages.map((msg) => (
                     <ChatMessage key={msg.id} message={msg} onActionClick={handleSend} onReport={handleReportMessage} />
                 ))}

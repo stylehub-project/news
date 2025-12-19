@@ -50,7 +50,7 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoa
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask anything or generate an image..." 
+              placeholder="Ask a question or type 'draw a cat'..." 
               className="bg-transparent w-full outline-none text-sm placeholder:text-slate-400 disabled:opacity-50 text-white font-medium min-w-0"
               disabled={isLoading}
               autoComplete="off"
