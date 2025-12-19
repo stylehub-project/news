@@ -12,6 +12,32 @@ import SmartLoader from '../../components/loaders/SmartLoader';
 import { useLoading } from '../../context/LoadingContext';
 import Button from '../../components/ui/Button';
 
+// Helper to get API Key safely checking multiple environments
+const getApiKey = () => {
+  let apiKey = '';
+  
+  // 1. Check Vite/Modern Environment
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+    apiKey = (import.meta as any).env.VITE_API_KEY || (import.meta as any).env.API_KEY;
+  }
+  
+  // 2. Check Standard Process Environment (Next.js / CRA)
+  if (!apiKey && typeof process !== 'undefined' && process.env) {
+    // @ts-ignore
+    apiKey = process.env.NEXT_PUBLIC_API_KEY || process.env.API_KEY || process.env.REACT_APP_API_KEY;
+  }
+  
+  // 3. Fallback: Window Shim (from index.html)
+  if (!apiKey && typeof window !== 'undefined' && (window as any).process?.env) {
+      apiKey = (window as any).process.env.API_KEY;
+  }
+  
+  if (!apiKey) {
+    throw new Error("API Key is missing. Please check your environment variables.");
+  }
+  return apiKey;
+};
+
 const ChatPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -35,13 +61,11 @@ const ChatPage: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatSessionRef = useRef<Chat | null>(null);
 
-  // Initialize Chat Session (Silent)
+  // Initialize Chat Session
   useEffect(() => {
     const initChat = async () => {
         try {
-            const apiKey = process.env.API_KEY;
-            if (!apiKey) return; // Don't crash, just wait for send to catch it
-
+            const apiKey = getApiKey(); // Use the robust helper
             const ai = new GoogleGenAI({ apiKey });
             chatSessionRef.current = ai.chats.create({
                 model: 'gemini-3-flash-preview', 
@@ -52,9 +76,10 @@ const ChatPage: React.FC = () => {
             });
         } catch (error) { 
             console.error("Init Error", error);
+            // Don't show error state immediately on init, wait for user interaction
         }
     };
-    initChat();
+    if (!chatSessionRef.current) initChat();
   }, []);
 
   // Handle Loader
@@ -98,26 +123,15 @@ const ChatPage: React.FC = () => {
     };
     setMessages(prev => [...prev, newUserMsg]);
     
-    // 2. Validate API Key
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-        const errorMsg: Message = {
-            id: (Date.now() + 1).toString(),
-            role: 'ai',
-            content: "I seem to be missing my API Key! 🔑 Please check your configuration.",
-            timestamp: 'System'
-        };
-        setMessages(prev => [...prev, errorMsg]);
-        return;
-    }
-
-    // 3. Prepare AI Response
     setIsLoading(true);
     setAvatarState('thinking');
+
     const aiMsgId = (Date.now() + 1).toString();
     setMessages(prev => [...prev, { id: aiMsgId, role: 'ai', content: '', isStreaming: true, timestamp: 'Just now' }]);
 
     try {
+        const apiKey = getApiKey(); // Retrieve key here to catch errors during interaction
+
         if (!chatSessionRef.current) {
             const ai = new GoogleGenAI({ apiKey });
             chatSessionRef.current = ai.chats.create({ 
@@ -143,11 +157,11 @@ const ChatPage: React.FC = () => {
             }
         }
 
-        // Logic to suggest related prompts based on the conversation context
+        // Generate context-aware prompt suggestions
         let suggestedActions: string[] = ["Tell me more! 🗣️", "What else is trending? 🔥", "Explain it simply 👶"];
         const lowerText = accumulatedText.toLowerCase();
         
-        if (lowerText.includes('market') || lowerText.includes('stock')) {
+        if (lowerText.includes('market') || lowerText.includes('stock') || lowerText.includes('business')) {
             suggestedActions = ["Stock predictions 📈", "Company insights 🏢", "Market risks? ⚠️"];
         } else if (lowerText.includes('tech') || lowerText.includes('ai')) {
             suggestedActions = ["Future of AI 🤖", "Tech stock news 💻", "Is it safe? 🛡️"];
@@ -166,11 +180,18 @@ const ChatPage: React.FC = () => {
         setAvatarState('idle');
     } catch (error: any) {
         console.error("Chat Error:", error);
+        
+        let errorMessage = "Oops! My antennas got crossed. Let's try that again! 🔄🛰️";
+        if (error.message.includes("API Key is missing")) {
+            errorMessage = "I seem to be missing my API Key! 🔑 Please check your Vercel configuration (VITE_API_KEY).";
+        }
+
         setMessages(prev => prev.map(m => m.id === aiMsgId ? { 
             ...m, 
-            content: "Oops! My antennas got crossed. Let's try that again! 🔄🛰️", 
+            content: errorMessage, 
             isStreaming: false 
         } : m));
+        
         setIsLoading(false); 
         setIsStreaming(false); 
         setAvatarState('error');
