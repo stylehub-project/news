@@ -1,16 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
-import PageHeader from '../../components/PageHeader';
-import ChatMessage, { Message, MessageAttachment } from '../../components/chatbot/ChatMessage';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { GoogleGenAI, Chat } from "@google/genai";
+import ChatMessage, { Message } from '../../components/chatbot/ChatMessage';
 import ChatInputBar from '../../components/chatbot/ChatInputBar';
-import AIButtonGenerateOverview from '../../components/chatbot/AIButtonGenerateOverview';
 import QuickQuestions from '../../components/chatbot/QuickQuestions';
 import NotebookMode from '../../components/chatbot/NotebookMode';
 import VoiceMode from '../../components/chatbot/VoiceMode';
 import ThinkingIndicator from '../../components/chatbot/ThinkingIndicator';
 import InteractiveAvatar from '../../components/chatbot/InteractiveAvatar';
-import { BookOpen, Trash2, StopCircle, WifiOff, Sparkles, AlertTriangle, Command, Bot, Zap, Image as ImageIcon } from 'lucide-react';
+import { Trash2, StopCircle, WifiOff, Bot, Zap, Image as ImageIcon } from 'lucide-react';
 import SmartLoader from '../../components/loaders/SmartLoader';
 import { useLoading } from '../../context/LoadingContext';
 import Button from '../../components/ui/Button';
@@ -211,7 +209,6 @@ const ChatPage: React.FC = () => {
         try {
             const ai = new GoogleGenAI({ apiKey });
             
-            // Using older model as requested for free tier compatibility
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash-image', 
                 contents: {
@@ -321,14 +318,12 @@ const ChatPage: React.FC = () => {
   if (isInitializing) return <SmartLoader type="chat" />;
 
   return (
-    <div className="flex flex-col h-full relative transition-colors duration-300 overflow-hidden bg-gray-900">
+    <div className="flex flex-col h-full relative transition-colors duration-300 overflow-hidden bg-[#0f172a]">
       
       {/* Background Wallpaper */}
       <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-[#0f172a] bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-          <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-indigo-900/30 to-transparent pointer-events-none"></div>
-          <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-600/20 rounded-full blur-[100px] pointer-events-none"></div>
-          <div className="absolute bottom-0 left-0 w-full h-48 bg-gradient-to-t from-[#0f172a] to-transparent pointer-events-none"></div>
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
+          <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-indigo-900/20 to-transparent pointer-events-none"></div>
       </div>
 
       {showToast && (
@@ -341,7 +336,7 @@ const ChatPage: React.FC = () => {
       {isVoiceMode && <VoiceMode onClose={() => setIsVoiceMode(false)} />}
 
       {/* Premium Header */}
-      <div className="shrink-0 bg-white/5 backdrop-blur-xl border-b border-white/5 z-10">
+      <div className="shrink-0 bg-[#0f172a]/80 backdrop-blur-xl border-b border-white/5 z-20">
         <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
                 <div className="relative">
@@ -375,12 +370,12 @@ const ChatPage: React.FC = () => {
       </div>
       
       {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto p-2 custom-scrollbar relative z-10" ref={scrollRef}>
+      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar relative z-10" ref={scrollRef}>
         <div className="max-w-4xl mx-auto w-full pb-4">
             
             {/* Premium Intro Screen */}
             {!hasInteracted && messages.length === 0 && (
-                <div className="flex flex-col items-center justify-center min-h-[65vh] text-center p-6 animate-in zoom-in-95 duration-700">
+                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 animate-in zoom-in-95 duration-700">
                     <div className="w-24 h-24 bg-gradient-to-tr from-indigo-500 to-blue-600 rounded-3xl flex items-center justify-center shadow-[0_0_40px_rgba(79,70,229,0.3)] mb-8 relative group">
                         <div className="absolute inset-0 bg-white/20 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <Bot size={48} className="text-white drop-shadow-lg" />
@@ -410,7 +405,7 @@ const ChatPage: React.FC = () => {
                 </div>
             )}
 
-            <div className="space-y-6 pt-4 px-1">
+            <div className="space-y-6">
                 {messages.map((msg) => (
                     <ChatMessage key={msg.id} message={msg} onActionClick={handleSend} onReport={handleReportMessage} />
                 ))}
@@ -426,7 +421,8 @@ const ChatPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="shrink-0 max-w-4xl mx-auto w-full z-10 pt-2 relative">
+      {/* Input Area - Fixed Bottom */}
+      <div className="shrink-0 w-full z-20 relative bg-[#0f172a]">
          {!hasInteracted && !isLoading && !isStreaming && messages.length > 0 && <QuickQuestions onSelect={handleSend} />}
          <ChatInputBar onSend={handleSend} isLoading={isLoading || isStreaming} onVoiceClick={() => setIsVoiceMode(true)} />
       </div>

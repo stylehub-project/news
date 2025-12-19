@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Image as ImageIcon, Mic, Paperclip } from 'lucide-react';
+import { Send, Image as ImageIcon, Mic } from 'lucide-react';
 import Button from '../ui/Button';
 
 interface ChatInputBarProps {
@@ -13,7 +13,6 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoa
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-      // Auto-focus input on mount if not loading
       if (!isLoading && inputRef.current) {
           inputRef.current.focus();
       }
@@ -35,7 +34,7 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoa
   };
 
   return (
-    <div className="p-3 bg-[#0f172a]/95 backdrop-blur-xl border-t border-white/10 pb-safe transition-colors duration-300 z-50 relative">
+    <div className="w-full p-3 bg-[#0f172a] border-t border-white/10 pb-safe transition-colors duration-300">
       <div className="flex items-center gap-2 max-w-4xl mx-auto">
         {/* Attachments */}
         <button className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-colors shrink-0">
@@ -43,7 +42,7 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoa
         </button>
         
         {/* Input Field Container */}
-        <div className="flex-1 bg-white/5 border border-white/10 rounded-3xl px-4 py-3 flex items-center focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-indigo-500/50 transition-all hover:bg-white/10">
+        <div className="flex-1 bg-gray-800/80 border border-gray-700 rounded-3xl px-4 py-3 flex items-center focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-indigo-500/50 transition-all hover:bg-gray-800">
             <input 
               ref={inputRef}
               type="text" 
@@ -51,7 +50,7 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({ onSend, onVoiceClick, isLoa
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask a question or type 'draw a cat'..." 
-              className="bg-transparent w-full outline-none text-sm placeholder:text-slate-400 disabled:opacity-50 text-white font-medium min-w-0"
+              className="bg-transparent w-full outline-none text-sm placeholder:text-gray-400 disabled:opacity-50 text-white font-medium min-w-0"
               disabled={isLoading}
               autoComplete="off"
             />
