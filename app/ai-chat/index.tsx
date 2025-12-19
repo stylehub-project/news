@@ -39,8 +39,13 @@ const ChatPage: React.FC = () => {
   useEffect(() => {
     const initChat = async () => {
         try {
-            // Guideline: Obtained exclusively from process.env.API_KEY
-            const apiKey = process.env.API_KEY;
+            // Direct access for Vercel/Build env replacement
+            const apiKey = process.env.API_KEY; 
+            if (!apiKey) {
+                console.warn("API Key not found in environment variables");
+                return;
+            }
+
             const ai = new GoogleGenAI({ apiKey });
             chatSessionRef.current = ai.chats.create({
                 model: 'gemini-3-flash-preview', 
@@ -105,7 +110,8 @@ const ChatPage: React.FC = () => {
 
     try {
         if (!chatSessionRef.current) {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const apiKey = process.env.API_KEY;
+            const ai = new GoogleGenAI({ apiKey });
             chatSessionRef.current = ai.chats.create({ 
                 model: 'gemini-3-flash-preview',
                 config: {

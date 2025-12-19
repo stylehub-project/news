@@ -34,7 +34,8 @@ const LocationMarker: React.FC<LocationMarkerProps> = ({
   
   // As per request: Reduce size of news content (markers) when zooming in
   // We use 0.9 / Math.sqrt(zoomLevel) to make them physically smaller as zoom increases
-  const dynamicScale = Math.max(0.4, 1 / zoomLevel);
+  // Adjusted constant to prevent them disappearing
+  const dynamicScale = Math.max(0.4, 1.2 / Math.sqrt(zoomLevel));
 
   const styles = {
     breaking: { bg: 'bg-red-600', border: 'border-red-100', icon: <Zap size={12} className="text-white fill-white" /> },
@@ -66,7 +67,7 @@ const LocationMarker: React.FC<LocationMarkerProps> = ({
         </div>
 
         {showLabel && title && !isCompareMode && (
-          <div className="absolute top-full mt-2 bg-white/95 backdrop-blur-md rounded-lg shadow-xl border border-white/50 px-3 py-2 w-36 text-center pointer-events-none animate-in fade-in zoom-in-95 duration-200">
+          <div className="absolute top-full mt-2 bg-white/95 backdrop-blur-md rounded-lg shadow-xl border border-white/50 px-3 py-2 w-36 text-center pointer-events-none animate-in fade-in zoom-in-95 duration-200 origin-top">
              <span className="text-[8px] font-black text-gray-500 uppercase block mb-0.5">{source}</span>
              <p className="text-[10px] font-bold text-gray-900 leading-tight line-clamp-2">{title}</p>
           </div>
