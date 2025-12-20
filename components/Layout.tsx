@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
 import BottomNav from './BottomNav';
 import FloatingAIButton from './FloatingAIButton';
+import FloatingFeedback from './FloatingFeedback';
 import ToastContainer from './ui/ToastContainer';
 import { useTheme } from '../context/ThemeContext';
 
@@ -37,6 +38,10 @@ const Layout: React.FC = () => {
 
       {/* Persistent Elements */}
       {showAIButton && <FloatingAIButton />}
+      
+      {/* Floating Feedback - Global */}
+      <FloatingFeedback />
+      
       <ToastContainer />
 
       {/* Bottom Navigation - Overlay at bottom */}
