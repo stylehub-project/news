@@ -1,15 +1,21 @@
 import React from 'react';
-import { Camera, Settings, LogOut, ShieldCheck, Zap } from 'lucide-react';
+import { Camera, Settings, LogOut, ShieldCheck, Zap, Globe, Smartphone, BookOpen } from 'lucide-react';
 import PageHeader from '../../components/PageHeader';
 import ThemeSwitcher from '../../components/ThemeSwitcher';
-import LanguageSwitcher from '../../components/LanguageSwitcher';
+import { useLanguage } from '../../context/LanguageContext';
 
 const ProfilePage: React.FC = () => {
+  const { appLanguage, setAppLanguage, contentLanguage, setContentLanguage } = useLanguage();
+
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 min-h-screen pb-24 transition-colors duration-300">
-      <PageHeader title="My Profile" />
-      <div className="p-4">
-        <div className="flex flex-col items-center mb-8 mt-6">
+    <div className="bg-gray-50 dark:bg-gray-900 h-full flex flex-col transition-colors duration-300">
+      <div className="shrink-0">
+        <PageHeader title="My Profile" />
+      </div>
+      
+      {/* Scrollable Content Container */}
+      <div className="flex-1 overflow-y-auto p-4 pb-24 custom-scrollbar">
+        <div className="flex flex-col items-center mb-8 mt-4">
             
             {/* Cinematic Avatar Composition */}
             <div className="relative w-36 h-36 mb-6 group cursor-pointer">
@@ -77,9 +83,65 @@ const ProfilePage: React.FC = () => {
                 <ThemeSwitcher />
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-3 transition-colors">
-                 <span className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Region & Language</span>
-                 <LanguageSwitcher />
+            {/* Language Selection Section */}
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-4 transition-colors">
+                 <span className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1 block">Language Preferences</span>
+                 
+                 {/* App Interface Language */}
+                 <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg">
+                            <Smartphone size={18} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-gray-800 dark:text-gray-200">App Interface</p>
+                            <p className="text-[10px] text-gray-500">Buttons, Menus, Settings</p>
+                        </div>
+                    </div>
+                    <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                        <button 
+                            onClick={() => setAppLanguage('en')}
+                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${appLanguage === 'en' ? 'bg-white dark:bg-gray-600 shadow text-blue-600 dark:text-blue-300' : 'text-gray-500'}`}
+                        >
+                            English
+                        </button>
+                        <button 
+                            onClick={() => setAppLanguage('hi')}
+                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${appLanguage === 'hi' ? 'bg-white dark:bg-gray-600 shadow text-blue-600 dark:text-blue-300' : 'text-gray-500'}`}
+                        >
+                            Hindi
+                        </button>
+                    </div>
+                 </div>
+
+                 <div className="h-px bg-gray-100 dark:bg-gray-700"></div>
+
+                 {/* Content Language */}
+                 <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg">
+                            <BookOpen size={18} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-gray-800 dark:text-gray-200">News Content</p>
+                            <p className="text-[10px] text-gray-500">Articles, Reels, Audio</p>
+                        </div>
+                    </div>
+                    <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                        <button 
+                            onClick={() => setContentLanguage('en')}
+                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${contentLanguage === 'en' ? 'bg-white dark:bg-gray-600 shadow text-emerald-600 dark:text-emerald-300' : 'text-gray-500'}`}
+                        >
+                            English
+                        </button>
+                        <button 
+                            onClick={() => setContentLanguage('hi')}
+                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${contentLanguage === 'hi' ? 'bg-white dark:bg-gray-600 shadow text-emerald-600 dark:text-emerald-300' : 'text-gray-500'}`}
+                        >
+                            Hindi
+                        </button>
+                    </div>
+                 </div>
             </div>
 
             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between text-red-500 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20 transition-all border-l-4 border-l-transparent hover:border-l-red-500">

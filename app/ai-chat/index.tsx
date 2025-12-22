@@ -7,6 +7,7 @@ import QuickQuestions from '../../components/chatbot/QuickQuestions';
 import VoiceMode from '../../components/chatbot/VoiceMode';
 import AudioGenerator from '../../components/chatbot/AudioGenerator';
 import AIInteractionModal from '../../components/chatbot/AIInteractionModal';
+import AIHubTour from '../../components/chatbot/AIHubTour';
 import ThinkingIndicator from '../../components/chatbot/ThinkingIndicator';
 import InteractiveAvatar from '../../components/chatbot/InteractiveAvatar';
 import { Trash2, StopCircle, Bot, Zap, RefreshCw, AudioWaveform } from 'lucide-react';
@@ -59,11 +60,27 @@ const ChatPage: React.FC = () => {
   // Modes: Chat (Default), Live (VoiceMode), Generator (AudioGenerator)
   const [activeMode, setActiveMode] = useState<'chat' | 'live' | 'generator'>('chat');
   const [showInteractionModal, setShowInteractionModal] = useState(false);
+  const [showTour, setShowTour] = useState(false);
 
   const [hasInteracted, setHasInteracted] = useState(messages.length > 0);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatSessionRef = useRef<Chat | null>(null);
+
+  // Check Tour Status on Mount
+  useEffect(() => {
+      const hasSeenTour = localStorage.getItem('has_seen_ai_hub_tour');
+      if (!hasSeenTour && !isInitializing) {
+          // Delay slightly to let UI settle
+          const timer = setTimeout(() => setShowTour(true), 1000);
+          return () => clearTimeout(timer);
+      }
+  }, [isInitializing]);
+
+  const handleCloseTour = () => {
+      setShowTour(false);
+      localStorage.setItem('has_seen_ai_hub_tour', 'true');
+  };
 
   useEffect(() => {
       // Auto-start voice if param is set
@@ -294,6 +311,9 @@ const ChatPage: React.FC = () => {
         onSelectMode={handleModeSelect} 
       />
 
+      {/* New Feature Tour Overlay */}
+      {showTour && <AIHubTour onClose={handleCloseTour} />}
+
       {/* Sticky Top Header */}
       <div className="shrink-0 bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-xl border-b border-gray-200 dark:border-white/5 z-20">
         <div className="px-4 py-3 flex items-center justify-between">
@@ -311,8 +331,17 @@ const ChatPage: React.FC = () => {
                 </div>
             </div>
             <div className="flex gap-2">
-                <button onClick={() => setShowInteractionModal(true)} className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-full hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800 transition-colors" title="AI Interactions">
+                {/* AI Interaction Hub Trigger */}
+                <button 
+                    onClick={() => setShowInteractionModal(true)} 
+                    className={`p-2 rounded-full border transition-all relative ${showTour ? 'bg-indigo-600 text-white border-indigo-500 z-50 ring-4 ring-indigo-200 dark:ring-indigo-900' : 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100'}`} 
+                    title="AI Interactions"
+                >
                     <AudioWaveform size={18} />
+                    {/* Notification Dot for feature awareness */}
+                    {!showTour && !localStorage.getItem('has_seen_ai_hub_tour') && (
+                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-gray-900"></span>
+                    )}
                 </button>
                 <button onClick={resetConnection} className="p-2 bg-gray-100 dark:bg-white/5 rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-gray-400" title="Reset Connection">
                     <RefreshCw size={16} />

@@ -1,19 +1,37 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
-type Language = 'en' | 'hi' | 'mr' | 'gu' | 'ur' | 'ta' | 'kn';
+type LanguageCode = 'en' | 'hi';
 
 interface LanguageContextType {
-  language: Language;
-  setLanguage: (lang: Language) => void;
+  appLanguage: LanguageCode;
+  setAppLanguage: (lang: LanguageCode) => void;
+  contentLanguage: LanguageCode;
+  setContentLanguage: (lang: LanguageCode) => void;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [language, setLanguage] = useState<Language>('en');
+  const [appLanguage, setAppLanguageState] = useState<LanguageCode>(() => {
+      return (localStorage.getItem('app_language') as LanguageCode) || 'en';
+  });
+  
+  const [contentLanguage, setContentLanguageState] = useState<LanguageCode>(() => {
+      return (localStorage.getItem('content_language') as LanguageCode) || 'en';
+  });
+
+  const setAppLanguage = (lang: LanguageCode) => {
+      setAppLanguageState(lang);
+      localStorage.setItem('app_language', lang);
+  };
+
+  const setContentLanguage = (lang: LanguageCode) => {
+      setContentLanguageState(lang);
+      localStorage.setItem('content_language', lang);
+  };
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage }}>
+    <LanguageContext.Provider value={{ appLanguage, setAppLanguage, contentLanguage, setContentLanguage }}>
       {children}
     </LanguageContext.Provider>
   );
