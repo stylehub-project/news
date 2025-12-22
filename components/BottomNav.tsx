@@ -1,27 +1,32 @@
 import React from 'react';
 import { Home, Grid, PlaySquare, MessageSquare, User } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
+import { translations } from '../utils/translations';
 
 const BottomNav: React.FC = () => {
   const location = useLocation();
+  const { appLanguage } = useLanguage();
+  const t = translations[appLanguage];
+
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
     return location.pathname.startsWith(path);
   };
 
   const navItems = [
-    { icon: Home, label: 'Home', path: '/' },
-    { icon: Grid, label: 'Categories', path: '/categories' },
-    { icon: PlaySquare, label: 'News', path: '/reel' },
-    { icon: MessageSquare, label: 'AI Chat', path: '/ai-chat' },
-    { icon: User, label: 'Profile', path: '/profile' },
+    { icon: Home, label: t.home, path: '/' },
+    { icon: Grid, label: t.categories, path: '/categories' },
+    { icon: PlaySquare, label: t.news, path: '/reel' },
+    { icon: MessageSquare, label: t.ai_chat, path: '/ai-chat' },
+    { icon: User, label: t.profile, path: '/profile' },
   ];
 
   return (
     <div className="fixed bottom-0 left-0 w-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-lg border-t border-gray-200 dark:border-gray-800 pb-safe pt-2 px-2 z-50 flex justify-around items-end h-[70px] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] transition-colors duration-300">
       {navItems.map((item) => (
         <Link
-          key={item.label}
+          key={item.path}
           to={item.path}
           className={`flex flex-col items-center justify-center w-full py-2 transition-all duration-300 relative group ${
             isActive(item.path) 
@@ -35,7 +40,7 @@ const BottomNav: React.FC = () => {
           <item.icon 
             size={isActive(item.path) ? 24 : 22} 
             strokeWidth={isActive(item.path) ? 2.5 : 2} 
-            fill={isActive(item.path) && item.label !== 'Categories' ? "currentColor" : "none"}
+            fill={isActive(item.path) && !item.path.includes('categories') ? "currentColor" : "none"}
             className="transition-transform duration-300 group-active:scale-90"
           />
           <span className={`text-[10px] font-medium mt-1 transition-all ${isActive(item.path) ? 'font-bold' : ''}`}>

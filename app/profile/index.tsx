@@ -3,14 +3,16 @@ import { Camera, Settings, LogOut, ShieldCheck, Zap, Globe, Smartphone, BookOpen
 import PageHeader from '../../components/PageHeader';
 import ThemeSwitcher from '../../components/ThemeSwitcher';
 import { useLanguage } from '../../context/LanguageContext';
+import { translations } from '../../utils/translations';
 
 const ProfilePage: React.FC = () => {
   const { appLanguage, setAppLanguage, contentLanguage, setContentLanguage } = useLanguage();
+  const t = translations[appLanguage];
 
   return (
     <div className="bg-gray-50 dark:bg-gray-900 h-full flex flex-col transition-colors duration-300">
       <div className="shrink-0">
-        <PageHeader title="My Profile" />
+        <PageHeader title={t.my_profile} />
       </div>
       
       {/* Scrollable Content Container */}
@@ -65,7 +67,7 @@ const ProfilePage: React.FC = () => {
                 <span className="text-gray-500 dark:text-gray-400 font-medium text-sm">@lakshya</span>
                 <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
                 <span className="text-blue-600 dark:text-blue-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
-                    <Zap size={10} className="fill-current" /> Early Adopter
+                    <Zap size={10} className="fill-current" /> {t.early_adopter}
                 </span>
             </div>
         </div>
@@ -74,18 +76,18 @@ const ProfilePage: React.FC = () => {
             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between transition-colors hover:shadow-md duration-300 cursor-pointer group">
                 <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl group-hover:scale-110 transition-transform"><Settings size={20}/></div>
-                    <span className="font-bold text-gray-700 dark:text-gray-200">Account Settings</span>
+                    <span className="font-bold text-gray-700 dark:text-gray-200">{t.account_settings}</span>
                 </div>
             </div>
             
             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-3 transition-colors">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Appearance</span>
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">{t.appearance}</span>
                 <ThemeSwitcher />
             </div>
 
             {/* Language Selection Section */}
             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-4 transition-colors">
-                 <span className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1 block">Language Preferences</span>
+                 <span className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1 block">{t.language_preferences}</span>
                  
                  {/* App Interface Language */}
                  <div className="flex items-center justify-between">
@@ -94,8 +96,8 @@ const ProfilePage: React.FC = () => {
                             <Smartphone size={18} />
                         </div>
                         <div>
-                            <p className="text-sm font-bold text-gray-800 dark:text-gray-200">App Interface</p>
-                            <p className="text-[10px] text-gray-500">Buttons, Menus, Settings</p>
+                            <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{t.app_interface}</p>
+                            <p className="text-[10px] text-gray-500">{t.interface_desc}</p>
                         </div>
                     </div>
                     <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
@@ -123,8 +125,8 @@ const ProfilePage: React.FC = () => {
                             <BookOpen size={18} />
                         </div>
                         <div>
-                            <p className="text-sm font-bold text-gray-800 dark:text-gray-200">News Content</p>
-                            <p className="text-[10px] text-gray-500">Articles, Reels, Audio</p>
+                            <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{t.news_content}</p>
+                            <p className="text-[10px] text-gray-500">{t.content_desc}</p>
                         </div>
                     </div>
                     <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
@@ -147,7 +149,7 @@ const ProfilePage: React.FC = () => {
             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between text-red-500 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20 transition-all border-l-4 border-l-transparent hover:border-l-red-500">
                 <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-xl"><LogOut size={20}/></div>
-                    <span className="font-bold">Log Out</span>
+                    <span className="font-bold">{t.log_out}</span>
                 </div>
             </div>
         </div>

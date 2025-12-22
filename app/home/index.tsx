@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
     PlayCircle, 
     Sparkles, 
@@ -18,9 +18,11 @@ import NewsCardBasic from '../../components/cards/NewsCardBasic';
 import HighlightReadingMode from '../../components/HighlightReadingMode';
 import SmartLoader from '../../components/loaders/SmartLoader';
 import { useLoading } from '../../context/LoadingContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { translations } from '../../utils/translations';
 
-// Mock Data for Infinite Feed
-const MOCK_NEWS = [
+// Mock Data for English
+const MOCK_NEWS_EN = [
     {
         id: '1',
         title: "SpaceX Starship Successfully Reaches Orbit in Historic Test Flight",
@@ -59,15 +61,44 @@ const MOCK_NEWS = [
     }
 ];
 
-const FEATURES = [
-    { label: 'AI Analysis', icon: Sparkles, color: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400', path: '/ai-chat' },
-    { label: 'Headlines', icon: Zap, color: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400', path: '/top-stories' },
-    { label: 'Reels', icon: Smartphone, color: 'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400', path: '/reel' },
-    { label: 'Chatbot', icon: MessageSquare, color: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400', path: '/ai-chat' },
-    { label: 'Newspaper', icon: Newspaper, color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200', path: '/newspaper' },
-    { label: 'Map News', icon: Map, color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400', path: '/map' },
-    { label: 'Saved', icon: Bookmark, color: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400', path: '/bookmarks' },
-    { label: 'Read Mode', icon: Headphones, color: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400', path: '/' }, // Toggle logic
+// Mock Data for Hindi
+const MOCK_NEWS_HI = [
+    {
+        id: '1',
+        title: "SpaceX स्टारशिप ने ऐतिहासिक परीक्षण उड़ान में सफलतापूर्वक कक्षा में प्रवेश किया",
+        description: "विशाल रॉकेट ने टॉवर को साफ किया और अंतरिक्ष अन्वेषण के लिए एक नए युग को चिह्नित करते हुए अपने प्राथमिक मिशन उद्देश्यों को सफलतापूर्वक पूरा किया।",
+        imageUrl: "https://picsum.photos/600/400?random=101",
+        source: "स्पेस न्यूज़",
+        timeAgo: "20 मिनट पहले",
+        category: "प्रौद्योगिकी"
+    },
+    {
+        id: '2',
+        title: "ग्लोबल क्लाइमेट समिट उत्सर्जन पर ऐतिहासिक समझौते के साथ समाप्त हुआ",
+        description: "विश्व के नेताओं ने 2030 तक कार्बन उत्सर्जन को 40% तक कम करने के लिए एक कानूनी रूप से बाध्यकारी संधि पर सहमति व्यक्त की है।",
+        imageUrl: "https://picsum.photos/600/400?random=102",
+        source: "द गार्डियन",
+        timeAgo: "1 घंटा पहले",
+        category: "दुनिया"
+    },
+    {
+        id: '3',
+        title: "Apple ने अगले iOS अपडेट में क्रांतिकारी AI एकीकरण की घोषणा की",
+        description: "टेक दिग्गज ने 'ऐप्पल इंटेलिजेंस' का खुलासा किया, जो सभी ऐप्पल उपकरणों में जेनरेटिव एआई का गहरा एकीकरण है।",
+        imageUrl: "https://picsum.photos/600/400?random=103",
+        source: "द वर्ज",
+        timeAgo: "2 घंटे पहले",
+        category: "तकनीक"
+    },
+    {
+        id: '4',
+        title: "चैंपियनशिप फाइनल: अंडरडॉग टीम ने ओवरटाइम में जीत हासिल की",
+        description: "एक चौंकाने वाले उलटफेर में, शहर के प्रिय अंडरडॉग ने गत चैंपियन को 3-2 से हराया।",
+        imageUrl: "https://picsum.photos/600/400?random=104",
+        source: "ईएसपीएन",
+        timeAgo: "3 घंटे पहले",
+        category: "खेल"
+    }
 ];
 
 const HomePage: React.FC = () => {
@@ -75,10 +106,26 @@ const HomePage: React.FC = () => {
   const { isLoaded, markAsLoaded } = useLoading();
   const [isLoading, setIsLoading] = useState(!isLoaded('home'));
   const [isReadingMode, setIsReadingMode] = useState(false);
+  
+  const { appLanguage, contentLanguage } = useLanguage();
+  const t = translations[appLanguage];
+
+  // Select news content based on Content Language setting
+  const newsData = contentLanguage === 'hi' ? MOCK_NEWS_HI : MOCK_NEWS_EN;
+
+  const FEATURES = useMemo(() => [
+    { label: t.ai_analysis, icon: Sparkles, color: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400', path: '/ai-chat' },
+    { label: t.headlines, icon: Zap, color: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400', path: '/top-stories' },
+    { label: t.reels, icon: Smartphone, color: 'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400', path: '/reel' },
+    { label: t.chatbot, icon: MessageSquare, color: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400', path: '/ai-chat' },
+    { label: t.newspaper, icon: Newspaper, color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200', path: '/newspaper' },
+    { label: t.map_news, icon: Map, color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400', path: '/map' },
+    { label: t.saved, icon: Bookmark, color: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400', path: '/bookmarks' },
+    { label: t.read_mode, icon: Headphones, color: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400', path: '/' }, // Toggle logic
+  ], [t]);
 
   useEffect(() => {
     if (isLoading) {
-        // Simulate initial data fetch with Context-Aware Loader
         const timer = setTimeout(() => {
             setIsLoading(false);
             markAsLoaded('home');
@@ -91,9 +138,8 @@ const HomePage: React.FC = () => {
       navigate(`/news/${id}`);
   };
 
-  // 7.13 Cross-App Usage: Connect card to Chat
   const handleAIExplain = (id: string) => {
-      const article = MOCK_NEWS.find(n => n.id === id);
+      const article = newsData.find(n => n.id === id);
       if (article) {
           navigate(`/ai-chat?context=article&headline=${encodeURIComponent(article.title)}&id=${id}`);
       }
@@ -106,11 +152,11 @@ const HomePage: React.FC = () => {
   return (
     <div className="h-full overflow-y-auto pb-24 bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       
-      {/* 2.2 Hero Section */}
+      {/* Hero Section */}
       <div className="p-4 pb-2">
          {isReadingMode ? (
              <HighlightReadingMode 
-                text="Welcome to News Club. Today's top story: SpaceX Starship successfully reaches orbit in a historic test flight..." 
+                text={newsData[0].description} // Simplified for demo
                 onComplete={() => setIsReadingMode(false)}
              />
          ) : (
@@ -121,27 +167,27 @@ const HomePage: React.FC = () => {
 
                 <div className="relative z-10">
                     <span className="text-xs font-bold bg-white/20 backdrop-blur-md px-2 py-1 rounded-lg uppercase tracking-wider">
-                        Daily Briefing
+                        {t.daily_briefing}
                     </span>
                     <h1 className="text-2xl font-black mt-3 leading-tight drop-shadow-md">
-                        Today's Highlights
+                        {t.todays_highlights}
                     </h1>
                 </div>
 
                 <div className="relative z-10 flex items-center justify-between">
-                    <p className="text-sm text-blue-100 font-medium">4 Major Updates • 2 min read</p>
+                    <p className="text-sm text-blue-100 font-medium">4 Updates • 2 min read</p>
                     <button 
                         onClick={() => setIsReadingMode(true)}
                         className="flex items-center gap-2 bg-white text-blue-900 px-3 py-1.5 rounded-full text-xs font-bold shadow-md active:scale-95 transition-transform"
                     >
-                        <Mic size={14} /> Speak News
+                        <Mic size={14} /> {t.speak_news}
                     </button>
                 </div>
             </div>
          )}
       </div>
 
-      {/* 2.3 Feature Grid */}
+      {/* Feature Grid */}
       <div className="px-4 py-4">
           <div className="grid grid-cols-4 gap-y-4 gap-x-2">
              {FEATURES.map((feat, idx) => {
@@ -160,7 +206,7 @@ const HomePage: React.FC = () => {
           </div>
       </div>
 
-      {/* 8.1 Map Entry Point (News Around You) */}
+      {/* Map Entry Point */}
       <div className="px-4 mb-4">
           <div 
             onClick={() => navigate('/map')}
@@ -169,9 +215,9 @@ const HomePage: React.FC = () => {
               <div className="absolute inset-0 opacity-20 bg-[url('https://upload.wikimedia.org/wikipedia/commons/e/ec/World_map_blank_without_borders.svg')] bg-cover bg-center invert filter"></div>
               <div className="relative z-10 text-white">
                   <h3 className="font-bold text-lg flex items-center gap-2">
-                      <MapPin size={18} className="text-red-500" /> News Around You
+                      <MapPin size={18} className="text-red-500" /> {t.news_around_you}
                   </h3>
-                  <p className="text-xs text-gray-300">Explore breaking news on the live map.</p>
+                  <p className="text-xs text-gray-300">{t.explore_map}</p>
               </div>
               <div className="relative z-10 bg-white/20 backdrop-blur-sm p-2 rounded-full group-hover:scale-110 transition-transform">
                   <ArrowRight size={20} className="text-white" />
@@ -179,17 +225,17 @@ const HomePage: React.FC = () => {
           </div>
       </div>
 
-      {/* 2.4 Infinite News Feed */}
+      {/* Infinite News Feed */}
       <div className="px-4 mt-2">
         <div className="flex items-center justify-between mb-3">
              <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
                 <PlayCircle size={18} className="text-red-500 fill-red-500" />
-                Latest Feed
+                {t.latest_feed}
              </h2>
         </div>
 
         <div className="space-y-4">
-            {MOCK_NEWS.map((news) => (
+            {newsData.map((news) => (
                 <NewsCardBasic
                     key={news.id}
                     {...news}

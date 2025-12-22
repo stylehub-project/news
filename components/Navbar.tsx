@@ -1,8 +1,13 @@
 import React from 'react';
 import { Search, Bell, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
+import { translations } from '../utils/translations';
 
 const Navbar: React.FC = () => {
+  const { appLanguage } = useLanguage();
+  const t = translations[appLanguage];
+
   return (
     <nav className="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 px-4 py-3 flex justify-between items-center transition-all duration-300">
       
@@ -50,7 +55,7 @@ const Navbar: React.FC = () => {
       <div className="flex items-center gap-1">
         <Link to="/ai-chat" className="hidden sm:flex items-center gap-1.5 p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-xs font-bold mr-1 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors border border-indigo-100 dark:border-indigo-800">
             <Sparkles size={14} className="fill-indigo-600/20 dark:fill-indigo-400/20" />
-            <span>Ask AI</span>
+            <span>{t.ask_ai}</span>
         </Link>
 
         <Link to="/notifications" className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-all text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 active:scale-95 relative">
