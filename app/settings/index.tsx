@@ -36,7 +36,7 @@ const SettingsPage: React.FC = () => {
             <div className="flex items-center justify-between py-2 border-b border-gray-50 dark:border-gray-700 mb-2">
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="Profile" />
+                        <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop" alt="Profile" className="w-full h-full object-cover" />
                     </div>
                     <div>
                         <h3 className="font-bold text-gray-900 dark:text-white">Lakshya</h3>

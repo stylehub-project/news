@@ -8,11 +8,34 @@ const Navbar: React.FC = () => {
       
       {/* Left: Profile & Logo */}
       <div className="flex items-center gap-3">
-        <Link to="/profile" className="relative group">
-            <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-700 border-2 border-white dark:border-gray-600 shadow-sm overflow-hidden hover:scale-105 transition-transform">
-                 <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="Profile" className="w-full h-full object-cover" />
+        <Link to="/profile" className="group relative block">
+            {/* Cinematic Premium Avatar Container */}
+            <div className="w-10 h-10 relative flex items-center justify-center">
+                {/* Rotating Metallic Sheen (The Ring) */}
+                <div className="absolute inset-[-2px] rounded-full bg-[conic-gradient(from_0deg,transparent_0deg,rgba(99,102,241,0.5)_120deg,rgba(236,72,153,0.5)_240deg,transparent_360deg)] animate-[spin_3s_linear_infinite] opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                
+                {/* Inner Border Spacer */}
+                <div className="absolute inset-[1.5px] bg-white dark:bg-gray-900 rounded-full z-10"></div>
+                
+                {/* Avatar Image with Depth */}
+                <div className="absolute inset-[3px] rounded-full overflow-hidden z-20 shadow-inner bg-gray-100 dark:bg-gray-800">
+                     <img 
+                        src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop" 
+                        alt="Profile" 
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                     />
+                     {/* Gloss Overlay */}
+                     <div className="absolute inset-0 bg-gradient-to-tr from-white/30 to-transparent pointer-events-none"></div>
+                </div>
+
+                {/* Professional Status Dot */}
+                <div className="absolute bottom-0 right-0 z-30 translate-x-[2px] translate-y-[2px]">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-white dark:border-gray-900"></span>
+                    </span>
+                </div>
             </div>
-            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></div>
         </Link>
         
         <Link to="/" className="flex items-center gap-2 group">

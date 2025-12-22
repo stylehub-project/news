@@ -210,7 +210,7 @@ const FloatingFeedback: React.FC = () => {
         {/* Floating Button */}
         <div 
             ref={buttonRef}
-            className={`absolute z-[100] transition-opacity duration-1000 ease-in-out cursor-grab active:cursor-grabbing touch-none ${positionClasses} ${isIdle ? 'opacity-50 hover:opacity-100' : 'opacity-100'}`}
+            className={`absolute z-[100] transition-all duration-700 ease-out cursor-grab active:cursor-grabbing touch-none ${positionClasses} ${isIdle ? 'opacity-20 hover:opacity-100 blur-[1px] hover:blur-0 scale-90 hover:scale-100' : 'opacity-100 scale-100'}`}
             style={style}
             onMouseDown={handleMouseDown}
             onTouchStart={handleTouchStart}
@@ -218,20 +218,20 @@ const FloatingFeedback: React.FC = () => {
             onTouchEnd={handleTouchEnd}
             onClick={handleClick}
         >
-            <div className="w-14 h-14 bg-gradient-to-tr from-pink-600 to-rose-500 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.3)] flex items-center justify-center text-white border-2 border-white/20 active:scale-90 transition-transform hover:scale-105">
-                <MessageSquarePlus size={26} className="drop-shadow-sm" />
+            <div className="w-14 h-14 bg-gradient-to-br from-indigo-600 to-blue-700 dark:from-indigo-500 dark:to-blue-600 rounded-full shadow-[0_8px_30px_rgba(79,70,229,0.3)] flex items-center justify-center text-white border-2 border-white/20 active:scale-90 transition-transform hover:scale-105 hover:shadow-indigo-500/50">
+                <MessageSquarePlus size={26} className="drop-shadow-md" />
             </div>
         </div>
 
         {/* Feedback Modal */}
         <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Send Feedback">
             <div className="space-y-4">
-                <div className="p-3 bg-pink-50 rounded-xl text-pink-800 text-sm border border-pink-100">
+                <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl text-indigo-800 dark:text-indigo-200 text-sm border border-indigo-100 dark:border-indigo-800">
                     <p>Have a suggestion or found a bug? We'd love to hear from you!</p>
                 </div>
                 
                 <textarea 
-                    className="w-full h-40 p-4 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none resize-none text-sm transition-all"
+                    className="w-full h-40 p-4 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 focus:bg-white dark:focus:bg-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-none text-sm transition-all dark:text-white"
                     placeholder="Type your feedback here..."
                     value={feedback}
                     onChange={(e) => setFeedback(e.target.value)}
@@ -240,7 +240,7 @@ const FloatingFeedback: React.FC = () => {
 
                 <div className="flex justify-end gap-3 pt-2">
                     <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSubmit} className="bg-pink-600 hover:bg-pink-700 text-white gap-2 shadow-pink-500/30">
+                    <Button onClick={handleSubmit} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 shadow-indigo-500/30">
                         <Send size={16} /> Send to Team
                     </Button>
                 </div>

@@ -5,9 +5,11 @@ import ChatMessage, { Message } from '../../components/chatbot/ChatMessage';
 import ChatInputBar from '../../components/chatbot/ChatInputBar';
 import QuickQuestions from '../../components/chatbot/QuickQuestions';
 import VoiceMode from '../../components/chatbot/VoiceMode';
+import AudioGenerator from '../../components/chatbot/AudioGenerator';
+import AIInteractionModal from '../../components/chatbot/AIInteractionModal';
 import ThinkingIndicator from '../../components/chatbot/ThinkingIndicator';
 import InteractiveAvatar from '../../components/chatbot/InteractiveAvatar';
-import { Trash2, StopCircle, Bot, Zap, RefreshCw } from 'lucide-react';
+import { Trash2, StopCircle, Bot, Zap, RefreshCw, AudioWaveform } from 'lucide-react';
 import SmartLoader from '../../components/loaders/SmartLoader';
 import { useLoading } from '../../context/LoadingContext';
 import Button from '../../components/ui/Button';
@@ -16,18 +18,15 @@ import Button from '../../components/ui/Button';
 const getApiKey = () => {
   let apiKey = '';
   
-  // 1. Check Vite/Modern Environment
   if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
     apiKey = (import.meta as any).env.VITE_API_KEY || (import.meta as any).env.API_KEY;
   }
   
-  // 2. Check Standard Process Environment (Next.js / CRA)
   if (!apiKey && typeof process !== 'undefined' && process.env) {
     // @ts-ignore
     apiKey = process.env.NEXT_PUBLIC_API_KEY || process.env.API_KEY || process.env.REACT_APP_API_KEY;
   }
   
-  // 3. Fallback: Window Shim (from index.html)
   if (!apiKey && typeof window !== 'undefined' && (window as any).process?.env) {
       apiKey = (window as any).process.env.API_KEY;
   }
@@ -38,7 +37,6 @@ const getApiKey = () => {
   return apiKey;
 };
 
-// Utility for delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const ChatPage: React.FC = () => {
@@ -46,7 +44,6 @@ const ChatPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { isLoaded, markAsLoaded } = useLoading();
   
-  // Persist messages in session storage for refreshing
   const [messages, setMessages] = useState<Message[]>(() => {
       try {
           const saved = sessionStorage.getItem('news_club_chat_session');
@@ -58,13 +55,23 @@ const ChatPage: React.FC = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [avatarState, setAvatarState] = useState<'idle' | 'thinking' | 'speaking' | 'error'>('idle');
   const [isInitializing, setIsInitializing] = useState(!isLoaded('chat') && messages.length === 0);
-  const [isVoiceMode, setIsVoiceMode] = useState(searchParams.get('mode') === 'voice');
+  
+  // Modes: Chat (Default), Live (VoiceMode), Generator (AudioGenerator)
+  const [activeMode, setActiveMode] = useState<'chat' | 'live' | 'generator'>('chat');
+  const [showInteractionModal, setShowInteractionModal] = useState(false);
+
   const [hasInteracted, setHasInteracted] = useState(messages.length > 0);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatSessionRef = useRef<Chat | null>(null);
 
-  // Initialize Chat Session with Lite model for better availability
+  useEffect(() => {
+      // Auto-start voice if param is set
+      if (searchParams.get('mode') === 'voice') {
+          setActiveMode('live');
+      }
+  }, [searchParams]);
+
   useEffect(() => {
     const initChat = async () => {
         try {
@@ -86,7 +93,6 @@ const ChatPage: React.FC = () => {
     if (!chatSessionRef.current) initChat();
   }, []);
 
-  // Handle Loader
   useEffect(() => {
       if (isInitializing) {
           const timer = setTimeout(() => { 
@@ -97,7 +103,6 @@ const ChatPage: React.FC = () => {
       }
   }, [isInitializing, markAsLoaded]);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     if (messages.length > 0) {
@@ -114,7 +119,6 @@ const ChatPage: React.FC = () => {
       }
   };
 
-  // Force reset the chat session (useful for error recovery)
   const resetConnection = () => {
       chatSessionRef.current = null;
       const apiKey = getApiKey();
@@ -169,11 +173,10 @@ const ChatPage: React.FC = () => {
               }
           }
 
-          // Generate context-aware prompt suggestions
           let suggestedActions: string[] = ["Tell me more! 🗣️", "What else is trending? 🔥", "Explain it simply 👶"];
           const lowerText = accumulatedText.toLowerCase();
           
-          if (lowerText.includes('market') || lowerText.includes('stock') || lowerText.includes('business')) {
+          if (lowerText.includes('market') || lowerText.includes('stock')) {
               suggestedActions = ["Stock predictions 📈", "Company insights 🏢", "Market risks? ⚠️"];
           } else if (lowerText.includes('tech') || lowerText.includes('ai')) {
               suggestedActions = ["Future of AI 🤖", "Tech stock news 💻", "Is it safe? 🛡️"];
@@ -196,14 +199,9 @@ const ChatPage: React.FC = () => {
       } catch (error: any) {
           console.error(`Chat Error (Attempt ${attempt}):`, error);
           
-          // Retry logic for 429 (Rate Limit) or 503 (Service Unavailable)
           if ((error.status === 429 || error.status === 503) && attempt < 2) {
-              console.log(`Retrying in ${attempt * 1.5} seconds...`);
               await delay(attempt * 1500); 
-              
-              // Force recreation of session on 429 to be safe
               chatSessionRef.current = null;
-              
               return attemptSendMessage(text, attempt + 1);
           }
 
@@ -211,10 +209,8 @@ const ChatPage: React.FC = () => {
           let suggestedRetry = ["Retry ↻"];
 
           if (error.message === "API_KEY_MISSING") {
-              errorMessage = "I seem to be missing my API Key! 🔑 Please check your Vercel configuration (VITE_API_KEY).";
+              errorMessage = "I seem to be missing my API Key! 🔑 Please check your configuration.";
               suggestedRetry = [];
-          } else if (error.status === 404) {
-              errorMessage = "I couldn't connect to the AI model. It might be sleeping! 😴 (Model not found)";
           } else if (error.status === 429) {
               errorMessage = "Whoa, too many requests! 🤯 I'm cooling down. Please wait a moment.";
               suggestedRetry = ["Try Again", "Reset Connection"];
@@ -240,12 +236,10 @@ const ChatPage: React.FC = () => {
     
     if (text === "Reset Connection") {
         resetConnection();
-        // Remove the error message from view for cleaner UX
         setMessages(prev => prev.slice(0, -1));
         return;
     }
 
-    // Check if the last message was a retry click
     const isRetry = text === "Retry ↻" || text === "Try Again";
     let messageToSend = text;
 
@@ -270,11 +264,15 @@ const ChatPage: React.FC = () => {
     setIsLoading(true);
     setAvatarState('thinking');
 
-    // Add placeholder AI message
     const aiMsgId = (Date.now() + 1).toString();
     setMessages(prev => [...prev, { id: aiMsgId, role: 'ai', content: '', isStreaming: true, timestamp: 'Just now' }]);
 
     await attemptSendMessage(messageToSend);
+  };
+
+  const handleModeSelect = (mode: 'live' | 'generator') => {
+      setActiveMode(mode);
+      setShowInteractionModal(false);
   };
 
   if (isInitializing) return <SmartLoader type="chat" />;
@@ -285,7 +283,16 @@ const ChatPage: React.FC = () => {
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
       </div>
 
-      {isVoiceMode && <VoiceMode onClose={() => setIsVoiceMode(false)} />}
+      {/* Modes Overlays */}
+      {activeMode === 'live' && <VoiceMode onClose={() => setActiveMode('chat')} />}
+      {activeMode === 'generator' && <AudioGenerator onClose={() => setActiveMode('chat')} />}
+      
+      {/* Interaction Modal */}
+      <AIInteractionModal 
+        isOpen={showInteractionModal} 
+        onClose={() => setShowInteractionModal(false)}
+        onSelectMode={handleModeSelect} 
+      />
 
       {/* Sticky Top Header */}
       <div className="shrink-0 bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-xl border-b border-gray-200 dark:border-white/5 z-20">
@@ -304,6 +311,9 @@ const ChatPage: React.FC = () => {
                 </div>
             </div>
             <div className="flex gap-2">
+                <button onClick={() => setShowInteractionModal(true)} className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-full hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800 transition-colors" title="AI Interactions">
+                    <AudioWaveform size={18} />
+                </button>
                 <button onClick={resetConnection} className="p-2 bg-gray-100 dark:bg-white/5 rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-gray-400" title="Reset Connection">
                     <RefreshCw size={16} />
                 </button>
@@ -361,7 +371,11 @@ const ChatPage: React.FC = () => {
          {!hasInteracted && !isLoading && !isStreaming && messages.length > 0 && (
              <QuickQuestions onSelect={handleSend} />
          )}
-         <ChatInputBar onSend={handleSend} isLoading={isLoading || isStreaming} />
+         <ChatInputBar 
+            onSend={handleSend} 
+            isLoading={isLoading || isStreaming} 
+            onVoiceClick={() => setShowInteractionModal(true)} // Can hijack this or add separate button
+         />
       </div>
     </div>
   );

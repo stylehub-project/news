@@ -1,12 +1,48 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { X, Mic, MicOff, Volume2, Captions, Loader2, StopCircle } from 'lucide-react';
+import { X, Mic, MicOff, Volume2, Captions, Loader2, StopCircle, Download } from 'lucide-react';
 import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
 
 interface VoiceModeProps {
   onClose: () => void;
 }
 
-// --- Audio Helpers (from Guidelines) ---
+// --- Audio Helpers (WAV Encoding) ---
+function writeString(view: DataView, offset: number, string: string) {
+  for (let i = 0; i < string.length; i++) {
+    view.setUint8(offset + i, string.charCodeAt(i));
+  }
+}
+
+function floatTo16BitPCM(output: DataView, offset: number, input: Float32Array) {
+  for (let i = 0; i < input.length; i++, offset += 2) {
+    const s = Math.max(-1, Math.min(1, input[i]));
+    output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+}
+
+function encodeWAV(samples: Float32Array, sampleRate: number) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeString(view, 8, 'WAVE');
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); 
+  view.setUint16(22, 1, true); 
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(view, 36, 'data');
+  view.setUint32(40, samples.length * 2, true);
+  floatTo16BitPCM(view, 44, samples);
+
+  return view;
+}
+
+// Basic Decoding Helpers
 function decode(base64: string) {
   const binaryString = atob(base64);
   const len = binaryString.length;
@@ -108,6 +144,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
   const [volume, setVolume] = useState(0);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionEnded, setSessionEnded] = useState(false);
 
   // Refs for audio handling
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -115,9 +152,11 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
   const sessionRef = useRef<any>(null);
   const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
-  const audioQueueRef = useRef<Map<AudioBufferSourceNode, number>>(new Map()); // Keep track of scheduled sources
   const nextStartTimeRef = useRef<number>(0);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  
+  // Audio Recording (Accumulator)
+  const recordedChunksRef = useRef<Float32Array[]>([]);
 
   // --- Session Setup ---
   useEffect(() => {
@@ -129,7 +168,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
             // @ts-ignore
             let apiKey = (typeof window !== 'undefined' && window.process?.env?.API_KEY) || process.env.API_KEY;
             
-            // Fallback for demo/dev if process.env isn't populated by bundler
+            // Fallback for demo/dev
             if (!apiKey) {
                // @ts-ignore
                if (import.meta && import.meta.env && import.meta.env.VITE_API_KEY) {
@@ -163,9 +202,9 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
                     speechConfig: {
                         voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } },
                     },
-                    inputAudioTranscription: {}, // Enable user transcription
-                    outputAudioTranscription: {}, // Enable AI transcription
-                    systemInstruction: "You are a concise, professional, and friendly news anchor assistant. Keep responses short and engaging.",
+                    inputAudioTranscription: {}, 
+                    outputAudioTranscription: {},
+                    systemInstruction: "You are a concise, professional, and friendly news anchor assistant.",
                 },
                 callbacks: {
                     onopen: async () => {
@@ -189,13 +228,16 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
                                 if (!active) return;
                                 const inputData = e.inputBuffer.getChannelData(0);
                                 
+                                // Accumulate user audio for recording? 
+                                // (Ideally we record only output or both, let's record Output for "Session Download" as the AI's part is most valuable, or mix. For simplicity, we record only AI output chunks here.)
+                                
                                 // Calculate volume for visualizer (Input)
                                 let sum = 0;
                                 for (let i = 0; i < inputData.length; i++) {
                                     sum += inputData[i] * inputData[i];
                                 }
                                 const rms = Math.sqrt(sum / inputData.length);
-                                const vol = Math.min(100, rms * 500); // Scale up
+                                const vol = Math.min(100, rms * 500); 
                                 
                                 // Send to model
                                 const pcmBlob = createBlob(inputData);
@@ -217,19 +259,18 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
                             setIsAiSpeaking(true);
                             const ctx = audioContextRef.current;
                             if (ctx) {
-                                // Time tracking
                                 nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
                                 
-                                const buffer = await decodeAudioData(
-                                    decode(audioData),
-                                    ctx,
-                                    24000,
-                                    1
-                                );
+                                // Decode for playback
+                                const buffer = await decodeAudioData(decode(audioData), ctx, 24000, 1);
                                 
+                                // Store raw PCM for recording (Mono 24kHz)
+                                const channelData = buffer.getChannelData(0);
+                                recordedChunksRef.current.push(new Float32Array(channelData)); // Clone
+
                                 const source = ctx.createBufferSource();
                                 source.buffer = buffer;
-                                source.connect(analyser); // Connect to visualizer
+                                source.connect(analyser); 
                                 analyser.connect(ctx.destination);
                                 
                                 source.start(nextStartTimeRef.current);
@@ -251,7 +292,6 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
                             setCurrentTranscript({ role: 'user', text: inTrans.text });
                         }
 
-                        // Commit transcript on turn complete
                         if (msg.serverContent?.turnComplete) {
                             setCurrentTranscript(prev => {
                                 if (prev) setTranscripts(h => [...h, prev]);
@@ -263,6 +303,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
                     onclose: () => {
                         console.log("Live Session Closed");
                         setIsConnected(false);
+                        setSessionEnded(true);
                     },
                     onerror: (err) => {
                         console.error("Live Session Error:", err);
@@ -281,7 +322,6 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
 
     startSession();
 
-    // Visualizer Loop
     const vizInterval = setInterval(() => {
         if (!analyserRef.current) return;
         const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
@@ -290,8 +330,6 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
         let sum = 0;
         for(let i=0; i<dataArray.length; i++) sum += dataArray[i];
         const avg = sum / dataArray.length;
-        
-        // If AI is speaking, use output volume. If not, we might want input volume (handled in onaudioprocess roughly, but lets simplify to output for "Live Visualizer" of AI)
         setVolume(avg); 
     }, 50);
 
@@ -309,10 +347,8 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
   const toggleMic = () => {
       if (sourceNodeRef.current) {
           if (isMicOn) {
-              // Disconnect processor to stop sending data
               sourceNodeRef.current.disconnect();
           } else {
-              // Reconnect
               if (inputAudioContextRef.current && processorRef.current) {
                   sourceNodeRef.current.connect(processorRef.current);
                   processorRef.current.connect(inputAudioContextRef.current.destination);
@@ -320,6 +356,29 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
           }
           setIsMicOn(!isMicOn);
       }
+  };
+
+  const handleDownload = () => {
+      // Combine all chunks
+      const totalLength = recordedChunksRef.current.reduce((acc, chunk) => acc + chunk.length, 0);
+      const combined = new Float32Array(totalLength);
+      let offset = 0;
+      for (const chunk of recordedChunksRef.current) {
+          combined.set(chunk, offset);
+          offset += chunk.length;
+      }
+
+      // Encode WAV (24kHz Mono as received from model)
+      const wavView = encodeWAV(combined, 24000);
+      const blob = new Blob([wavView], { type: 'audio/wav' });
+      
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `news-live-session-${Date.now()}.wav`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
   };
 
   return (
@@ -332,12 +391,23 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
                 {isConnected ? 'Gemini Live' : 'Connecting...'}
             </span>
         </div>
-        <button 
-            onClick={onClose}
-            className="p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors"
-        >
-            <X size={24} />
-        </button>
+        <div className="flex gap-4">
+            {recordedChunksRef.current.length > 0 && (
+                <button 
+                    onClick={handleDownload} 
+                    className="p-2 bg-white/10 rounded-full hover:bg-white/20 text-white transition-colors"
+                    title="Download Session Audio"
+                >
+                    <Download size={20} />
+                </button>
+            )}
+            <button 
+                onClick={onClose}
+                className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors"
+            >
+                <X size={24} />
+            </button>
+        </div>
       </div>
 
       {/* Main Content */}
