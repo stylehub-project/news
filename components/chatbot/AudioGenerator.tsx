@@ -52,7 +52,6 @@ function decodeBase64(base64: string) {
 }
 
 // Manual decoding of Raw PCM (Int16) to AudioBuffer (Float32)
-// Browser's decodeAudioData expects file headers (WAV/MP3), but Gemini returns raw PCM.
 async function decodeRawPCM(
   data: Uint8Array,
   ctx: AudioContext,
@@ -66,7 +65,6 @@ async function decodeRawPCM(
   for (let channel = 0; channel < numChannels; channel++) {
     const channelData = buffer.getChannelData(channel);
     for (let i = 0; i < frameCount; i++) {
-      // Convert Int16 to Float32 [-1.0, 1.0]
       channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
     }
   }
@@ -131,9 +129,9 @@ interface AudioGeneratorProps {
 const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
   const [step, setStep] = useState<'config' | 'generating' | 'playing'>('config');
   const [topic, setTopic] = useState('');
-  const [language, setLanguage] = useState('English');
+  const [language, setLanguage] = useState('Hinglish');
   const [tone, setTone] = useState('Reporter');
-  const [mode, setMode] = useState('Reporting');
+  const [mode, setMode] = useState('News Briefing');
   const [script, setScript] = useState('');
   const [loadingText, setLoadingText] = useState('');
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -160,9 +158,11 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
           // 1. Script Generation
           const scriptPrompt = `
             Create a spoken dialogue between Joe (Male) and Jane (Female) about: "${t}".
-            Language: ${l}. Tone: ${tn}. Mode: ${m}.
-            Format lines as "Joe: ..." and "Jane: ...".
-            Keep it under 100 words total for a quick summary.
+            Language: ${l} (If Hinglish, mix Hindi and English naturally).
+            Tone: ${tn}. 
+            Format: ${m}.
+            Structure lines as "Joe: ..." and "Jane: ...".
+            Keep it under 150 words total.
           `;
 
           const scriptResponse = await ai.models.generateContent({
@@ -175,7 +175,6 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
           setLoadingText('Synthesizing broadcast...');
 
           // 2. TTS Generation
-          // Gemini 2.5 Flash TTS returns Raw PCM (Int16) at 24kHz.
           const ttsResponse = await ai.models.generateContent({
               model: 'gemini-2.5-flash-preview-tts',
               contents: [{ parts: [{ text: generatedScript }] }],
@@ -302,12 +301,17 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
                           onChange={(e) => setTopic(e.target.value)}
                       />
                   </div>
+                  
+                  {/* Restored Language & Tone Options */}
                   <div className="grid grid-cols-2 gap-4">
                       <div>
                           <label className="block text-xs font-bold uppercase mb-2">Language</label>
                           <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full p-3 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 outline-none">
+                              <option value="Hinglish">Hinglish (Default)</option>
                               <option value="English">English</option>
                               <option value="Hindi">Hindi</option>
+                              <option value="Spanish">Spanish</option>
+                              <option value="French">French</option>
                           </select>
                       </div>
                       <div>
@@ -315,9 +319,30 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
                           <select value={tone} onChange={(e) => setTone(e.target.value)} className="w-full p-3 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 outline-none">
                               <option value="Reporter">Reporter</option>
                               <option value="Casual">Casual</option>
+                              <option value="Excited">Excited</option>
+                              <option value="Professional">Professional</option>
+                              <option value="Storyteller">Storyteller</option>
+                              <option value="Dramatic">Dramatic</option>
                           </select>
                       </div>
                   </div>
+
+                  {/* Restored Mode Selection */}
+                  <div>
+                      <label className="block text-xs font-bold uppercase mb-2">Format Mode</label>
+                      <div className="grid grid-cols-2 gap-2">
+                          {['News Briefing', 'Deep Dive', 'Debate', 'Interview'].map((m) => (
+                              <button
+                                key={m}
+                                onClick={() => setMode(m)}
+                                className={`p-3 rounded-lg text-sm font-medium border transition-all ${mode === m ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-300'}`}
+                              >
+                                {m}
+                              </button>
+                          ))}
+                      </div>
+                  </div>
+
                   <Button fullWidth onClick={handleGenerate} className="bg-indigo-600 text-white shadow-lg" size="lg" rightIcon={<Sparkles size={18} />}>Generate Podcast</Button>
               </div>
           </div>

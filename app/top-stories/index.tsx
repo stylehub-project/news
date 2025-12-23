@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import PageHeader from '../../components/PageHeader';
 import SwipeableCard from '../../components/cards/SwipeableCard';
 import { RefreshCw, Filter } from 'lucide-react';
@@ -9,6 +9,9 @@ const TopStoriesPage = () => {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [filter, setFilter] = useState('All');
+  
+  // Throttle wheel events
+  const lastWheelTime = useRef(0);
 
   const loadStories = async (selectedFilter = 'All') => {
       setLoading(true);
@@ -28,11 +31,21 @@ const TopStoriesPage = () => {
   };
 
   const handleSwipe = (direction: 'left' | 'right') => {
-      // Simulate "out" animation logic in parent if needed, 
-      // but pure CSS in child handles visual exit.
       setTimeout(() => {
           setCurrentIndex(prev => (prev + 1) % articles.length);
       }, 200); 
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+      const now = Date.now();
+      if (now - lastWheelTime.current < 500) return; // Throttle 500ms
+
+      if (e.deltaY > 50) {
+          // Scroll Down -> Next Story
+          lastWheelTime.current = now;
+          handleSwipe('left'); // Trigger swipe logic
+      }
+      // Optional: Add scroll up for previous if needed, but current logic mimics stack
   };
 
   return (
@@ -57,7 +70,10 @@ const TopStoriesPage = () => {
           </div>
       </div>
 
-      <div className="flex-1 relative w-full h-full flex items-center justify-center p-4 pt-24 pb-24 overflow-hidden">
+      <div 
+        className="flex-1 relative w-full h-full flex items-center justify-center p-4 pt-24 pb-24 overflow-hidden focus:outline-none"
+        onWheel={handleWheel}
+      >
           {loading ? (
               <div className="flex flex-col items-center gap-4 text-gray-400 animate-pulse">
                   <RefreshCw className="animate-spin" size={32} />
@@ -88,7 +104,7 @@ const TopStoriesPage = () => {
       
       <div className="absolute bottom-20 w-full flex justify-center gap-2 z-10 pointer-events-none">
           <span className="text-[10px] text-gray-400 bg-white/80 dark:bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm shadow-sm border border-gray-200 dark:border-gray-800">
-              Swipe to explore
+              Swipe or Scroll to explore
           </span>
       </div>
     </div>
