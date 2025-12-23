@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Share2, Bookmark, Clock, ChevronRight, Sparkles, X } from 'lucide-react';
+import BlurImageLoader from '../loaders/BlurImageLoader';
 
 interface SwipeableCardProps {
   data: any;
@@ -76,7 +77,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ data, onSwipe, active, ne
 
         {/* Full Background Image */}
         <div className="absolute inset-0">
-            <img src={data.imageUrl} alt={data.title} className="w-full h-full object-cover" />
+            <BlurImageLoader src={data.imageUrl} alt={data.title} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
         </div>
 
@@ -93,8 +94,8 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ data, onSwipe, active, ne
         {/* Content Overlay */}
         <div className="absolute bottom-0 left-0 w-full p-6 text-white z-10 flex flex-col justify-end h-3/4 bg-gradient-to-t from-black via-black/60 to-transparent">
             <div className="flex items-center gap-2 mb-3">
-                <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center">
-                    <img src={`https://ui-avatars.com/api/?name=${data.source}&background=random`} className="w-full h-full rounded-full" alt="Source" />
+                <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center overflow-hidden">
+                    <img src={`https://ui-avatars.com/api/?name=${data.source}&background=random`} className="w-full h-full" alt="Source" />
                 </div>
                 <span className="text-sm font-bold opacity-90">{data.source}</span>
             </div>

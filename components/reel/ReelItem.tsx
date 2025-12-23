@@ -8,6 +8,7 @@ import ReelOptionsSheet from './ReelOptionsSheet';
 import ReelExpandLayer from './ReelExpandLayer';
 import LikeAnimation from './LikeAnimation';
 import Toast, { ToastType } from '../ui/Toast';
+import BlurImageLoader from '../loaders/BlurImageLoader';
 
 interface ReelItemProps {
   data: {
@@ -61,6 +62,16 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
 
   const REEL_DURATION = 15000; 
   const UPDATE_INTERVAL = 50;
+
+  // Load saved state on mount
+  useEffect(() => {
+      try {
+          const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
+          if (bookmarks.some((b: any) => b.id === data.id)) {
+              setIsSaved(true);
+          }
+      } catch (e) {}
+  }, [data.id]);
 
   useEffect(() => {
     if (!isActive) {
@@ -133,12 +144,32 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
 
   const handleSave = (e?: React.MouseEvent) => {
       e?.stopPropagation();
-      setIsSaved(!isSaved);
-      if (!isSaved) {
-          setToast({ show: true, msg: 'Saved to Bookmarks', type: 'success' });
-          if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(20);
-      } else {
-          setToast({ show: true, msg: 'Removed from Bookmarks', type: 'info' });
+      const newState = !isSaved;
+      setIsSaved(newState);
+      
+      try {
+          const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
+          if (newState) {
+              // Add to bookmarks
+              const newBookmark = { 
+                  id: data.id, 
+                  title: data.title, 
+                  source: data.source, 
+                  category: data.category,
+                  imageUrl: data.imageUrl,
+                  savedAt: new Date().toLocaleDateString()
+              };
+              localStorage.setItem('bookmarks', JSON.stringify([newBookmark, ...bookmarks]));
+              setToast({ show: true, msg: 'Saved to Bookmarks', type: 'success' });
+              if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(20);
+          } else {
+              // Remove
+              const filtered = bookmarks.filter((b: any) => b.id !== data.id);
+              localStorage.setItem('bookmarks', JSON.stringify(filtered));
+              setToast({ show: true, msg: 'Removed from Bookmarks', type: 'info' });
+          }
+      } catch (e) {
+          console.error("Bookmark error", e);
       }
   };
 
@@ -205,7 +236,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
       )}
 
       <div className="absolute inset-0 bg-black">
-        <img 
+        <BlurImageLoader 
             src={data.imageUrl}
             className={`absolute inset-0 w-full h-full object-cover blur-2xl scale-110 transition-opacity duration-700 ${mediaLoaded ? 'opacity-0' : 'opacity-100'}`}
             alt=""
@@ -227,7 +258,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
                 onPlaying={() => setIsBuffering(false)}
             />
         ) : (
-            <img 
+            <BlurImageLoader 
                 src={data.imageUrl} 
                 onLoad={() => setMediaLoaded(true)}
                 className={`w-full h-full object-cover transition-all duration-[15000ms] ease-linear will-change-transform ${mediaLoaded ? 'opacity-90' : 'opacity-0'} ${isActive ? 'scale-110' : 'scale-100'}`}

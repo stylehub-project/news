@@ -15,7 +15,7 @@ const CategoryPage = () => {
       gradient="bg-gradient-to-br from-indigo-500 to-blue-500"
       icon={<Layers size={48} />}
       features={[`Top ${title} News`, "Trending Updates", "Expert Analysis"]}
-      description={`Explore the latest stories and updates in ${title}.`}
+      description={`Explore the latest stories and updates in ${title}. We are preparing a curated feed.`}
     />
   );
 };

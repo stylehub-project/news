@@ -3,7 +3,8 @@ import { X, Play, Pause, Download, Sparkles, RefreshCw, Music, Settings2, FileTe
 import { GoogleGenAI } from "@google/genai";
 import Button from '../ui/Button';
 
-// ... (Keep Audio Helpers: writeString, floatTo16BitPCM, encodeWAV)
+// --- Audio Helpers ---
+
 function writeString(view: DataView, offset: number, string: string) {
   for (let i = 0; i < string.length; i++) {
     view.setUint8(offset + i, string.charCodeAt(i));
@@ -39,6 +40,39 @@ function encodeWAV(samples: Float32Array, sampleRate: number) {
   return view;
 }
 
+// Decode Base64 string to Uint8Array
+function decodeBase64(base64: string) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+// Manual decoding of Raw PCM (Int16) to AudioBuffer (Float32)
+// Browser's decodeAudioData expects file headers (WAV/MP3), but Gemini returns raw PCM.
+async function decodeRawPCM(
+  data: Uint8Array,
+  ctx: AudioContext,
+  sampleRate: number = 24000,
+  numChannels: number = 1,
+): Promise<AudioBuffer> {
+  const dataInt16 = new Int16Array(data.buffer);
+  const frameCount = dataInt16.length / numChannels;
+  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+
+  for (let channel = 0; channel < numChannels; channel++) {
+    const channelData = buffer.getChannelData(channel);
+    for (let i = 0; i < frameCount; i++) {
+      // Convert Int16 to Float32 [-1.0, 1.0]
+      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    }
+  }
+  return buffer;
+}
+
 const AudioVisualizer = ({ isPlaying, audioData }: { isPlaying: boolean, audioData: Uint8Array }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -55,7 +89,7 @@ const AudioVisualizer = ({ isPlaying, audioData }: { isPlaying: boolean, audioDa
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.beginPath();
                 ctx.moveTo(0, canvas.height / 2);
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; // White for visibility on dark
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; 
                 ctx.lineWidth = 2;
                 for (let i = 0; i < canvas.width; i++) {
                     ctx.lineTo(i, canvas.height / 2);
@@ -141,6 +175,7 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
           setLoadingText('Synthesizing broadcast...');
 
           // 2. TTS Generation
+          // Gemini 2.5 Flash TTS returns Raw PCM (Int16) at 24kHz.
           const ttsResponse = await ai.models.generateContent({
               model: 'gemini-2.5-flash-preview-tts',
               contents: [{ parts: [{ text: generatedScript }] }],
@@ -160,18 +195,19 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
           const base64Audio = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
           if (!base64Audio) throw new Error("No audio generated");
 
-          const binaryString = atob(base64Audio);
-          const len = binaryString.length;
-          const bytes = new Uint8Array(len);
-          for (let i = 0; i < len; i++) {
-              bytes[i] = binaryString.charCodeAt(i);
-          }
+          // Convert Base64 to Bytes
+          const bytes = decodeBase64(base64Audio);
 
-          const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          // Setup Audio Context
+          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+          const ctx = new AudioContextClass({ sampleRate: 24000 }); // Must match model sample rate
           audioContextRef.current = ctx;
-          const audioBuffer = await ctx.decodeAudioData(bytes.buffer.slice(0)); 
+
+          // Decode Raw PCM Manually
+          const audioBuffer = await decodeRawPCM(bytes, ctx, 24000, 1);
           audioBufferRef.current = audioBuffer;
 
+          // Prepare WAV for download
           const wavView = encodeWAV(audioBuffer.getChannelData(0), audioBuffer.sampleRate);
           setAudioBlob(new Blob([wavView], { type: 'audio/wav' }));
 
@@ -183,7 +219,7 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
 
       } catch (error) {
           console.error("Generation Error", error);
-          alert("Failed to generate audio. Please check API Key/Limits.");
+          alert(`Failed to generate audio. ${error}`);
           setStep('config');
       }
   };

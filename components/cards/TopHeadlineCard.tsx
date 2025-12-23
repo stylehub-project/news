@@ -1,5 +1,6 @@
 import React from 'react';
 import Card from '../ui/Card';
+import BlurImageLoader from '../loaders/BlurImageLoader';
 
 interface TopHeadlineCardProps {
   id: string;
@@ -26,11 +27,13 @@ const TopHeadlineCard: React.FC<TopHeadlineCardProps> = ({
       onClick={() => onClick?.(id)}
     >
       {/* Background Image */}
-      <img 
-        src={imageUrl} 
-        alt={title} 
-        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-      />
+      <div className="absolute inset-0">
+        <BlurImageLoader 
+            src={imageUrl} 
+            alt={title} 
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+        />
+      </div>
 
       {/* Gradient Overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90" />

@@ -11,23 +11,25 @@ import MapSmartInsights from './MapSmartInsights';
 import { TrendingUp, AlertTriangle } from 'lucide-react';
 import Toast from '../ui/Toast';
 
-// Mock Data focused on India + Global
+// Mock Data distributed across Indian States and Global hubs
 const MARKERS = [
-  // India Dense Cluster
-  { id: 'in1', x: 68, y: 42, type: 'breaking', title: 'Delhi Election Update', source: 'NDTV', time: '10m ago', timestamp: 0.1, imageUrl: 'https://picsum.photos/200/150?random=101', category: 'Politics', locationName: 'New Delhi, India', impactRadius: 9, momentum: 'High', sentiment: 'Tense' },
-  { id: 'in2', x: 67, y: 45, type: 'trending', title: 'Mumbai Tech Summit', source: 'TechCrunch', time: '1h ago', timestamp: 0.2, imageUrl: 'https://picsum.photos/200/150?random=102', category: 'Tech', locationName: 'Mumbai, India', impactRadius: 8, momentum: 'High', sentiment: 'Positive' },
-  { id: 'in3', x: 69, y: 48, type: 'general', title: 'Bangalore Startup Boom', source: 'Economic Times', time: '3h ago', timestamp: 0.3, imageUrl: 'https://picsum.photos/200/150?random=103', category: 'Business', locationName: 'Bangalore, India', impactRadius: 7, momentum: 'Medium', sentiment: 'Positive' },
-  { id: 'in4', x: 72, y: 43, type: 'general', title: 'Kolkata Cultural Fest', source: 'The Hindu', time: '5h ago', timestamp: 0.4, imageUrl: 'https://picsum.photos/200/150?random=104', category: 'Entertainment', locationName: 'Kolkata, India', impactRadius: 5, momentum: 'Low', sentiment: 'Positive' },
-  { id: 'in5', x: 66, y: 40, type: 'top', title: 'Rajasthan Tourism Surge', source: 'Travel Daily', time: '1d ago', timestamp: 0.5, imageUrl: 'https://picsum.photos/200/150?random=105', category: 'Business', locationName: 'Jaipur, India', impactRadius: 6, momentum: 'Medium', sentiment: 'Positive' },
-  { id: 'in6', x: 70, y: 50, type: 'general', title: 'Chennai Weather Alert', source: 'Weather.com', time: '20m ago', timestamp: 0.1, imageUrl: 'https://picsum.photos/200/150?random=106', category: 'Environment', locationName: 'Chennai, India', impactRadius: 8, momentum: 'High', sentiment: 'Tense' },
-  { id: 'in7', x: 65, y: 38, type: 'general', title: 'Punjab Agriculture Tech', source: 'AgriNews', time: '6h ago', timestamp: 0.6, imageUrl: 'https://picsum.photos/200/150?random=107', category: 'Science', locationName: 'Amritsar, India', impactRadius: 4, momentum: 'Low', sentiment: 'Positive' },
-  { id: 'in8', x: 71, y: 45, type: 'trending', title: 'Hyderabad Biotech Innovation', source: 'BioWorld', time: '2h ago', timestamp: 0.25, imageUrl: 'https://picsum.photos/200/150?random=108', category: 'Science', locationName: 'Hyderabad, India', impactRadius: 7, momentum: 'Medium', sentiment: 'Positive' },
+  // India States Data Points
+  { id: 'in1', x: 68.5, y: 41, type: 'breaking', title: 'Delhi: Air Quality Crisis', source: 'NDTV', time: '10m ago', timestamp: 0.1, imageUrl: 'https://picsum.photos/200/150?random=101', category: 'Environment', locationName: 'New Delhi', impactRadius: 9, momentum: 'High', sentiment: 'Tense' },
+  { id: 'in2', x: 67.2, y: 46, type: 'trending', title: 'Mumbai: Tech Summit', source: 'TechCrunch', time: '1h ago', timestamp: 0.2, imageUrl: 'https://picsum.photos/200/150?random=102', category: 'Tech', locationName: 'Maharashtra', impactRadius: 8, momentum: 'High', sentiment: 'Positive' },
+  { id: 'in3', x: 69.5, y: 49, type: 'general', title: 'Bangalore: Startup Boom', source: 'Economic Times', time: '3h ago', timestamp: 0.3, imageUrl: 'https://picsum.photos/200/150?random=103', category: 'Business', locationName: 'Karnataka', impactRadius: 7, momentum: 'Medium', sentiment: 'Positive' },
+  { id: 'in4', x: 73, y: 44, type: 'general', title: 'Kolkata: Cultural Fest', source: 'The Hindu', time: '5h ago', timestamp: 0.4, imageUrl: 'https://picsum.photos/200/150?random=104', category: 'Entertainment', locationName: 'West Bengal', impactRadius: 5, momentum: 'Low', sentiment: 'Positive' },
+  { id: 'in5', x: 66, y: 40, type: 'top', title: 'Jaipur: Tourism Surge', source: 'Travel Daily', time: '1d ago', timestamp: 0.5, imageUrl: 'https://picsum.photos/200/150?random=105', category: 'Business', locationName: 'Rajasthan', impactRadius: 6, momentum: 'Medium', sentiment: 'Positive' },
+  { id: 'in6', x: 70, y: 51, type: 'general', title: 'Chennai: Cyclone Alert', source: 'Weather.com', time: '20m ago', timestamp: 0.1, imageUrl: 'https://picsum.photos/200/150?random=106', category: 'Environment', locationName: 'Tamil Nadu', impactRadius: 8, momentum: 'High', sentiment: 'Tense' },
+  { id: 'in7', x: 67, y: 37, type: 'general', title: 'Punjab: Agri-Tech Expo', source: 'AgriNews', time: '6h ago', timestamp: 0.6, imageUrl: 'https://picsum.photos/200/150?random=107', category: 'Science', locationName: 'Punjab', impactRadius: 4, momentum: 'Low', sentiment: 'Positive' },
+  { id: 'in8', x: 70.5, y: 46, type: 'trending', title: 'Hyderabad: Pharma Hub', source: 'BioWorld', time: '2h ago', timestamp: 0.25, imageUrl: 'https://picsum.photos/200/150?random=108', category: 'Science', locationName: 'Telangana', impactRadius: 7, momentum: 'Medium', sentiment: 'Positive' },
+  { id: 'in9', x: 65, y: 44, type: 'general', title: 'Ahmedabad: Trade Fair', source: 'GujSamachar', time: '4h ago', timestamp: 0.4, imageUrl: 'https://picsum.photos/200/150?random=109', category: 'Business', locationName: 'Gujarat', impactRadius: 6, momentum: 'Medium', sentiment: 'Positive' },
+  { id: 'in10', x: 74, y: 38, type: 'breaking', title: 'Guwahati: Flood Warning', source: 'NE News', time: '15m ago', timestamp: 0.15, imageUrl: 'https://picsum.photos/200/150?random=110', category: 'Environment', locationName: 'Assam', impactRadius: 8, momentum: 'High', sentiment: 'Tense' },
 
-  // Global Context
-  { id: '1', x: 22, y: 38, type: 'breaking', title: 'US Market Hits All-Time High', source: 'Bloomberg', time: '10m ago', timestamp: 0.1, imageUrl: 'https://picsum.photos/200/150?random=1', category: 'Business', locationName: 'New York, USA', impactRadius: 9, momentum: 'High', sentiment: 'Positive' },
-  { id: '2', x: 48, y: 28, type: 'trending', title: 'EU AI Act Finalized', source: 'BBC', time: '1h ago', timestamp: 0.3, imageUrl: 'https://picsum.photos/200/150?random=2', category: 'Politics', locationName: 'Brussels, Belgium', impactRadius: 6, momentum: 'Medium', sentiment: 'Neutral' },
-  { id: '3', x: 75, y: 45, type: 'top', title: 'China Tech Unveil', source: 'The Verge', time: '3h ago', timestamp: 0.5, imageUrl: 'https://picsum.photos/200/150?random=3', category: 'Tech', locationName: 'Shenzhen, China', impactRadius: 8, momentum: 'High', sentiment: 'Positive' },
-  { id: '5', x: 85, y: 75, type: 'breaking', title: 'Australian Wildfire Update', source: 'ABC News', time: '5m ago', timestamp: 0.05, imageUrl: 'https://picsum.photos/200/150?random=5', category: 'Environment', locationName: 'Sydney, Australia', impactRadius: 7, momentum: 'High', sentiment: 'Tense' },
+  // Global Context (Scaled relatively)
+  { id: '1', x: 22, y: 38, type: 'breaking', title: 'New York: Market High', source: 'Bloomberg', time: '10m ago', timestamp: 0.1, imageUrl: 'https://picsum.photos/200/150?random=1', category: 'Business', locationName: 'USA', impactRadius: 9, momentum: 'High', sentiment: 'Positive' },
+  { id: '2', x: 48, y: 28, type: 'trending', title: 'Brussels: AI Act', source: 'BBC', time: '1h ago', timestamp: 0.3, imageUrl: 'https://picsum.photos/200/150?random=2', category: 'Politics', locationName: 'Europe', impactRadius: 6, momentum: 'Medium', sentiment: 'Neutral' },
+  { id: '3', x: 80, y: 40, type: 'top', title: 'Tokyo: Robotics Expo', source: 'Nikkei', time: '3h ago', timestamp: 0.5, imageUrl: 'https://picsum.photos/200/150?random=3', category: 'Tech', locationName: 'Japan', impactRadius: 8, momentum: 'High', sentiment: 'Positive' },
+  { id: '5', x: 85, y: 75, type: 'breaking', title: 'Sydney: Wildfire', source: 'ABC News', time: '5m ago', timestamp: 0.05, imageUrl: 'https://picsum.photos/200/150?random=5', category: 'Environment', locationName: 'Australia', impactRadius: 7, momentum: 'High', sentiment: 'Tense' },
 ];
 
 interface WorldMapProps {
@@ -78,7 +80,11 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
   const filteredMarkers = useMemo(() => {
       return MARKERS.filter(m => {
           if (filters.category !== 'All' && m.category !== filters.category) return false;
-          if (filters.state !== 'All' && filters.state === 'India' && !m.locationName.includes('India')) return false;
+          // Improved State Filter Logic - Broad check
+          if (filters.state !== 'All') {
+              if (filters.state === 'India' && !['India', 'Maharashtra', 'Karnataka', 'New Delhi', 'West Bengal', 'Rajasthan', 'Tamil Nadu', 'Punjab', 'Telangana', 'Gujarat', 'Assam'].includes(m.locationName)) return false;
+              if (filters.state !== 'India' && !m.locationName.includes(filters.state)) return false;
+          }
           if (filters.sentiment !== 'All' && m.sentiment !== filters.sentiment) return false;
           
           if (timeValue < 0.2 && m.timestamp > 0.2) return false;
@@ -87,7 +93,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
       });
   }, [filters, transform.k, activeMarkerId, timeValue, compareSelection]);
 
-  const handleZoomIn = () => setTransform(prev => ({ ...prev, k: Math.min(prev.k * 1.5, 8) }));
+  const handleZoomIn = () => setTransform(prev => ({ ...prev, k: Math.min(prev.k * 1.5, 12) }));
   const handleZoomOut = () => setTransform(prev => {
       const newK = Math.max(prev.k / 1.5, 1);
       return { ...prev, k: newK, x: newK <= 1.2 ? 0 : prev.x, y: newK <= 1.2 ? 0 : prev.y };
@@ -98,7 +104,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
     e.preventDefault();
     const scaleFactor = 0.001;
     const delta = -e.deltaY * scaleFactor;
-    const newK = Math.min(Math.max(1, transform.k + delta), 8);
+    const newK = Math.min(Math.max(1, transform.k + delta), 12);
     setTransform(prev => ({ ...prev, k: newK }));
   };
   
@@ -181,7 +187,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
        {(showAIAnalysis || activeZone) && (
            <MapAIOverlay 
               region={activeZone?.region || "Global View"}
-              summary={activeZone?.summary || "Significant activity detected."}
+              summary={activeZone?.summary || "Significant activity detected in this sector."}
               momentum={activeZone?.momentum || "Medium"}
               sentiment={activeZone?.sentiment || "Neutral"}
               stats={activeZone?.stats || [{ label: 'Trending', value: 'Technology', icon: TrendingUp }, { label: 'Impact', value: 'High', icon: AlertTriangle }]}
@@ -198,6 +204,8 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
         onMouseLeave={handleMouseUp}
         onClick={() => { 
             if (!isDragging) {
+                // Keep marker active if clicking it, otherwise clear. Handled by propagation stop in Marker.
+                // But clicking empty map clears:
                 setActiveMarkerId(null); 
                 setShowAIAnalysis(false); 
                 setActiveZone(null); 
@@ -246,10 +254,15 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
           />
       )}
 
+      {/* Map News Sheet (Modal) */}
       <MapNewsSheet 
         isOpen={!!activeMarkerId && !isCompareMode} 
         onClose={() => setActiveMarkerId(null)}
-        data={activeMarkerData ? { ...activeMarkerData, description: `Analyzing ${activeMarkerData.locationName}: This event has a regional impact score of ${activeMarkerData.impactRadius}/10.` } : null}
+        data={activeMarkerData ? { 
+            ...activeMarkerData, 
+            description: activeMarkerData.title + ". Deep analysis available via AI Explain.",
+            type: activeMarkerData.type
+        } : null}
       />
 
       <MapToolbar 
