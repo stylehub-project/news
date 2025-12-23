@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { 
     PlayCircle, 
     Sparkles, 
@@ -11,7 +11,8 @@ import {
     Zap,
     Mic,
     MapPin,
-    ArrowRight
+    ArrowRight,
+    Filter
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import NewsCardBasic from '../../components/cards/NewsCardBasic';
@@ -20,98 +21,25 @@ import SmartLoader from '../../components/loaders/SmartLoader';
 import { useLoading } from '../../context/LoadingContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { translations } from '../../utils/translations';
-
-// Mock Data for English
-const MOCK_NEWS_EN = [
-    {
-        id: '1',
-        title: "SpaceX Starship Successfully Reaches Orbit in Historic Test Flight",
-        description: "The massive rocket cleared the tower and successfully completed its primary mission objectives, marking a new era for space exploration.",
-        imageUrl: "https://picsum.photos/600/400?random=101",
-        source: "SpaceNews",
-        timeAgo: "20m ago",
-        category: "Technology"
-    },
-    {
-        id: '2',
-        title: "Global Climate Summit Ends with Historic Agreement on Emissions",
-        description: "World leaders have agreed to a legally binding treaty to reduce carbon emissions by 40% by 2030.",
-        imageUrl: "https://picsum.photos/600/400?random=102",
-        source: "The Guardian",
-        timeAgo: "1h ago",
-        category: "World"
-    },
-    {
-        id: '3',
-        title: "Apple Announces Revolutionary AI Integration in Next iOS Update",
-        description: "The tech giant revealed 'Apple Intelligence', a deep integration of generative AI across all Apple devices.",
-        imageUrl: "https://picsum.photos/600/400?random=103",
-        source: "The Verge",
-        timeAgo: "2h ago",
-        category: "Tech"
-    },
-    {
-        id: '4',
-        title: "Championship Finals: Underdog Team Secures Victory in Overtime",
-        description: "In a stunning upset, the city's beloved underdogs defeated the defending champions 3-2.",
-        imageUrl: "https://picsum.photos/600/400?random=104",
-        source: "ESPN",
-        timeAgo: "3h ago",
-        category: "Sports"
-    }
-];
-
-// Mock Data for Hindi
-const MOCK_NEWS_HI = [
-    {
-        id: '1',
-        title: "SpaceX स्टारशिप ने ऐतिहासिक परीक्षण उड़ान में सफलतापूर्वक कक्षा में प्रवेश किया",
-        description: "विशाल रॉकेट ने टॉवर को साफ किया और अंतरिक्ष अन्वेषण के लिए एक नए युग को चिह्नित करते हुए अपने प्राथमिक मिशन उद्देश्यों को सफलतापूर्वक पूरा किया।",
-        imageUrl: "https://picsum.photos/600/400?random=101",
-        source: "स्पेस न्यूज़",
-        timeAgo: "20 मिनट पहले",
-        category: "प्रौद्योगिकी"
-    },
-    {
-        id: '2',
-        title: "ग्लोबल क्लाइमेट समिट उत्सर्जन पर ऐतिहासिक समझौते के साथ समाप्त हुआ",
-        description: "विश्व के नेताओं ने 2030 तक कार्बन उत्सर्जन को 40% तक कम करने के लिए एक कानूनी रूप से बाध्यकारी संधि पर सहमति व्यक्त की है।",
-        imageUrl: "https://picsum.photos/600/400?random=102",
-        source: "द गार्डियन",
-        timeAgo: "1 घंटा पहले",
-        category: "दुनिया"
-    },
-    {
-        id: '3',
-        title: "Apple ने अगले iOS अपडेट में क्रांतिकारी AI एकीकरण की घोषणा की",
-        description: "टेक दिग्गज ने 'ऐप्पल इंटेलिजेंस' का खुलासा किया, जो सभी ऐप्पल उपकरणों में जेनरेटिव एआई का गहरा एकीकरण है।",
-        imageUrl: "https://picsum.photos/600/400?random=103",
-        source: "द वर्ज",
-        timeAgo: "2 घंटे पहले",
-        category: "तकनीक"
-    },
-    {
-        id: '4',
-        title: "चैंपियनशिप फाइनल: अंडरडॉग टीम ने ओवरटाइम में जीत हासिल की",
-        description: "एक चौंकाने वाले उलटफेर में, शहर के प्रिय अंडरडॉग ने गत चैंपियन को 3-2 से हराया।",
-        imageUrl: "https://picsum.photos/600/400?random=104",
-        source: "ईएसपीएन",
-        timeAgo: "3 घंटे पहले",
-        category: "खेल"
-    }
-];
+import { fetchNewsFeed } from '../../utils/aiService';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { isLoaded, markAsLoaded } = useLoading();
   const [isLoading, setIsLoading] = useState(!isLoaded('home'));
   const [isReadingMode, setIsReadingMode] = useState(false);
+  const [articles, setArticles] = useState<any[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
   
-  const { appLanguage, contentLanguage } = useLanguage();
-  const t = translations[appLanguage];
+  // Filters
+  const [activeFilter, setActiveFilter] = useState('Latest');
+  const FILTERS = ['Latest', 'Popular', 'Positive', 'Tech', 'India', 'World'];
 
-  // Select news content based on Content Language setting
-  const newsData = contentLanguage === 'hi' ? MOCK_NEWS_HI : MOCK_NEWS_EN;
+  const { appLanguage } = useLanguage();
+  const t = translations[appLanguage];
+  const observer = useRef<IntersectionObserver | null>(null);
 
   const FEATURES = useMemo(() => [
     { label: t.ai_analysis, icon: Sparkles, color: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400', path: '/ai-chat' },
@@ -121,25 +49,67 @@ const HomePage: React.FC = () => {
     { label: t.newspaper, icon: Newspaper, color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200', path: '/newspaper' },
     { label: t.map_news, icon: Map, color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400', path: '/map' },
     { label: t.saved, icon: Bookmark, color: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400', path: '/bookmarks' },
-    { label: t.read_mode, icon: Headphones, color: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400', path: '/' }, // Toggle logic
+    { label: t.read_mode, icon: Headphones, color: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400', path: '/' }, 
   ], [t]);
 
+  // Initial Load
   useEffect(() => {
-    if (isLoading) {
-        const timer = setTimeout(() => {
-            setIsLoading(false);
-            markAsLoaded('home');
-        }, 2500);
-        return () => clearTimeout(timer);
-    }
-  }, [isLoading, markAsLoaded]);
+    const initLoad = async () => {
+        const initialNews = await fetchNewsFeed(1, { category: 'All', sort: 'Latest' });
+        setArticles(initialNews);
+        if (isLoading) {
+            setTimeout(() => {
+                setIsLoading(false);
+                markAsLoaded('home');
+            }, 1500);
+        }
+    };
+    initLoad();
+  }, []);
+
+  // Filter Change
+  const handleFilterChange = async (filter: string) => {
+      setActiveFilter(filter);
+      setIsLoading(true);
+      setPage(1);
+      setArticles([]);
+      const news = await fetchNewsFeed(1, { category: 'All', filter: filter, state: filter === 'India' ? 'India' : 'Global' });
+      setArticles(news);
+      setIsLoading(false);
+  };
+
+  // Infinite Scroll Fetch
+  const loadMore = async () => {
+      if (isFetchingMore || !hasMore) return;
+      setIsFetchingMore(true);
+      const nextPage = page + 1;
+      const news = await fetchNewsFeed(nextPage, { category: 'All', filter: activeFilter });
+      
+      if (news.length === 0) setHasMore(false);
+      else {
+          setArticles(prev => [...prev, ...news]);
+          setPage(nextPage);
+      }
+      setIsFetchingMore(false);
+  };
+
+  const lastElementRef = useCallback((node: HTMLDivElement) => {
+      if (isLoading || isFetchingMore) return;
+      if (observer.current) observer.current.disconnect();
+      observer.current = new IntersectionObserver(entries => {
+          if (entries[0].isIntersecting && hasMore) {
+              loadMore();
+          }
+      });
+      if (node) observer.current.observe(node);
+  }, [isLoading, hasMore, isFetchingMore]);
 
   const handleCardClick = (id: string) => {
       navigate(`/news/${id}`);
   };
 
   const handleAIExplain = (id: string) => {
-      const article = newsData.find(n => n.id === id);
+      const article = articles.find(n => n.id === id);
       if (article) {
           navigate(`/ai-chat?context=article&headline=${encodeURIComponent(article.title)}&id=${id}`);
       }
@@ -154,14 +124,13 @@ const HomePage: React.FC = () => {
       
       {/* Hero Section */}
       <div className="p-4 pb-2">
-         {isReadingMode ? (
+         {isReadingMode && articles.length > 0 ? (
              <HighlightReadingMode 
-                text={newsData[0].description} // Simplified for demo
+                text={articles[0].description} 
                 onComplete={() => setIsReadingMode(false)}
              />
          ) : (
             <div className="relative w-full rounded-2xl overflow-hidden shadow-lg h-48 bg-gradient-to-br from-blue-600 to-indigo-900 text-white flex flex-col justify-between p-5">
-                {/* Animated Background */}
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20"></div>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 animate-pulse-slow"></div>
 
@@ -170,12 +139,12 @@ const HomePage: React.FC = () => {
                         {t.daily_briefing}
                     </span>
                     <h1 className="text-2xl font-black mt-3 leading-tight drop-shadow-md">
-                        {t.todays_highlights}
+                        {articles.length > 0 ? articles[0].title : t.todays_highlights}
                     </h1>
                 </div>
 
                 <div className="relative z-10 flex items-center justify-between">
-                    <p className="text-sm text-blue-100 font-medium">4 Updates • 2 min read</p>
+                    <p className="text-sm text-blue-100 font-medium">{articles.length} Updates • Live</p>
                     <button 
                         onClick={() => setIsReadingMode(true)}
                         className="flex items-center gap-2 bg-white text-blue-900 px-3 py-1.5 rounded-full text-xs font-bold shadow-md active:scale-95 transition-transform"
@@ -225,35 +194,72 @@ const HomePage: React.FC = () => {
           </div>
       </div>
 
-      {/* Infinite News Feed */}
+      {/* News Feed with Filters */}
       <div className="px-4 mt-2">
         <div className="flex items-center justify-between mb-3">
              <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
                 <PlayCircle size={18} className="text-red-500 fill-red-500" />
                 {t.latest_feed}
              </h2>
+             <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full">
+                 <Filter size={16} className="text-gray-500" />
+             </div>
+        </div>
+
+        {/* Filter Scroll */}
+        <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide">
+            {FILTERS.map(filter => (
+                <button
+                    key={filter}
+                    onClick={() => handleFilterChange(filter)}
+                    className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${activeFilter === filter ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}
+                >
+                    {filter}
+                </button>
+            ))}
         </div>
 
         <div className="space-y-4">
-            {newsData.map((news) => (
-                <NewsCardBasic
-                    key={news.id}
-                    {...news}
-                    onClick={handleCardClick}
-                    onSave={() => console.log('Saved', news.id)}
-                    onShare={() => console.log('Shared', news.id)}
-                    onAIExplain={handleAIExplain}
-                />
-            ))}
+            {articles.map((news, index) => {
+                if (articles.length === index + 1) {
+                    return (
+                        <div ref={lastElementRef} key={news.id + index}>
+                            <NewsCardBasic
+                                {...news}
+                                onClick={handleCardClick}
+                                onSave={() => console.log('Saved', news.id)}
+                                onShare={() => console.log('Shared', news.id)}
+                                onAIExplain={handleAIExplain}
+                            />
+                        </div>
+                    );
+                }
+                return (
+                    <NewsCardBasic
+                        key={news.id + index}
+                        {...news}
+                        onClick={handleCardClick}
+                        onSave={() => console.log('Saved', news.id)}
+                        onShare={() => console.log('Shared', news.id)}
+                        onAIExplain={handleAIExplain}
+                    />
+                );
+            })}
             
-            {/* Infinite Scroll Loader Mock */}
-            <div className="py-6 flex justify-center opacity-50">
+            {/* Infinite Scroll Loader */}
+            {isFetchingMore && (
+                <div className="py-6 flex justify-center opacity-70">
                     <div className="flex gap-1">
-                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></span>
-                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-100"></span>
-                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-200"></span>
+                        <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce"></span>
+                        <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce delay-100"></span>
+                        <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce delay-200"></span>
                     </div>
-            </div>
+                </div>
+            )}
+            
+            {!hasMore && (
+                <p className="text-center text-xs text-gray-400 py-4">No more stories to load.</p>
+            )}
         </div>
       </div>
 

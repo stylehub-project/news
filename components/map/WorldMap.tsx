@@ -8,18 +8,26 @@ import HeatmapLayer from './HeatmapLayer';
 import TimeScrubber from './TimeScrubber';
 import MapComparisonOverlay from './MapComparisonOverlay';
 import MapSmartInsights from './MapSmartInsights';
-import { Sparkles, TrendingUp, Users, AlertTriangle, MapPinOff } from 'lucide-react';
+import { TrendingUp, AlertTriangle } from 'lucide-react';
 import Toast from '../ui/Toast';
 
+// Mock Data focused on India + Global
 const MARKERS = [
-  { id: '1', x: 22, y: 38, type: 'breaking', title: 'Market Hits All-Time High', source: 'Bloomberg', time: '10m ago', timestamp: 0.1, imageUrl: 'https://picsum.photos/200/150?random=1', category: 'Business', locationName: 'New York, USA', impactRadius: 9, momentum: 'High', sentiment: 'Positive' },
+  // India Dense Cluster
+  { id: 'in1', x: 68, y: 42, type: 'breaking', title: 'Delhi Election Update', source: 'NDTV', time: '10m ago', timestamp: 0.1, imageUrl: 'https://picsum.photos/200/150?random=101', category: 'Politics', locationName: 'New Delhi, India', impactRadius: 9, momentum: 'High', sentiment: 'Tense' },
+  { id: 'in2', x: 67, y: 45, type: 'trending', title: 'Mumbai Tech Summit', source: 'TechCrunch', time: '1h ago', timestamp: 0.2, imageUrl: 'https://picsum.photos/200/150?random=102', category: 'Tech', locationName: 'Mumbai, India', impactRadius: 8, momentum: 'High', sentiment: 'Positive' },
+  { id: 'in3', x: 69, y: 48, type: 'general', title: 'Bangalore Startup Boom', source: 'Economic Times', time: '3h ago', timestamp: 0.3, imageUrl: 'https://picsum.photos/200/150?random=103', category: 'Business', locationName: 'Bangalore, India', impactRadius: 7, momentum: 'Medium', sentiment: 'Positive' },
+  { id: 'in4', x: 72, y: 43, type: 'general', title: 'Kolkata Cultural Fest', source: 'The Hindu', time: '5h ago', timestamp: 0.4, imageUrl: 'https://picsum.photos/200/150?random=104', category: 'Entertainment', locationName: 'Kolkata, India', impactRadius: 5, momentum: 'Low', sentiment: 'Positive' },
+  { id: 'in5', x: 66, y: 40, type: 'top', title: 'Rajasthan Tourism Surge', source: 'Travel Daily', time: '1d ago', timestamp: 0.5, imageUrl: 'https://picsum.photos/200/150?random=105', category: 'Business', locationName: 'Jaipur, India', impactRadius: 6, momentum: 'Medium', sentiment: 'Positive' },
+  { id: 'in6', x: 70, y: 50, type: 'general', title: 'Chennai Weather Alert', source: 'Weather.com', time: '20m ago', timestamp: 0.1, imageUrl: 'https://picsum.photos/200/150?random=106', category: 'Environment', locationName: 'Chennai, India', impactRadius: 8, momentum: 'High', sentiment: 'Tense' },
+  { id: 'in7', x: 65, y: 38, type: 'general', title: 'Punjab Agriculture Tech', source: 'AgriNews', time: '6h ago', timestamp: 0.6, imageUrl: 'https://picsum.photos/200/150?random=107', category: 'Science', locationName: 'Amritsar, India', impactRadius: 4, momentum: 'Low', sentiment: 'Positive' },
+  { id: 'in8', x: 71, y: 45, type: 'trending', title: 'Hyderabad Biotech Innovation', source: 'BioWorld', time: '2h ago', timestamp: 0.25, imageUrl: 'https://picsum.photos/200/150?random=108', category: 'Science', locationName: 'Hyderabad, India', impactRadius: 7, momentum: 'Medium', sentiment: 'Positive' },
+
+  // Global Context
+  { id: '1', x: 22, y: 38, type: 'breaking', title: 'US Market Hits All-Time High', source: 'Bloomberg', time: '10m ago', timestamp: 0.1, imageUrl: 'https://picsum.photos/200/150?random=1', category: 'Business', locationName: 'New York, USA', impactRadius: 9, momentum: 'High', sentiment: 'Positive' },
   { id: '2', x: 48, y: 28, type: 'trending', title: 'EU AI Act Finalized', source: 'BBC', time: '1h ago', timestamp: 0.3, imageUrl: 'https://picsum.photos/200/150?random=2', category: 'Politics', locationName: 'Brussels, Belgium', impactRadius: 6, momentum: 'Medium', sentiment: 'Neutral' },
-  { id: '3', x: 75, y: 45, type: 'top', title: 'Tech Giant Unveils VR Headset', source: 'The Verge', time: '3h ago', timestamp: 0.5, imageUrl: 'https://picsum.photos/200/150?random=3', category: 'Tech', locationName: 'Shenzhen, China', impactRadius: 8, momentum: 'High', sentiment: 'Positive' },
-  { id: '4', x: 30, y: 55, type: 'general', title: 'Rainforest Conservation Deal', source: 'NatGeo', time: '5h ago', timestamp: 0.8, imageUrl: 'https://picsum.photos/200/150?random=4', category: 'Environment', locationName: 'Amazonas, Brazil', impactRadius: 4, momentum: 'Low', sentiment: 'Positive' },
+  { id: '3', x: 75, y: 45, type: 'top', title: 'China Tech Unveil', source: 'The Verge', time: '3h ago', timestamp: 0.5, imageUrl: 'https://picsum.photos/200/150?random=3', category: 'Tech', locationName: 'Shenzhen, China', impactRadius: 8, momentum: 'High', sentiment: 'Positive' },
   { id: '5', x: 85, y: 75, type: 'breaking', title: 'Australian Wildfire Update', source: 'ABC News', time: '5m ago', timestamp: 0.05, imageUrl: 'https://picsum.photos/200/150?random=5', category: 'Environment', locationName: 'Sydney, Australia', impactRadius: 7, momentum: 'High', sentiment: 'Tense' },
-  { id: '6', x: 60, y: 35, type: 'trending', title: 'Startups booming in Middle East', source: 'TechCrunch', time: '2h ago', timestamp: 0.4, imageUrl: 'https://picsum.photos/200/150?random=6', category: 'Business', locationName: 'Dubai, UAE', impactRadius: 5, momentum: 'Medium', sentiment: 'Positive' },
-  { id: '7', x: 15, y: 30, type: 'general', title: 'Silicon Valley layoffs continue', source: 'TechCrunch', time: '1d ago', timestamp: 1.2, imageUrl: 'https://picsum.photos/200/150?random=7', category: 'Tech', locationName: 'San Francisco, USA', impactRadius: 6, momentum: 'Medium', sentiment: 'Tense' },
-  { id: '8', x: 52, y: 20, type: 'general', title: 'Nordic renewable energy surplus', source: 'Reuters', time: '3d ago', timestamp: 2.5, imageUrl: 'https://picsum.photos/200/150?random=8', category: 'Environment', locationName: 'Oslo, Norway', impactRadius: 3, momentum: 'Low', sentiment: 'Positive' },
 ];
 
 interface WorldMapProps {
@@ -28,7 +36,8 @@ interface WorldMapProps {
 }
 
 const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
-  const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
+  // Default Zoom to India (Centered roughly on India coordinates in our SVG map space)
+  const [transform, setTransform] = useState({ x: -180, y: -120, k: 3.5 });
   const [isDragging, setIsDragging] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const [isMapReady, setIsMapReady] = useState(false);
@@ -59,7 +68,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
                       setIsPlayingHistory(false);
                       return 0;
                   }
-                  return prev + 0.02; // Slower, smoother autoplay
+                  return prev + 0.02; 
               });
           }, 50);
       }
@@ -69,33 +78,32 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
   const filteredMarkers = useMemo(() => {
       return MARKERS.filter(m => {
           if (filters.category !== 'All' && m.category !== filters.category) return false;
-          if (filters.type !== 'All' && m.type !== filters.type.toLowerCase()) return false;
+          if (filters.state !== 'All' && filters.state === 'India' && !m.locationName.includes('India')) return false;
+          if (filters.sentiment !== 'All' && m.sentiment !== filters.sentiment) return false;
+          
           if (timeValue < 0.2 && m.timestamp > 0.2) return false;
           if (m.timestamp > timeValue + 0.5) return false;
-          if (transform.k < 1.5 && m.type === 'general' && activeMarkerId !== m.id && !compareSelection.includes(m.id)) return false;
           return true;
       });
   }, [filters, transform.k, activeMarkerId, timeValue, compareSelection]);
 
-  const handleZoomIn = () => setTransform(prev => ({ ...prev, k: Math.min(prev.k * 1.5, 6) }));
+  const handleZoomIn = () => setTransform(prev => ({ ...prev, k: Math.min(prev.k * 1.5, 8) }));
   const handleZoomOut = () => setTransform(prev => {
       const newK = Math.max(prev.k / 1.5, 1);
       return { ...prev, k: newK, x: newK <= 1.2 ? 0 : prev.x, y: newK <= 1.2 ? 0 : prev.y };
   });
 
   const handleWheel = (e: React.WheelEvent) => {
-    // Check if we are hovering over an interactive element that should scroll itself
     if ((e.target as HTMLElement).closest('.overscroll-contain')) return;
-    
     e.preventDefault();
     const scaleFactor = 0.001;
     const delta = -e.deltaY * scaleFactor;
-    const newK = Math.min(Math.max(1, transform.k + delta), 6);
+    const newK = Math.min(Math.max(1, transform.k + delta), 8);
     setTransform(prev => ({ ...prev, k: newK }));
   };
   
   const handleRecenter = () => {
-    setTransform({ x: 0, y: 0, k: 1 });
+    setTransform({ x: -180, y: -120, k: 3.5 }); // Reset to India
     setActiveMarkerId(null);
     setActiveZone(null);
     setShowAIAnalysis(false);
@@ -108,7 +116,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
       if ("geolocation" in navigator) {
           setToast({ message: "Locating news near you...", type: 'info' });
           setTimeout(() => {
-              setTransform({ x: 150, y: 50, k: 3 });
+              setTransform({ x: -180, y: -120, k: 5 }); // Zoom deeper into India
               setToast(null);
           }, 1200);
       }
@@ -173,7 +181,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
        {(showAIAnalysis || activeZone) && (
            <MapAIOverlay 
               region={activeZone?.region || "Global View"}
-              summary={activeZone?.summary || "Significant activity detected in Western Markets."}
+              summary={activeZone?.summary || "Significant activity detected."}
               momentum={activeZone?.momentum || "Medium"}
               sentiment={activeZone?.sentiment || "Neutral"}
               stats={activeZone?.stats || [{ label: 'Trending', value: 'Technology', icon: TrendingUp }, { label: 'Impact', value: 'High', icon: AlertTriangle }]}
@@ -222,7 +230,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
                isCompareMode={isCompareMode}
                zoomLevel={transform.k}
                onClick={() => handleMarkerClick(marker.id)}
-               delay={index * 100}
+               delay={index * 50}
              />
            ))}
         </div>

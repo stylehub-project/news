@@ -10,11 +10,13 @@ const MapPage: React.FC = () => {
   const { isLoaded, markAsLoaded } = useLoading();
   const [isLoading, setIsLoading] = useState(!isLoaded('map'));
   
-  // Lifted state for filters to be used in Header and Map
+  // Lifted state for filters
   const [filters, setFilters] = useState<MapFilters>({
       category: 'All',
       time: 'Today',
-      type: 'All'
+      type: 'All',
+      state: 'India', // Default to India as requested
+      sentiment: 'All'
   });
 
   useEffect(() => {
@@ -38,7 +40,7 @@ const MapPage: React.FC = () => {
   return (
     <div className="relative w-full h-full bg-slate-100 overflow-hidden flex flex-col pb-[70px]">
         {/* Navbar with Integrated Filter Dropside */}
-        <div className="absolute top-0 left-0 right-0 z-30">
+        <div className="absolute top-0 left-0 right-0 z-30 pointer-events-none">
              <PageHeader 
                 title="Global News Map" 
                 action={
@@ -50,10 +52,10 @@ const MapPage: React.FC = () => {
              />
         </div>
         
-        <div className="flex-1 w-full h-full mt-[52px] relative animate-in fade-in duration-700">
+        <div className="flex-1 w-full h-full mt-[0px] relative animate-in fade-in duration-700">
             <WorldMap 
                 filters={filters}
-                onResetFilters={() => setFilters({ category: 'All', time: 'Today', type: 'All' })}
+                onResetFilters={() => setFilters({ category: 'All', time: 'Today', type: 'All', state: 'India', sentiment: 'All' })}
             />
             <MapTicker />
         </div>
