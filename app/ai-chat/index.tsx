@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { GoogleGenAI, Chat } from "@google/genai";
@@ -65,16 +66,17 @@ const ChatPage: React.FC = () => {
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatSessionRef = useRef<Chat | null>(null);
+  const autoTriggeredRef = useRef(false);
 
   // Check Tour Status on Mount
   useEffect(() => {
       const hasSeenTour = localStorage.getItem('has_seen_ai_hub_tour');
-      if (!hasSeenTour && !isInitializing) {
+      if (!hasSeenTour && !isInitializing && !searchParams.get('context')) {
           // Delay slightly to let UI settle
           const timer = setTimeout(() => setShowTour(true), 1000);
           return () => clearTimeout(timer);
       }
-  }, [isInitializing]);
+  }, [isInitializing, searchParams]);
 
   const handleCloseTour = () => {
       setShowTour(false);
@@ -100,7 +102,7 @@ const ChatPage: React.FC = () => {
             chatSessionRef.current = ai.chats.create({
                 model: 'gemini-flash-lite-latest', 
                 config: {
-                    systemInstruction: "You are News Gemini 🤖. Summarize news, use bold for key facts, and be emoji-friendly! ✨",
+                    systemInstruction: "You are News Gemini 🤖. Summarize news, use bold for key facts, and be emoji-friendly! Provide a summary, explain why it matters, and list potential impacts. ✨",
                     tools: [{ googleSearch: {} }],
                 },
             });
@@ -121,6 +123,19 @@ const ChatPage: React.FC = () => {
       }
   }, [isInitializing, markAsLoaded]);
 
+  // Handle Auto-Injection from URL
+  useEffect(() => {
+      const context = searchParams.get('context');
+      const headline = searchParams.get('headline');
+      
+      // Auto-Trigger Analysis if headline exists and hasn't been triggered yet
+      if (headline && !autoTriggeredRef.current && chatSessionRef.current) {
+          autoTriggeredRef.current = true;
+          const prompt = `Analyze this news: "${headline}" and explain its impact.`;
+          handleSend(prompt);
+      }
+  }, [searchParams, chatSessionRef.current]); 
+
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     if (messages.length > 0) {
@@ -134,6 +149,7 @@ const ChatPage: React.FC = () => {
           setHasInteracted(false);
           sessionStorage.removeItem('news_club_chat_session');
           chatSessionRef.current = null;
+          autoTriggeredRef.current = false;
       }
   };
 

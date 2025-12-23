@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Share2, Bookmark, Clock, ChevronRight, Sparkles, ExternalLink } from 'lucide-react';
+
+import React, { useState, useRef } from 'react';
+import { Share2, Bookmark, Clock, ChevronRight, Sparkles, Zap, Check } from 'lucide-react';
 import BlurImageLoader from '../loaders/BlurImageLoader';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,6 +12,7 @@ interface SwipeableCardProps {
   onAIExplain?: (id: string) => void;
   onSave?: (id: string) => void;
   onShare?: (id: string) => void;
+  onLongPress?: (id: string) => void;
 }
 
 const SwipeableCard: React.FC<SwipeableCardProps> = ({ 
@@ -20,56 +22,98 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
     next,
     onAIExplain,
     onSave,
-    onShare
+    onShare,
+    onLongPress
 }) => {
   const navigate = useNavigate();
   const [dragStart, setDragStart] = useState<number | null>(null);
   const [offset, setOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isLongPressRef = useRef(false);
+
+  // --- Touch Handlers ---
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setDragStart(e.touches[0].clientX);
     setIsDragging(true);
+    isLongPressRef.current = false;
+
+    // Start Long Press Timer (600ms)
+    timerRef.current = setTimeout(() => {
+        if (Math.abs(offset) < 10) { // Only if not dragged significantly
+            isLongPressRef.current = true;
+            if (navigator.vibrate) navigator.vibrate(50);
+            onLongPress?.(data.id);
+            setIsDragging(false); // Cancel drag visual
+        }
+    }, 600);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (dragStart === null) return;
+    if (dragStart === null || isLongPressRef.current) return;
+    
     const current = e.touches[0].clientX;
     const delta = current - dragStart;
+    
+    // If moved significantly, cancel long press timer
+    if (Math.abs(delta) > 10 && timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+    }
+
     setOffset(delta);
   };
 
   const handleTouchEnd = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    
+    if (isLongPressRef.current) {
+        setDragStart(null);
+        setOffset(0);
+        return;
+    }
+
     setIsDragging(false);
-    if (Math.abs(offset) > 100) {
-      onSwipe(offset > 0 ? 'right' : 'left');
+    
+    // Threshold to trigger swipe
+    if (Math.abs(offset) > 120) {
+      const direction = offset > 0 ? 'right' : 'left';
+      
+      // Trigger specific actions based on direction
+      if (direction === 'left' && onSave) {
+          if (navigator.vibrate) navigator.vibrate(20); // Haptic
+          onSave(data.id);
+      }
+      if (direction === 'right' && onShare) {
+          if (navigator.vibrate) navigator.vibrate(20); // Haptic
+          onShare(data.id);
+      }
+
+      onSwipe(direction);
     } else {
-      setOffset(0);
+      setOffset(0); // Snap back
     }
     setDragStart(null);
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
-      // Only navigate if not part of a drag action
-      if (Math.abs(offset) < 5) {
+      // Navigate only if it was a tap (not a drag or long press)
+      if (Math.abs(offset) < 5 && !isLongPressRef.current) {
           navigate(`/news/${data.id}`);
       }
   };
 
-  // Advanced Animation Styles
+  // --- Animation Styles ---
+
   const getStyles = () => {
     if (active) {
-      // Calculate rotation: swipe right = rotate clockwise, left = counter-clockwise
+      // Rotate: Swipe Right (Share) -> Rotate CW, Swipe Left (Save) -> Rotate CCW
       const rotateZ = offset / 15;
-      
-      // Calculate "Fold/Lift" rotation (3D effect)
-      // When swiping, card rotates along Y axis slightly
-      const rotateY = offset / 20;
-
-      const opacity = 1 - Math.abs(offset) / 800; // Slower fade
+      const opacity = 1 - Math.abs(offset) / 500; // Fade out slightly
       
       return {
-        transform: `translateX(${offset}px) rotateZ(${rotateZ}deg) rotateY(${rotateY}deg) scale(1)`,
+        transform: `translateX(${offset}px) rotateZ(${rotateZ}deg) scale(1)`,
         opacity: opacity,
         zIndex: 20,
         transition: isDragging ? 'none' : 'all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1)',
@@ -77,37 +121,36 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
         boxShadow: `0 20px 50px rgba(0,0,0,${0.2 + Math.abs(offset)/1000})`
       };
     } else if (next) {
-      // The next card scales up slightly as top card moves away
-      const scale = 0.92 + (Math.abs(offset) / 5000); 
+      // Scale up next card as top card leaves
+      const scale = 0.95 + (Math.abs(offset) / 5000); 
       return {
-        transform: `scale(${Math.min(1, scale)}) translateY(30px)`,
-        opacity: 1, // Keep visible for "stack" look
+        transform: `scale(${Math.min(1, scale)}) translateY(${20 - Math.abs(offset)/20}px)`,
+        opacity: 1, 
         zIndex: 10,
         transition: 'all 0.5s ease',
         pointerEvents: 'none'
       } as React.CSSProperties;
     } else {
+      // Hidden cards in stack
       return {
-        transform: 'scale(0.85) translateY(60px)',
+        transform: 'scale(0.9) translateY(40px)',
         opacity: 0,
         zIndex: 0
       };
     }
   };
 
-  // Corner Fold Effect Calculation
-  // We simulate a corner fold opacity/size based on swipe direction
-  const isSwipingLeft = offset < 0;
-  const isSwipingRight = offset > 0;
-  const foldOpacity = Math.min(Math.abs(offset) / 200, 0.8);
+  // Calculate Opacity for "Action Stamps"
+  const saveOpacity = Math.min(Math.abs(Math.min(0, offset)) / 100, 1); // Left drag
+  const shareOpacity = Math.min(Math.max(0, offset) / 100, 1); // Right drag
 
   return (
     <div 
-      className="absolute top-0 left-0 w-full h-full p-4"
-      style={{ perspective: '1000px' }} // Essential for 3D rotation
+      className="absolute top-0 left-0 w-full h-full p-4 flex items-center justify-center"
+      style={{ perspective: '1000px' }} // Essential for 3D feel
     >
       <div 
-        className="w-full h-full relative"
+        className="w-full h-full relative max-h-[600px]"
         style={getStyles()}
         onTouchStart={active ? handleTouchStart : undefined}
         onTouchMove={active ? handleTouchMove : undefined}
@@ -118,30 +161,29 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
             onClick={active ? handleCardClick : undefined}
         >
             
-            {/* Visual Fold Effect (Dog-ear style overlay) */}
-            {active && isSwipingLeft && (
-                <div 
-                    className="absolute top-0 right-0 w-24 h-24 z-50 pointer-events-none transition-opacity duration-200"
-                    style={{ 
-                        opacity: foldOpacity,
-                        background: 'linear-gradient(225deg, transparent 50%, rgba(0,0,0,0.1) 50%, rgba(255,255,255,0.8) 55%, #ddd 100%)',
-                        boxShadow: '-2px 2px 5px rgba(0,0,0,0.2)'
-                    }}
-                />
-            )}
+            {/* --- VISUAL ACTION OVERLAYS --- */}
             
-            {/* Dynamic Light Sheen on Swipe */}
-            {active && (
-                <div 
-                    className="absolute inset-0 z-40 pointer-events-none"
-                    style={{
-                        background: `linear-gradient(${isSwipingRight ? '90deg' : '-90deg'}, transparent, rgba(255,255,255,${foldOpacity * 0.5}), transparent)`
-                    }}
-                />
-            )}
+            {/* SAVE Overlay (Swipe Left) */}
+            <div 
+                className="absolute top-8 right-8 z-50 pointer-events-none transform rotate-12 border-4 border-green-500 rounded-lg px-4 py-2 bg-white/20 backdrop-blur-md"
+                style={{ opacity: saveOpacity }}
+            >
+                <span className="text-green-500 font-black text-2xl uppercase tracking-widest flex items-center gap-2">
+                    <Bookmark size={32} fill="currentColor" /> SAVE
+                </span>
+            </div>
 
-            {/* Border Glow for Next Card hint */}
-            {next && <div className="absolute inset-0 bg-black/10 z-50"></div>}
+            {/* SHARE Overlay (Swipe Right) */}
+            <div 
+                className="absolute top-8 left-8 z-50 pointer-events-none transform -rotate-12 border-4 border-blue-500 rounded-lg px-4 py-2 bg-white/20 backdrop-blur-md"
+                style={{ opacity: shareOpacity }}
+            >
+                <span className="text-blue-500 font-black text-2xl uppercase tracking-widest flex items-center gap-2">
+                    <Share2 size={32} fill="currentColor" /> SHARE
+                </span>
+            </div>
+
+            {/* --- CARD CONTENT --- */}
 
             {/* Full Background Image */}
             <div className="absolute inset-0">
@@ -159,7 +201,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
                 </span>
             </div>
 
-            {/* Content Overlay */}
+            {/* Content Info Overlay */}
             <div className="absolute bottom-0 left-0 w-full p-6 text-white z-10 flex flex-col justify-end h-3/4 bg-gradient-to-t from-black via-black/70 to-transparent">
                 <div className="flex items-center gap-2 mb-3">
                     <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center overflow-hidden">
@@ -176,6 +218,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
                     {data.description}
                 </p>
 
+                {/* Footer Buttons */}
                 <div className="flex gap-3">
                     <button 
                         onClick={(e) => { e.stopPropagation(); navigate(`/news/${data.id}`); }}
@@ -184,30 +227,15 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
                         Read Story <ChevronRight size={16} />
                     </button>
                     
-                    {/* Actions */}
-                    <div className="flex gap-2">
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); onAIExplain?.(data.id); }}
-                            className="p-3 bg-indigo-600 rounded-xl text-white hover:bg-indigo-500 transition-colors shadow-lg active:scale-90"
-                            title="AI Explain"
-                        >
-                            <Sparkles size={20} className="fill-yellow-300 text-yellow-300" />
-                        </button>
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); onSave?.(data.id); }}
-                            className="p-3 bg-white/20 backdrop-blur-md rounded-xl hover:bg-white/30 transition-colors active:scale-90"
-                            title="Save"
-                        >
-                            <Bookmark size={20} />
-                        </button>
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); onShare?.(data.id); }}
-                            className="p-3 bg-white/20 backdrop-blur-md rounded-xl hover:bg-white/30 transition-colors active:scale-90"
-                            title="Share"
-                        >
-                            <Share2 size={20} />
-                        </button>
-                    </div>
+                    {/* AI Analysis Icon (Robot/Sparkles) */}
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onAIExplain?.(data.id); }}
+                        className="p-3 bg-indigo-600 rounded-xl text-white hover:bg-indigo-500 transition-colors shadow-lg active:scale-90 relative group"
+                        title="AI Analysis"
+                    >
+                        <div className="absolute inset-0 bg-white/20 rounded-xl animate-pulse group-hover:hidden"></div>
+                        <Sparkles size={20} className="fill-yellow-300 text-yellow-300 relative z-10" />
+                    </button>
                 </div>
             </div>
         </div>

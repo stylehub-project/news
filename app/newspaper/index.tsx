@@ -1,19 +1,29 @@
 import React, { useState } from 'react';
 import PageHeader from '../../components/PageHeader';
-import NewspaperTemplate, { NewspaperStyle, NewspaperData } from '../../components/newspaper/NewspaperTemplate';
+import NewspaperTemplate, { NewspaperStyle, NewspaperData, NewspaperSettings } from '../../components/newspaper/NewspaperTemplate';
 import NewspaperPreview from '../../components/newspaper/NewspaperPreview';
 import NewspaperControls from '../../components/newspaper/NewspaperControls';
 import NewspaperConfig from '../../components/newspaper/NewspaperConfig';
 import NewspaperGenerationLoader from '../../components/loaders/NewspaperGenerationLoader';
+import { fetchNewspaperContent } from '../../utils/aiService';
+import Toast, { ToastType } from '../../components/ui/Toast';
 
 const NewspaperPage: React.FC = () => {
   // State
-  const [viewState, setViewState] = useState<'EDIT' | 'GENERATING' | 'PREVIEW'>('EDIT');
+  const [viewState, setViewState] = useState<'EDIT' | 'GENERATING' | 'LIVE_WRITING' | 'READING'>('EDIT');
   const [style, setStyle] = useState<NewspaperStyle>('Classic');
   const [title, setTitle] = useState("The AI Daily");
-  const [zoom, setZoom] = useState(0.8);
+  const [zoom, setZoom] = useState(0.7);
   const [generationStage, setGenerationStage] = useState<'drafting' | 'image-gen' | 'finalizing'>('drafting');
+  const [toast, setToast] = useState<{show: boolean, msg: string, type: ToastType}>({ show: false, msg: '', type: 'success' });
   
+  // Accessibility Settings
+  const [settings, setSettings] = useState<NewspaperSettings>({
+      fontSize: 'md',
+      spacing: 'comfortable',
+      font: 'serif'
+  });
+
   // Data for the template
   const [data, setData] = useState<NewspaperData>({
       title: "The AI Daily",
@@ -21,67 +31,53 @@ const NewspaperPage: React.FC = () => {
       sections: []
   });
 
-  const handleGenerate = () => {
+  const handleGenerate = async (config: any) => {
     setViewState('GENERATING');
     setGenerationStage('drafting');
     
-    // Simulate multi-step AI Generation
-    setTimeout(() => setGenerationStage('image-gen'), 2000);
-    setTimeout(() => setGenerationStage('finalizing'), 4500);
+    // 1. Simulate AI Thinking
+    setTimeout(() => setGenerationStage('image-gen'), 1500);
+    setTimeout(() => setGenerationStage('finalizing'), 3000);
     
+    // 2. Fetch Data (Async)
+    const generatedData = await fetchNewspaperContent(title, config);
+    setData(generatedData);
+
+    // 3. Start Live Writing
     setTimeout(() => {
-        // Mock Rich Data Generation
-        setData({
-            title: title || "The AI Daily",
-            date: new Date().toLocaleDateString(),
-            sections: [
-                {
-                    type: 'text',
-                    title: 'Executive Summary',
-                    content: "The global technology sector saw unprecedented growth this week as major AI regulations were finalized in the EU. Markets reacted positively, with a 5% aggregate rise in semiconductor stocks. Meanwhile, sustainable energy breakthroughs in fusion power promise a new era of clean electricity."
-                },
-                {
-                    type: 'timeline',
-                    title: 'Key Events Timeline',
-                    content: [
-                        { time: '09:00 AM', title: 'Market Open', desc: 'Tech stocks surge on opening bell.' },
-                        { time: '01:30 PM', title: 'Fusion Announcement', desc: 'Scientists achieve net energy gain.' },
-                        { time: '04:00 PM', title: 'Closing Bell', desc: 'Record highs for renewable sector.' }
-                    ]
-                },
-                {
-                    type: 'graph',
-                    title: 'Market Sentiment',
-                    content: [
-                        { label: 'Tech', value: 85 },
-                        { label: 'Energy', value: 65 },
-                        { label: 'Retail', value: 45 },
-                        { label: 'Auto', value: 70 },
-                        { label: 'Health', value: 55 }
-                    ]
-                },
-                {
-                    type: 'flowchart',
-                    title: 'Legislation Process',
-                    content: ['Proposal', 'Committee Review', 'Public Hearing', 'Final Vote', 'Law Enacted']
-                },
-                {
-                    type: 'images',
-                    title: 'Visual Highlights',
-                    content: [
-                        'https://picsum.photos/300/300?random=10',
-                        'https://picsum.photos/300/300?random=11',
-                        'https://picsum.photos/300/300?random=12'
-                    ]
-                }
-            ]
-        });
-        setViewState('PREVIEW');
-    }, 6000);
+        setViewState('LIVE_WRITING');
+        setZoom(0.85); // Zoom in slightly for writing view
+    }, 4000);
+  };
+
+  const handleWritingComplete = () => {
+      setViewState('READING');
+  };
+
+  const handleSectionUpdate = (index: number, newContent: any) => {
+      const updatedSections = [...data.sections];
+      updatedSections[index] = newContent;
+      setData({ ...data, sections: updatedSections });
+      setToast({ show: true, msg: 'Section updated by AI', type: 'success' });
   };
 
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 1.5));
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.4));
+
+  const handleShare = async () => {
+      if (navigator.share) {
+          await navigator.share({ title: data.title, text: "Check out this AI newspaper!", url: window.location.href });
+      } else {
+          setToast({ show: true, msg: 'Link copied to clipboard', type: 'success' });
+      }
+  };
+
+  const handleReadFull = () => {
+      const allText = data.sections.map(s => s.type === 'text' ? s.content : s.title).join(". ");
+      const u = new SpeechSynthesisUtterance(allText);
+      window.speechSynthesis.speak(u);
+      setToast({ show: true, msg: 'Reading full edition...', type: 'info' });
+  };
 
   const steps = [
       { id: 'drafting', label: 'Drafting Headlines' },
@@ -90,10 +86,16 @@ const NewspaperPage: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 pb-[80px]">
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-black pb-[80px] transition-colors duration-300 relative">
         <div className="shrink-0">
-          <PageHeader title="AI News Overview Maker" />
+          <PageHeader title="AI Newsroom" />
         </div>
+
+        {toast.show && (
+            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[60]">
+                <Toast type={toast.type} message={toast.msg} onClose={() => setToast(prev => ({...prev, show: false}))} />
+            </div>
+        )}
 
         <div className="flex-1 flex flex-col overflow-hidden min-h-0 relative">
             
@@ -108,24 +110,41 @@ const NewspaperPage: React.FC = () => {
                 />
             )}
 
-            {/* Generating Mode (Overlay with Specialized Loader) */}
+            {/* Generating Mode (Overlay) */}
             {viewState === 'GENERATING' && (
                  <NewspaperGenerationLoader steps={steps} currentStepId={generationStage} />
             )}
 
-            {/* Preview Mode */}
-            {viewState === 'PREVIEW' && (
-                <div className="flex flex-col h-full p-4 gap-4 animate-in fade-in slide-in-from-bottom-4">
-                    <NewspaperControls 
-                        onDownload={() => alert("Downloading PDF...")}
-                        onEdit={() => setViewState('EDIT')}
-                        onZoomIn={handleZoomIn}
-                        onZoomOut={handleZoomOut}
-                    />
+            {/* Live Writing or Reading Mode */}
+            {(viewState === 'LIVE_WRITING' || viewState === 'READING') && (
+                <div className="flex flex-col h-full p-2 md:p-4 gap-4 animate-in fade-in">
+                    
+                    {/* Toolbar appears only when reading */}
+                    {viewState === 'READING' && (
+                        <div className="animate-in slide-in-from-top-4 fade-in">
+                            <NewspaperControls 
+                                onDownload={() => setToast({ show: true, msg: 'PDF Download Started', type: 'success' })}
+                                onEdit={() => setViewState('EDIT')}
+                                onZoomIn={handleZoomIn}
+                                onZoomOut={handleZoomOut}
+                                onShare={handleShare}
+                                onRead={handleReadFull}
+                                settings={settings}
+                                onSettingsChange={setSettings}
+                            />
+                        </div>
+                    )}
 
-                    <div className="flex-1 relative rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-gray-200/50 min-h-0">
+                    <div className="flex-1 relative rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-2xl bg-gray-800 min-h-0">
                         <NewspaperPreview zoom={zoom}>
-                            <NewspaperTemplate style={style} data={data} />
+                            <NewspaperTemplate 
+                                style={style} 
+                                data={data} 
+                                isLive={viewState === 'LIVE_WRITING'}
+                                onWritingComplete={handleWritingComplete}
+                                onSectionUpdate={handleSectionUpdate}
+                                settings={settings}
+                            />
                         </NewspaperPreview>
                     </div>
                 </div>

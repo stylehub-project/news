@@ -1,160 +1,269 @@
-import React from 'react';
-import { Clock, ArrowRight, TrendingUp, Sparkles, Star } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Clock, ArrowRight, TrendingUp, Sparkles, Star, PenTool } from 'lucide-react';
+import NewspaperSection from './NewspaperSection';
+import BlurImageLoader from '../loaders/BlurImageLoader';
 
 export type NewspaperStyle = 'Classic' | 'Modern' | 'Minimal' | 'Tabloid' | 'Kids' | 'Magazine';
 
 export interface NewspaperData {
   title: string;
   date: string;
+  issueNumber?: string;
+  price?: string;
   sections: Array<{
-    type: 'text' | 'timeline' | 'flowchart' | 'graph' | 'images';
-    title: string;
+    type: 'text' | 'timeline' | 'flowchart' | 'graph' | 'images' | 'headline';
+    title?: string;
     content: any;
+    imageCaption?: string;
   }>;
+}
+
+export interface NewspaperSettings {
+    fontSize: 'sm' | 'md' | 'lg';
+    spacing: 'compact' | 'comfortable' | 'loose';
+    font: 'serif' | 'sans' | 'dyslexic';
 }
 
 interface NewspaperTemplateProps {
   style: NewspaperStyle;
   data: NewspaperData;
+  isLive?: boolean;
+  onWritingComplete?: () => void;
+  onSectionUpdate?: (index: number, newContent: any) => void;
+  settings?: NewspaperSettings;
 }
 
-const NewspaperTemplate: React.FC<NewspaperTemplateProps> = ({ style, data }) => {
+// Typewriter Component
+const TypewriterText: React.FC<{ text: string; speed?: number; onComplete?: () => void; className?: string }> = ({ text, speed = 10, onComplete, className }) => {
+    const [displayed, setDisplayed] = useState('');
+    
+    useEffect(() => {
+        let i = 0;
+        const interval = setInterval(() => {
+            setDisplayed(text.substring(0, i));
+            i++;
+            if (i > text.length) {
+                clearInterval(interval);
+                onComplete?.();
+            }
+        }, speed);
+        return () => clearInterval(interval);
+    }, [text, speed]);
+
+    return (
+        <span className={className}>
+            {displayed}
+            {displayed.length < text.length && <span className="animate-pulse inline-block w-[2px] h-[1em] bg-current align-middle ml-[1px]"></span>}
+        </span>
+    );
+};
+
+const NewspaperTemplate: React.FC<NewspaperTemplateProps> = ({ 
+    style, 
+    data, 
+    isLive = false, 
+    onWritingComplete, 
+    onSectionUpdate,
+    settings = { fontSize: 'md', spacing: 'comfortable', font: 'serif' }
+}) => {
+  const [visibleSections, setVisibleSections] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll effect during live writing
+  useEffect(() => {
+      if (isLive && scrollRef.current) {
+          scrollRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }
+  }, [visibleSections, isLive]);
+
+  // Handle section completion to trigger next
+  const handleSectionComplete = () => {
+      if (visibleSections < data.sections.length) {
+          setTimeout(() => {
+              setVisibleSections(prev => prev + 1);
+          }, 400); 
+      } else {
+          onWritingComplete?.();
+      }
+  };
+
+  useEffect(() => {
+      if (!isLive) {
+          setVisibleSections(data.sections.length);
+      } else {
+          setVisibleSections(0);
+          setTimeout(() => setVisibleSections(1), 500); 
+      }
+  }, [isLive, data.sections.length]);
+
   const styles = {
     Classic: {
-      container: "font-serif bg-[#fdfbf7] text-black",
+      container: "bg-[#fdfbf7] text-black",
       header: "border-b-4 border-black pb-4 mb-6 text-center",
-      title: "text-4xl md:text-5xl font-black uppercase tracking-widest",
+      title: "text-4xl md:text-6xl font-black uppercase tracking-widest",
       meta: "flex justify-between text-xs mt-2 border-t border-black pt-1 font-mono uppercase",
-      card: "mb-6 border-b border-black/10 pb-4"
+      card: "mb-6 border-b border-black/10 pb-6"
     },
     Modern: {
-      container: "font-sans bg-white text-gray-900",
-      header: "border-b border-gray-200 pb-6 mb-6 flex justify-between items-end",
-      title: "text-3xl md:text-4xl font-bold tracking-tight text-blue-900",
-      meta: "text-right text-sm font-medium text-gray-500",
+      container: "bg-white text-gray-900",
+      header: "border-b border-gray-200 pb-6 mb-6 flex flex-col items-start",
+      title: "text-4xl md:text-5xl font-bold tracking-tight text-slate-900",
+      meta: "w-full flex justify-between text-sm font-medium text-gray-500 mt-2",
       card: "mb-8 bg-gray-50 p-6 rounded-xl"
     },
     Minimal: {
-      container: "font-sans bg-white text-gray-800",
+      container: "bg-white text-gray-800",
       header: "pb-8 mb-8 text-center",
-      title: "text-3xl font-light tracking-[0.3em] uppercase",
-      meta: "text-xs text-gray-400 mt-4",
+      title: "text-4xl font-light tracking-[0.2em] uppercase",
+      meta: "text-xs text-gray-400 mt-4 border-t border-b border-gray-100 py-2",
       card: "mb-10 border-l-2 border-gray-100 pl-6"
     },
     Tabloid: {
-      container: "font-sans bg-yellow-50 text-black border-8 border-red-600 p-2",
+      container: "bg-yellow-50 text-black border-8 border-red-600 p-2",
       header: "bg-red-600 text-white p-4 mb-4 text-center transform -skew-x-2",
-      title: "text-5xl font-black italic uppercase leading-none",
+      title: "text-5xl md:text-7xl font-black italic uppercase leading-none",
       meta: "text-center font-bold text-black mt-2 bg-yellow-300 inline-block px-2",
       card: "mb-4 border-b-4 border-black pb-4"
     },
     Kids: {
-      container: "font-sans bg-sky-100 text-indigo-900 border-dashed border-4 border-indigo-300 p-4 rounded-3xl",
+      container: "bg-sky-100 text-indigo-900 border-dashed border-4 border-indigo-300 p-4 rounded-3xl",
       header: "bg-white rounded-2xl p-4 mb-6 text-center shadow-lg transform rotate-1",
-      title: "text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-violet-500",
+      title: "text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-violet-500",
       meta: "text-center font-bold text-indigo-400 mt-2",
       card: "mb-6 bg-white p-4 rounded-2xl shadow-md border-2 border-indigo-100"
     },
     Magazine: {
-      container: "font-sans bg-gray-900 text-white",
+      container: "bg-gray-900 text-white",
       header: "border-b border-gray-700 pb-8 mb-8 relative overflow-hidden",
-      title: "text-6xl font-black tracking-tighter text-white uppercase relative z-10",
-      meta: "text-gray-400 text-sm font-medium mt-4 tracking-widest uppercase",
+      title: "text-6xl md:text-8xl font-black tracking-tighter text-white uppercase relative z-10",
+      meta: "text-gray-400 text-sm font-medium mt-4 tracking-widest uppercase flex gap-4",
       card: "mb-8"
     }
   };
 
   const currentStyle = styles[style] || styles.Classic;
 
+  // Accessibility & Style Classes
+  const fontClass = settings.font === 'dyslexic' ? 'font-sans' : (settings.font === 'sans' ? 'font-sans' : 'font-serif');
+  const spacingClass = settings.spacing === 'loose' ? 'leading-loose' : (settings.spacing === 'compact' ? 'leading-tight' : 'leading-relaxed');
+  const textSizeClass = settings.fontSize === 'lg' ? 'text-lg' : (settings.fontSize === 'sm' ? 'text-xs' : 'text-sm');
+
+  // Override font for specific styles if not manually overridden by user settings
+  const baseFont = style === 'Classic' ? 'font-serif' : 'font-sans';
+  const effectiveFont = settings.font === 'serif' ? baseFont : fontClass; // Use template default if user set 'serif' (default state), else user pref
+
   // --- Renderers ---
 
-  const renderTimeline = (events: any[]) => (
-    <div className={`space-y-4 pl-2 border-l-2 ml-2 ${style === 'Magazine' ? 'border-gray-700' : 'border-gray-200'}`}>
-      {events.map((evt, i) => (
-        <div key={i} className="relative pl-4">
-          <div className={`absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-4 ${style === 'Kids' ? 'bg-yellow-400 border-pink-500' : 'bg-white border-blue-500'}`}></div>
-          <span className={`text-xs font-bold uppercase ${style === 'Magazine' ? 'text-gray-400' : 'text-gray-500'}`}>{evt.time}</span>
-          <h4 className="font-bold text-sm">{evt.title}</h4>
-          <p className={`text-xs ${style === 'Magazine' ? 'opacity-60' : 'opacity-80'}`}>{evt.desc}</p>
-        </div>
-      ))}
-    </div>
-  );
+  const renderContent = (section: any, index: number) => {
+      if (index > visibleSections) return null;
+      const isWriting = isLive && index === visibleSections;
+      const shouldAnimate = isWriting;
 
-  const renderFlowchart = (steps: string[]) => (
-    <div className={`flex flex-wrap items-center gap-2 justify-center py-4 rounded-lg ${style === 'Kids' ? 'bg-yellow-50' : 'bg-white/50'}`}>
-      {steps.map((step, i) => (
-        <React.Fragment key={i}>
-          <div className={`px-3 py-2 rounded-lg text-xs font-bold shadow-sm ${style === 'Kids' ? 'bg-white text-indigo-600 border-2 border-indigo-200' : 'bg-white border-2 border-gray-800 text-gray-900'}`}>
-            {step}
-          </div>
-          {i < steps.length - 1 && <ArrowRight size={16} className={style === 'Magazine' ? 'text-gray-500' : 'text-gray-400'} />}
-        </React.Fragment>
-      ))}
-    </div>
-  );
+      const handleUpdate = (newContent: any) => {
+          if (onSectionUpdate) {
+              if (section.type === 'headline') {
+                  onSectionUpdate(index, newContent); // Passing object { title: 'new' }
+              } else if (section.type === 'text') {
+                  onSectionUpdate(index, { ...section, content: newContent }); // Passing string text
+              }
+          }
+      };
 
-  const renderGraph = (data: {label: string, value: number}[]) => (
-    <div className="flex items-end justify-between h-32 gap-2 pt-4 px-2">
-      {data.map((d, i) => (
-        <div key={i} className="flex flex-col items-center flex-1 group">
-           <div className="text-[10px] font-bold mb-1 opacity-0 group-hover:opacity-100 transition-opacity">{d.value}%</div>
-           <div 
-             className={`w-full rounded-t-sm opacity-80 hover:opacity-100 transition-all relative ${style === 'Kids' ? 'bg-pink-400 rounded-t-xl' : 'bg-indigo-500'}`}
-             style={{ height: `${d.value}%` }}
-           ></div>
-           <span className="text-[9px] uppercase mt-1 font-medium truncate w-full text-center">{d.label}</span>
-        </div>
-      ))}
-    </div>
-  );
-
-  const renderImages = (images: string[]) => (
-    <div className="grid grid-cols-3 gap-2">
-        {images.map((img, i) => (
-            <div key={i} className={`aspect-square bg-gray-200 overflow-hidden ${style === 'Kids' ? 'rounded-2xl border-4 border-white shadow-md rotate-1' : 'rounded-lg'}`}>
-                <img src={img} alt="Visual" className="w-full h-full object-cover" />
-            </div>
-        ))}
-    </div>
-  );
-
-  return (
-    <div className={`w-full h-full min-h-[800px] p-6 md:p-10 shadow-xl ${currentStyle.container} transition-all duration-500`}>
-      <header className={currentStyle.header}>
-        <h1 className={currentStyle.title}>{data.title}</h1>
-        <div className={currentStyle.meta}>
-          {style === 'Kids' && <Star size={16} className="inline mr-1 text-yellow-500 fill-yellow-500" />}
-          <span>Overview</span>
-          <span className="mx-2">•</span>
-          <span>{data.date}</span>
-          <span className="mx-2">•</span>
-          <span>AI Generated</span>
-          {style === 'Kids' && <Star size={16} className="inline ml-1 text-yellow-500 fill-yellow-500" />}
-        </div>
-      </header>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {data.sections.map((section, idx) => (
-            <div key={idx} className={`${currentStyle.card} break-inside-avoid ${section.type === 'images' ? 'col-span-full' : ''}`}>
+      return (
+        <div key={index} className={`${currentStyle.card} animate-in fade-in slide-in-from-bottom-2 duration-500 relative`}>
+            {/* Section Header */}
+            {section.title && section.type !== 'headline' && (
                 <h3 className={`font-bold text-lg border-b-2 mb-3 pb-1 uppercase tracking-wide flex items-center gap-2 ${style === 'Magazine' ? 'border-indigo-500 text-indigo-400' : 'border-current'}`}>
                     {section.type === 'timeline' && <Clock size={16}/>}
                     {section.type === 'graph' && <TrendingUp size={16}/>}
                     {style === 'Kids' && <Sparkles size={16} className="text-yellow-400" />}
                     {section.title}
                 </h3>
-                
-                {section.type === 'text' && (
-                    <p className={`text-sm leading-relaxed text-justify whitespace-pre-line ${style === 'Magazine' ? 'text-gray-300' : 'opacity-90'}`}>{section.content}</p>
-                )}
-                
-                {section.type === 'timeline' && renderTimeline(section.content)}
-                
-                {section.type === 'flowchart' && renderFlowchart(section.content)}
-                
-                {section.type === 'graph' && renderGraph(section.content)}
-                
-                {section.type === 'images' && renderImages(section.content)}
+            )}
+
+            {/* Headline Type */}
+            {section.type === 'headline' && (
+                <NewspaperSection type="headline" content={section} onUpdate={handleUpdate} isLive={isLive}>
+                    <div className="mb-4" dir="auto">
+                        <h2 className={`font-black leading-tight mb-2 ${style === 'Tabloid' ? 'text-4xl italic uppercase' : 'text-3xl'}`}>
+                            {shouldAnimate ? (
+                                <TypewriterText text={section.title} speed={20} onComplete={handleSectionComplete} />
+                            ) : section.title}
+                        </h2>
+                        <div className="w-full h-1 bg-current opacity-20 my-3"></div>
+                    </div>
+                </NewspaperSection>
+            )}
+
+            {/* Text Type */}
+            {section.type === 'text' && (
+                <NewspaperSection type="text" content={section.content} onUpdate={handleUpdate} isLive={isLive}>
+                    <div className={`${textSizeClass} ${spacingClass} text-justify whitespace-pre-line ${style === 'Magazine' ? 'text-gray-300' : 'opacity-90'}`} dir="auto">
+                        {shouldAnimate ? (
+                            <TypewriterText text={section.content} speed={5} onComplete={handleSectionComplete} />
+                        ) : section.content}
+                    </div>
+                </NewspaperSection>
+            )}
+
+            {/* Images - Using BlurImageLoader for performance */}
+            {section.type === 'images' && (
+                <NewspaperSection type="images" content={section.content} onUpdate={handleUpdate} isLive={isLive}>
+                    <div className="space-y-2">
+                        <div className={`aspect-video bg-gray-200 overflow-hidden relative ${style === 'Kids' ? 'rounded-2xl rotate-1 border-4 border-white' : 'rounded-sm grayscale hover:grayscale-0 transition-all duration-700'}`}>
+                            <BlurImageLoader 
+                                src={section.content[0]} 
+                                alt="Visual" 
+                                className={`w-full h-full object-cover transition-all duration-[2000ms] ${shouldAnimate ? 'blur-xl scale-110' : 'blur-0 scale-100'}`}
+                                onLoad={() => { if(shouldAnimate) setTimeout(handleSectionComplete, 1000) }} 
+                            />
+                            {shouldAnimate && <div className="absolute inset-0 bg-white/20 animate-pulse"></div>}
+                        </div>
+                        {section.imageCaption && (
+                            <p className="text-[10px] font-bold opacity-60 uppercase tracking-wider">{section.imageCaption}</p>
+                        )}
+                    </div>
+                </NewspaperSection>
+            )}
+
+            {/* Complex types */}
+            {(section.type === 'timeline' || section.type === 'graph' || section.type === 'flowchart') && (
+                <div onLoad={() => isLive && setTimeout(handleSectionComplete, 800)}>
+                    <div className="p-4 bg-black/5 rounded-lg text-center text-xs font-mono opacity-70">
+                        [Graphic Visualization Generated]
+                    </div>
+                    {shouldAnimate && <span className="hidden" ref={() => setTimeout(handleSectionComplete, 1000)}></span>}
+                </div>
+            )}
+        </div>
+      );
+  };
+
+  return (
+    <div 
+        ref={scrollRef} 
+        className={`w-full min-h-full p-6 md:p-12 shadow-2xl ${currentStyle.container} ${effectiveFont} transition-all duration-500 overflow-hidden`}
+    >
+      <header className={`${currentStyle.header} animate-in fade-in duration-1000`}>
+        <h1 className={currentStyle.title}>{data.title}</h1>
+        <div className={currentStyle.meta}>
+          <span className="flex items-center gap-2">
+             {isLive && <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>}
+             {isLive ? 'LIVE WRITING...' : `ISSUE #${data.issueNumber || '101'}`}
+          </span>
+          <span>{data.date}</span>
+          <span>{data.price || '$2.00'}</span>
+        </div>
+      </header>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
+        {isLive && (
+            <div className="absolute -left-10 top-0 bottom-0 w-[2px] bg-red-500/10 pointer-events-none"></div>
+        )}
+        
+        {data.sections.map((section, idx) => (
+            <div key={idx} className={`break-inside-avoid ${section.type === 'headline' || section.type === 'images' ? 'col-span-full' : ''}`}>
+                {renderContent(section, idx)}
             </div>
         ))}
       </div>

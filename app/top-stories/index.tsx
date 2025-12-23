@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 import SwipeableCard from '../../components/cards/SwipeableCard';
+import AIQuickPreviewSheet from '../../components/cards/AIQuickPreviewSheet';
 import SmartLoader from '../../components/loaders/SmartLoader';
 import Toast, { ToastType } from '../../components/ui/Toast';
 import { fetchNewsFeed } from '../../utils/aiService';
@@ -14,13 +16,15 @@ const TopStoriesPage = () => {
   const [filter, setFilter] = useState('All');
   const [toast, setToast] = useState<{show: boolean, msg: string, type: ToastType}>({ show: false, msg: '', type: 'success' });
   
+  // AI Preview State
+  const [previewArticleId, setPreviewArticleId] = useState<string | null>(null);
+  
   // Throttle wheel events
   const lastWheelTime = useRef(0);
 
   const loadStories = async (selectedFilter = 'All') => {
       setLoading(true);
-      // Simulate network delay for loader demo
-      await new Promise(r => setTimeout(r, 1000));
+      // Fetch data with specific sort for Top Headlines
       const news = await fetchNewsFeed(1, { category: selectedFilter, sort: 'Top' });
       setArticles(news);
       setLoading(false);
@@ -36,12 +40,14 @@ const TopStoriesPage = () => {
       loadStories(newFilter);
   };
 
+  // Advances the stack
   const handleSwipe = (direction: 'left' | 'right') => {
       setTimeout(() => {
           setCurrentIndex(prev => (prev + 1) % articles.length);
       }, 200); 
   };
 
+  // Mouse wheel support for desktop
   const handleWheel = (e: React.WheelEvent) => {
       const now = Date.now();
       if (now - lastWheelTime.current < 500) return; // Throttle 500ms
@@ -49,38 +55,32 @@ const TopStoriesPage = () => {
       if (e.deltaY > 50) {
           // Scroll Down -> Next Story
           lastWheelTime.current = now;
-          handleSwipe('left'); // Trigger swipe logic
+          handleSwipe('left');
       }
   };
 
   // --- Interaction Handlers ---
 
   const handleSave = (id: string) => {
-      try {
-          const article = articles.find(a => a.id === id);
-          if (!article) return;
+      const article = articles.find(a => a.id === id);
+      if (!article) return;
 
-          const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
-          const exists = bookmarks.some((b: any) => b.id === id);
-          
-          if (exists) {
-              const filtered = bookmarks.filter((b: any) => b.id !== id);
-              localStorage.setItem('bookmarks', JSON.stringify(filtered));
-              setToast({ show: true, msg: 'Removed from Bookmarks', type: 'info' });
-          } else {
-              const newBookmark = { 
-                  id: article.id, 
-                  title: article.title, 
-                  source: article.source, 
-                  category: article.category,
-                  imageUrl: article.imageUrl,
-                  savedAt: new Date().toLocaleDateString()
-              };
-              localStorage.setItem('bookmarks', JSON.stringify([newBookmark, ...bookmarks]));
-              setToast({ show: true, msg: 'Saved to Bookmarks', type: 'success' });
-          }
-      } catch (e) {
-          console.error(e);
+      const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
+      const exists = bookmarks.some((b: any) => b.id === id);
+      
+      if (!exists) {
+          const newBookmark = { 
+              id: article.id, 
+              title: article.title, 
+              source: article.source, 
+              category: article.category,
+              imageUrl: article.imageUrl,
+              savedAt: new Date().toLocaleDateString()
+          };
+          localStorage.setItem('bookmarks', JSON.stringify([newBookmark, ...bookmarks]));
+          setToast({ show: true, msg: 'Story Saved 🔖', type: 'success' });
+      } else {
+          setToast({ show: true, msg: 'Already Saved', type: 'info' });
       }
   };
 
@@ -97,7 +97,7 @@ const TopStoriesPage = () => {
               });
           } catch (e) {}
       } else {
-          setToast({ show: true, msg: 'Link copied to clipboard', type: 'success' });
+          setToast({ show: true, msg: 'Link copied to clipboard 🔗', type: 'success' });
           navigator.clipboard.writeText(window.location.href);
       }
   };
@@ -105,15 +105,22 @@ const TopStoriesPage = () => {
   const handleAIExplain = (id: string) => {
       const article = articles.find(a => a.id === id);
       if (article) {
+          // Navigate to Chatbot with auto-inject context
           navigate(`/ai-chat?context=article&headline=${encodeURIComponent(article.title)}&id=${id}`);
       }
   };
+
+  const handleLongPress = (id: string) => {
+      setPreviewArticleId(id);
+  };
+
+  const currentArticleData = articles.find(a => a.id === previewArticleId);
 
   return (
     <div className="h-full bg-gray-50 dark:bg-black flex flex-col relative overflow-hidden">
       
       {toast.show && (
-          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] animate-in fade-in slide-in-from-top-4">
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] animate-in fade-in slide-in-from-top-4 w-auto">
               <Toast 
                   type={toast.type} 
                   message={toast.msg} 
@@ -121,6 +128,19 @@ const TopStoriesPage = () => {
               />
           </div>
       )}
+
+      {/* Long Press Preview Sheet */}
+      <AIQuickPreviewSheet 
+        isOpen={!!previewArticleId}
+        onClose={() => setPreviewArticleId(null)}
+        article={currentArticleData}
+        onFullAnalysis={() => {
+            if (previewArticleId) {
+                setPreviewArticleId(null);
+                handleAIExplain(previewArticleId);
+            }
+        }}
+      />
 
       <div className="absolute top-0 left-0 w-full z-20">
           <PageHeader title="Top Headlines" showBack />
@@ -149,7 +169,7 @@ const TopStoriesPage = () => {
           {loading ? (
               <SmartLoader type="headlines" />
           ) : (
-              <div className="relative w-full max-w-md aspect-[3/5] md:aspect-[3/4]">
+              <div className="relative w-full max-w-md h-full max-h-[650px] flex items-center justify-center">
                   {articles.length > 0 && articles.map((article, index) => {
                       // Logic for Stack (Nest) Animation
                       // Only render current and next one for performance
@@ -163,6 +183,7 @@ const TopStoriesPage = () => {
                                 onSave={handleSave}
                                 onShare={handleShare}
                                 onAIExplain={handleAIExplain}
+                                onLongPress={handleLongPress}
                             />
                           );
                       } else if (index === (currentIndex + 1) % articles.length) {
@@ -190,8 +211,8 @@ const TopStoriesPage = () => {
       </div>
       
       <div className="absolute bottom-20 w-full flex justify-center gap-2 z-10 pointer-events-none">
-          <span className="text-[10px] text-gray-400 bg-white/80 dark:bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm shadow-sm border border-gray-200 dark:border-gray-800">
-              Swipe or Scroll to explore
+          <span className="text-[10px] text-gray-400 bg-white/80 dark:bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm shadow-sm border border-gray-200 dark:border-gray-800 animate-pulse">
+              Swipe Left to Save • Right to Share
           </span>
       </div>
     </div>

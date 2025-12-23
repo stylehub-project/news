@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Layout, Type, Image as ImageIcon, GitMerge, BarChart2, Clock, Sparkles, MessageSquare } from 'lucide-react';
+import { Plus, Layout, Type, Image as ImageIcon, GitMerge, BarChart2, Clock, Sparkles, MessageSquare, Globe, FileText, Layers } from 'lucide-react';
 import Button from '../ui/Button';
 import TemplateSelector from './TemplateSelector';
 import { NewspaperStyle } from './NewspaperTemplate';
@@ -11,16 +11,8 @@ interface NewspaperConfigProps {
   setTitle: (t: string) => void;
   style: NewspaperStyle;
   setStyle: (s: NewspaperStyle) => void;
-  onGenerate: () => void;
+  onGenerate: (config: any) => void;
 }
-
-const SECTIONS = [
-  { id: 'summary', label: 'Summary', icon: Type },
-  { id: 'timeline', label: 'Timeline', icon: Clock },
-  { id: 'flowchart', label: 'Flowchart', icon: GitMerge },
-  { id: 'graph', label: 'Graph', icon: BarChart2 },
-  { id: 'images', label: 'Images', icon: ImageIcon },
-];
 
 const NewspaperConfig: React.FC<NewspaperConfigProps> = ({
   title,
@@ -30,102 +22,132 @@ const NewspaperConfig: React.FC<NewspaperConfigProps> = ({
   onGenerate
 }) => {
   const navigate = useNavigate();
-  const [activeSections, setActiveSections] = useState<string[]>(['summary', 'timeline']);
-
-  const toggleSection = (id: string) => {
-    setActiveSections(prev => 
-      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
-    );
-  };
+  const [scope, setScope] = useState('World News');
+  const [language, setLanguage] = useState('English');
+  const [pages, setPages] = useState('1 Page');
 
   const handleConsultAI = () => {
       navigate(`/ai-chat?context=newspaper&topic=${encodeURIComponent(title || 'General News')}`);
   };
 
+  const handleGenerateClick = () => {
+      onGenerate({
+          scope,
+          language,
+          pages
+      });
+  };
+
   return (
-    <div className="flex flex-col h-full p-4 space-y-8 overflow-y-auto bg-gray-50/50">
+    <div className="flex flex-col h-full p-4 space-y-6 overflow-y-auto bg-gray-50/50 dark:bg-gray-900 transition-colors duration-300">
       
-      {/* 6.2 Editor - Header Block */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-4">
-        <div className="flex items-center justify-between mb-2">
+      {/* Header Block */}
+      <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm space-y-5 transition-colors">
+        <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-                <span className="bg-blue-100 text-blue-700 p-1.5 rounded-lg"><Layout size={18} /></span>
-                <h3 className="font-bold text-gray-800">Edition Details</h3>
+                <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 p-2 rounded-xl"><Layout size={20} /></span>
+                <div>
+                    <h3 className="font-bold text-gray-800 dark:text-white text-lg leading-none">Editorial Setup</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Configure your daily edition</p>
+                </div>
             </div>
-            {/* 7.13 AI Consultant Trigger */}
-            <button onClick={handleConsultAI} className="text-xs font-bold text-indigo-600 flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded hover:bg-indigo-100 transition-colors">
-                <MessageSquare size={12} /> Ask AI Ideas
+            <button onClick={handleConsultAI} className="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors border border-indigo-100 dark:border-indigo-800">
+                <MessageSquare size={12} /> AI Editor
             </button>
         </div>
-        <div className="space-y-3">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Headline</label>
-            <Input 
-            value={title} 
-            onChange={(e) => setTitle(e.target.value)} 
-            placeholder="e.g. The Daily Future" 
-            className="font-serif text-xl font-bold bg-gray-50 border-transparent focus:bg-white transition-colors"
-            />
+
+        <div className="space-y-4">
+            <div>
+                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 block ml-1">Newspaper Name</label>
+                <Input 
+                    value={title} 
+                    onChange={(e) => setTitle(e.target.value)} 
+                    placeholder="The Daily Future" 
+                    className="font-serif text-xl font-bold bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 focus:bg-white dark:focus:bg-gray-800 transition-colors py-3 dark:text-white dark:placeholder:text-gray-600"
+                />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 block ml-1">Content Scope</label>
+                    <div className="relative">
+                        <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+                        <select 
+                            value={scope}
+                            onChange={(e) => setScope(e.target.value)}
+                            className="w-full pl-9 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-200 appearance-none focus:bg-white dark:focus:bg-gray-800 outline-none transition-colors"
+                        >
+                            <option>World News</option>
+                            <option>Technology</option>
+                            <option>Politics</option>
+                            <option>Finance</option>
+                            <option>Sports</option>
+                            <option>Satire</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 block ml-1">Language</label>
+                    <div className="relative">
+                        <Type size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+                        <select 
+                            value={language}
+                            onChange={(e) => setLanguage(e.target.value)}
+                            className="w-full pl-9 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-200 appearance-none focus:bg-white dark:focus:bg-gray-800 outline-none transition-colors"
+                        >
+                            <option>English</option>
+                            <option>Hindi</option>
+                            <option>Spanish</option>
+                            <option>French</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
         </div>
       </div>
 
-      {/* 6.1 Template Selector */}
+      {/* Style Selector */}
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
-             <label className="text-sm font-bold text-gray-700">Style Template</label>
-             <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">4 Styles</span>
+             <label className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2"><Layers size={16} /> Visual Theme</label>
         </div>
         <TemplateSelector selected={style} onSelect={setStyle} />
       </div>
 
-      {/* 6.2 Editor - Blocks */}
-      <div className="space-y-3">
-        <label className="text-sm font-bold text-gray-700 px-1">Content Blocks</label>
-        <div className="grid grid-cols-1 gap-2">
-            {SECTIONS.map((section) => {
-                const Icon = section.icon;
-                const isActive = activeSections.includes(section.id);
-                return (
-                    <div
-                        key={section.id}
-                        onClick={() => toggleSection(section.id)}
-                        className={`p-3 rounded-xl border cursor-pointer flex items-center gap-3 transition-all duration-200 group ${
-                            isActive 
-                            ? 'bg-white border-blue-500 shadow-md translate-x-1' 
-                            : 'bg-white border-gray-100 text-gray-400 hover:border-gray-300'
-                        }`}
-                    >
-                        <div className={`p-2 rounded-lg transition-colors ${isActive ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
-                            <Icon size={18} />
-                        </div>
-                        <span className={`text-sm font-bold ${isActive ? 'text-gray-800' : 'text-gray-400'}`}>{section.label}</span>
-                        
-                        {/* Drag Handle Simulation */}
-                        <div className="ml-auto flex flex-col gap-[2px] opacity-20 group-hover:opacity-50">
-                            <div className="w-1 h-1 bg-black rounded-full"></div>
-                            <div className="w-1 h-1 bg-black rounded-full"></div>
-                            <div className="w-1 h-1 bg-black rounded-full"></div>
-                        </div>
-                    </div>
-                );
-            })}
-        </div>
-        
-        <button className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-400 font-bold text-sm flex items-center justify-center gap-2 hover:bg-white hover:border-blue-400 hover:text-blue-500 transition-all">
-            <Plus size={16} /> Add Custom Section
-        </button>
+      {/* Length Config */}
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm transition-colors">
+          <label className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 block">Edition Length</label>
+          <div className="flex gap-2">
+              {['1 Page', '3 Pages', 'Full Issue'].map((opt) => (
+                  <button
+                    key={opt}
+                    onClick={() => setPages(opt)}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${
+                        pages === opt 
+                        ? 'bg-gray-900 dark:bg-white text-white dark:text-black border-gray-900 dark:border-white' 
+                        : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                      {opt}
+                  </button>
+              ))}
+          </div>
       </div>
 
-      {/* 6.2 AI Write Button */}
-      <div className="pt-4 mt-auto sticky bottom-0 bg-gradient-to-t from-gray-50 via-gray-50 to-transparent pb-4">
+      {/* Generate Button */}
+      <div className="pt-2 mt-auto sticky bottom-0 bg-gradient-to-t from-gray-50 via-gray-50 to-transparent dark:from-gray-900 dark:via-gray-900 pb-4 transition-colors duration-300">
         <Button 
-            onClick={onGenerate} 
+            onClick={handleGenerateClick} 
             size="lg" 
             fullWidth 
-            className="shadow-xl shadow-indigo-500/30 bg-gradient-to-r from-indigo-600 to-violet-600 border border-white/20"
-            leftIcon={<Sparkles size={18} className="text-yellow-300 animate-pulse" />}
+            className="shadow-xl shadow-indigo-500/30 bg-gradient-to-r from-indigo-600 to-violet-600 border border-white/20 h-14 text-lg"
+            leftIcon={<Sparkles size={20} className="text-yellow-300 animate-pulse" />}
         >
-            AI Write & Layout
+            Write Newspaper
         </Button>
+        <p className="text-center text-[10px] text-gray-400 dark:text-gray-500 mt-3 font-medium">
+            AI will generate layout, write articles, and create images live.
+        </p>
       </div>
     </div>
   );

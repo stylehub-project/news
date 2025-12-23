@@ -8,7 +8,6 @@ const getApiKey = () => {
 export const fetchNewsFeed = async (page: number, filters: any) => {
   try {
     const apiKey = getApiKey();
-    // If no API key, immediately return mock data to prevent errors in dev mode
     if (!apiKey) return getMockData(page, filters.category);
     
     const ai = new GoogleGenAI({ apiKey });
@@ -74,16 +73,35 @@ export const fetchNewsFeed = async (page: number, filters: any) => {
 
   } catch (error) {
     console.error("AI Fetch Error", error);
-    // Fallback to mock data with pagination support
     return getMockData(page, filters.category);
   }
 };
 
+export const modifyText = async (text: string, instruction: string) => {
+    try {
+        const apiKey = getApiKey();
+        if (!apiKey) {
+            // Mock Fallback behavior if no API key
+            await new Promise(r => setTimeout(r, 1000));
+            if (instruction.includes('Simplify')) return "Here is a simplified version of the text. It uses easier words.";
+            if (instruction.includes('Catchier')) return "SHOCKING UPDATE: " + text.substring(0, 20) + "...";
+            return text + " (Edited)";
+        }
+
+        const ai = new GoogleGenAI({ apiKey });
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: `Original Text: "${text}"\n\nInstruction: ${instruction}. Return only the modified text, nothing else.`
+        });
+        return response.text || text;
+    } catch (e) {
+        console.error(e);
+        return text;
+    }
+};
+
 const getMockData = (page: number, category: string = 'General') => {
-    // Generate deterministic but unique data based on page number
-    // This ensures infinite scroll loads "new" data every time the page increments
     const baseSeed = page * 100;
-    
     return Array.from({ length: 5 }).map((_, i) => {
         const itemSeed = baseSeed + i;
         const categories = ['Technology', 'Business', 'Science', 'Politics', 'Health', 'World'];
@@ -96,7 +114,6 @@ const getMockData = (page: number, category: string = 'General') => {
             source: ["TechCrunch", "BBC", "CNN", "Reuters", "The Verge", "Bloomberg"][itemSeed % 6],
             timeAgo: `${(i % 12) + 1}h ago`,
             category: cat,
-            // Use picsum with seed for consistent but unique images per item
             imageUrl: `https://picsum.photos/seed/${itemSeed}/800/600` 
         };
     });
@@ -116,4 +133,49 @@ const getHeadline = (category: string, seed: number) => {
         "Exclusive: Inside the {cat} Revolution"
     ];
     return templates[seed % templates.length].replace("{cat}", category);
+};
+
+export const fetchNewspaperContent = async (title: string, config: any) => {
+    // This mocks the generation of a full newspaper structure
+    // In a real app, this would use Gemini to generate the specific sections based on the 'scope'
+    
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate extra latency
+
+    return {
+        title: title || "The Daily News",
+        date: new Date().toLocaleDateString(),
+        issueNumber: `${Math.floor(Math.random() * 500) + 100}`,
+        price: "$2.50",
+        sections: [
+            {
+                type: 'headline',
+                title: `${config.scope || 'World'} Markets React to New AI Developments`,
+                content: null
+            },
+            {
+                type: 'images',
+                content: ['https://picsum.photos/seed/news_hero/800/400'],
+                imageCaption: "Global leaders gather for the annual technology summit in Geneva."
+            },
+            {
+                type: 'text',
+                title: 'Main Story',
+                content: "In a stunning turn of events, major tech conglomerates have announced a unified framework for artificial intelligence safety.\n\nThe agreement, signed by industry titans, promises to standardize ethical guidelines across borders. 'This is a monumental step for humanity,' said one spokesperson. \n\nMarkets responded immediately, with tech stocks surging 5% in pre-market trading. However, critics argue that self-regulation may not be enough."
+            },
+            {
+                type: 'text',
+                title: 'Editorial',
+                content: "As we move into this new era, the question remains: who watches the watchmen? While the new framework is promising, government oversight remains a critical piece of the puzzle. We must remain vigilant."
+            },
+            {
+                type: 'graph',
+                title: 'Market Trends',
+                content: [
+                    { label: 'Tech', value: 85 },
+                    { label: 'Energy', value: 45 },
+                    { label: 'Retail', value: 60 }
+                ]
+            }
+        ]
+    };
 };
