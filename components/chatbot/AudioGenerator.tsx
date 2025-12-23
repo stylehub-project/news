@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Play, Pause, Download, Sparkles, RefreshCw, Music, Settings2, FileText, Mic, Radio } from 'lucide-react';
+import { X, Play, Pause, Download, Sparkles, RefreshCw, Music, Settings2, FileText, Zap, Radio, Clock } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import Button from '../ui/Button';
 
-// --- Audio Helpers ---
-
+// ... (Keep existing helpers: writeString, floatTo16BitPCM, encodeWAV, decodeBase64, decodeRawPCM)
 function writeString(view: DataView, offset: number, string: string) {
   for (let i = 0; i < string.length; i++) {
     view.setUint8(offset + i, string.charCodeAt(i));
@@ -27,8 +26,8 @@ function encodeWAV(samples: Float32Array, sampleRate: number) {
   writeString(view, 8, 'WAVE');
   writeString(view, 12, 'fmt ');
   view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM
-  view.setUint16(22, 1, true); // Mono
+  view.setUint16(20, 1, true); 
+  view.setUint16(22, 1, true); 
   view.setUint32(24, sampleRate, true);
   view.setUint32(28, sampleRate * 2, true);
   view.setUint16(32, 2, true);
@@ -40,7 +39,6 @@ function encodeWAV(samples: Float32Array, sampleRate: number) {
   return view;
 }
 
-// Decode Base64 string to Uint8Array
 function decodeBase64(base64: string) {
   const binaryString = atob(base64);
   const len = binaryString.length;
@@ -51,7 +49,6 @@ function decodeBase64(base64: string) {
   return bytes;
 }
 
-// Manual decoding of Raw PCM (Int16) to AudioBuffer (Float32)
 async function decodeRawPCM(
   data: Uint8Array,
   ctx: AudioContext,
@@ -138,6 +135,7 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
   const [language, setLanguage] = useState('Hinglish');
   const [tone, setTone] = useState('Reporter');
   const [mode, setMode] = useState('News Briefing');
+  const [duration, setDuration] = useState<'Short' | 'Long'>('Short');
   const [script, setScript] = useState('');
   const [loadingText, setLoadingText] = useState('');
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -151,7 +149,7 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
   const [playbackTime, setPlaybackTime] = useState(0);
   const startTimeRef = useRef(0);
 
-  const generateAudioWithSettings = async (t: string, l: string, tn: string, m: string) => {
+  const generateAudioWithSettings = async (t: string, l: string, tn: string, m: string, d: string) => {
       setTopic(t);
       setStep('generating');
       setLoadingText('Connecting to Newsroom...');
@@ -162,13 +160,14 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
           const ai = new GoogleGenAI({ apiKey });
 
           // 1. Script Generation
+          const lengthInstruction = d === 'Short' ? "Keep it under 50 words." : "Keep it under 150 words with deeper detail.";
           const scriptPrompt = `
             Create a spoken dialogue between Joe (Male) and Jane (Female) about: "${t}".
             Language: ${l} (If Hinglish, mix Hindi and English naturally).
             Tone: ${tn}. 
             Format: ${m}.
             Structure lines as "Joe: ..." and "Jane: ...".
-            Keep it under 150 words total.
+            ${lengthInstruction}
           `;
 
           const scriptResponse = await ai.models.generateContent({
@@ -231,7 +230,13 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
 
   const handleGenerate = () => {
       if (!topic.trim()) return;
-      generateAudioWithSettings(topic, language, tone, mode);
+      generateAudioWithSettings(topic, language, tone, mode, duration);
+  };
+
+  const handleTodaysHeadlines = () => {
+      const todayTopic = "Top news headlines for today including tech, politics, and world events";
+      setTopic(todayTopic);
+      generateAudioWithSettings(todayTopic, language, tone, mode, duration);
   };
 
   const togglePlay = () => {
@@ -298,6 +303,20 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
                   <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-gray-500"><X size={20} /></button>
               </div>
               <div className="flex-1 p-6 overflow-y-auto max-w-md mx-auto w-full space-y-6 text-gray-900 dark:text-white">
+                  
+                  {/* Quick Action */}
+                  <Button 
+                    variant="secondary" 
+                    fullWidth 
+                    onClick={handleTodaysHeadlines}
+                    className="border-indigo-100 dark:border-indigo-900 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300"
+                    leftIcon={<Zap size={16} />}
+                  >
+                    Generate Today's Headlines
+                  </Button>
+
+                  <hr className="border-gray-200 dark:border-gray-800" />
+
                   <div>
                       <label className="block text-sm font-bold mb-2">Topic</label>
                       <textarea 
@@ -308,7 +327,6 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
                       />
                   </div>
                   
-                  {/* Restored Language & Tone Options */}
                   <div className="grid grid-cols-2 gap-4">
                       <div>
                           <label className="block text-xs font-bold uppercase mb-2">Language</label>
@@ -333,7 +351,6 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
                       </div>
                   </div>
 
-                  {/* Restored Mode Selection */}
                   <div>
                       <label className="block text-xs font-bold uppercase mb-2">Format Mode</label>
                       <div className="grid grid-cols-2 gap-2">
@@ -341,9 +358,25 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
                               <button
                                 key={m}
                                 onClick={() => setMode(m)}
-                                className={`p-3 rounded-lg text-sm font-medium border transition-all ${mode === m ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-300'}`}
+                                className={`p-3 rounded-lg text-xs font-medium border transition-all ${mode === m ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-300'}`}
                               >
                                 {m}
+                              </button>
+                          ))}
+                      </div>
+                  </div>
+
+                  <div>
+                      <label className="block text-xs font-bold uppercase mb-2">Duration</label>
+                      <div className="flex gap-2">
+                          {['Short', 'Long'].map((d) => (
+                              <button
+                                key={d}
+                                onClick={() => setDuration(d as any)}
+                                className={`flex-1 p-3 rounded-lg text-sm font-medium border transition-all flex items-center justify-center gap-2 ${duration === d ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-300'}`}
+                              >
+                                {d === 'Short' ? <Zap size={14} /> : <Clock size={14} />}
+                                {d}
                               </button>
                           ))}
                       </div>

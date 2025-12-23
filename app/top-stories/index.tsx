@@ -1,14 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import PageHeader from '../../components/PageHeader';
 import SwipeableCard from '../../components/cards/SwipeableCard';
+import SmartLoader from '../../components/loaders/SmartLoader';
 import { RefreshCw, Filter } from 'lucide-react';
 import { fetchNewsFeed } from '../../utils/aiService';
+import { useNavigate } from 'react-router-dom';
+import Toast, { ToastType } from '../../components/ui/Toast';
 
 const TopStoriesPage = () => {
+  const navigate = useNavigate();
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [filter, setFilter] = useState('All');
+  const [toast, setToast] = useState<{ show: boolean; msg: string; type: ToastType }>({ show: false, msg: '', type: 'success' });
   
   // Throttle wheel events
   const lastWheelTime = useRef(0);
@@ -41,15 +46,41 @@ const TopStoriesPage = () => {
       if (now - lastWheelTime.current < 500) return; // Throttle 500ms
 
       if (e.deltaY > 50) {
-          // Scroll Down -> Next Story
+          // Scroll Down -> Next Story (Simulate Swipe Left/Next)
           lastWheelTime.current = now;
-          handleSwipe('left'); // Trigger swipe logic
+          handleSwipe('left');
       }
-      // Optional: Add scroll up for previous if needed, but current logic mimics stack
+  };
+
+  const handleAIExplain = (id: string) => {
+      const article = articles.find(a => a.id === id);
+      if (article) {
+          navigate(`/ai-chat?context=article&headline=${encodeURIComponent(article.title)}&id=${id}`);
+      }
+  };
+
+  const handleSave = (id: string) => {
+      setToast({ show: true, msg: 'Saved to bookmarks', type: 'success' });
+  };
+
+  const handleShare = (id: string) => {
+      setToast({ show: true, msg: 'Shared link copied', type: 'info' });
   };
 
   return (
     <div className="h-full bg-gray-50 dark:bg-black flex flex-col relative overflow-hidden">
+      
+      {toast.show && (
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[60]">
+              <Toast 
+                type={toast.type} 
+                message={toast.msg} 
+                onClose={() => setToast(prev => ({ ...prev, show: false }))} 
+                duration={2000}
+              />
+          </div>
+      )}
+
       <div className="absolute top-0 left-0 w-full z-20">
           <PageHeader title="Top Headlines" showBack />
           {/* Filter Bar */}
@@ -75,19 +106,37 @@ const TopStoriesPage = () => {
         onWheel={handleWheel}
       >
           {loading ? (
-              <div className="flex flex-col items-center gap-4 text-gray-400 animate-pulse">
-                  <RefreshCw className="animate-spin" size={32} />
-                  <span className="text-sm font-bold uppercase tracking-widest">Curating Top Stories...</span>
-              </div>
+              <SmartLoader type="headlines" />
           ) : (
               <div className="relative w-full max-w-md aspect-[3/5] md:aspect-[3/4]">
                   {articles.length > 0 && articles.map((article, index) => {
                       // Logic for Stack (Nest) Animation
                       // Only render current and next one for performance
                       if (index === currentIndex) {
-                          return <SwipeableCard key={article.id} data={article} active={true} onSwipe={handleSwipe} />;
+                          return (
+                            <SwipeableCard 
+                                key={article.id} 
+                                data={article} 
+                                active={true} 
+                                onSwipe={handleSwipe} 
+                                onAIExplain={handleAIExplain}
+                                onSave={handleSave}
+                                onShare={handleShare}
+                            />
+                          );
                       } else if (index === (currentIndex + 1) % articles.length) {
-                          return <SwipeableCard key={article.id} data={article} active={false} next={true} onSwipe={handleSwipe} />;
+                          return (
+                            <SwipeableCard 
+                                key={article.id} 
+                                data={article} 
+                                active={false} 
+                                next={true} 
+                                onSwipe={handleSwipe}
+                                onAIExplain={handleAIExplain}
+                                onSave={handleSave}
+                                onShare={handleShare}
+                            />
+                          );
                       }
                       return null;
                   })}

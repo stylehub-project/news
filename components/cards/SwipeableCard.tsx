@@ -1,15 +1,28 @@
 import React, { useState } from 'react';
-import { Share2, Bookmark, Clock, ChevronRight, Sparkles, X } from 'lucide-react';
+import { Share2, Bookmark, Clock, ChevronRight, Sparkles, ExternalLink } from 'lucide-react';
 import BlurImageLoader from '../loaders/BlurImageLoader';
+import { useNavigate } from 'react-router-dom';
 
 interface SwipeableCardProps {
   data: any;
   onSwipe: (direction: 'left' | 'right') => void;
   active: boolean;
   next?: boolean;
+  onAIExplain?: (id: string) => void;
+  onSave?: (id: string) => void;
+  onShare?: (id: string) => void;
 }
 
-const SwipeableCard: React.FC<SwipeableCardProps> = ({ data, onSwipe, active, next }) => {
+const SwipeableCard: React.FC<SwipeableCardProps> = ({ 
+    data, 
+    onSwipe, 
+    active, 
+    next,
+    onAIExplain,
+    onSave,
+    onShare
+}) => {
+  const navigate = useNavigate();
   const [dragStart, setDragStart] = useState<number | null>(null);
   const [offset, setOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -35,6 +48,13 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ data, onSwipe, active, ne
     setDragStart(null);
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+      // Only navigate if not part of a drag action
+      if (Math.abs(offset) < 5) {
+          navigate(`/news/${data.id}`);
+      }
+  };
+
   // Stack Styles
   const getStyles = () => {
     if (active) {
@@ -44,7 +64,8 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ data, onSwipe, active, ne
         transform: `translateX(${offset}px) rotate(${rotation}deg) scale(1)`,
         opacity: opacity,
         zIndex: 20,
-        transition: isDragging ? 'none' : 'all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1)'
+        transition: isDragging ? 'none' : 'all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1)',
+        cursor: 'grab'
       };
     } else if (next) {
       return {
@@ -52,7 +73,8 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ data, onSwipe, active, ne
         opacity: 1, // Keep visible for "stack" look
         zIndex: 10,
         transition: 'all 0.5s ease',
-      };
+        pointerEvents: 'none'
+      } as React.CSSProperties;
     } else {
       return {
         transform: 'scale(0.85) translateY(60px)',
@@ -70,14 +92,17 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ data, onSwipe, active, ne
       onTouchMove={active ? handleTouchMove : undefined}
       onTouchEnd={active ? handleTouchEnd : undefined}
     >
-      <div className={`w-full h-full bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden relative border border-gray-100 dark:border-gray-700 select-none ${next ? 'border-t-4 border-indigo-500/20' : ''}`}>
+      <div 
+        className={`w-full h-full bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden relative border border-gray-100 dark:border-gray-700 select-none ${next ? 'border-t-4 border-indigo-500/20' : ''}`}
+        onClick={active ? handleCardClick : undefined}
+      >
         
         {/* Border Glow for Next Card hint */}
         {next && <div className="absolute inset-0 bg-black/10 z-50"></div>}
 
         {/* Full Background Image */}
         <div className="absolute inset-0">
-            <BlurImageLoader src={data.imageUrl} alt={data.title} className="w-full h-full object-cover" />
+            <BlurImageLoader src={data.imageUrl} alt={data.title} className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
         </div>
 
@@ -92,7 +117,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ data, onSwipe, active, ne
         </div>
 
         {/* Content Overlay */}
-        <div className="absolute bottom-0 left-0 w-full p-6 text-white z-10 flex flex-col justify-end h-3/4 bg-gradient-to-t from-black via-black/60 to-transparent">
+        <div className="absolute bottom-0 left-0 w-full p-6 text-white z-10 flex flex-col justify-end h-3/4 bg-gradient-to-t from-black via-black/70 to-transparent">
             <div className="flex items-center gap-2 mb-3">
                 <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center overflow-hidden">
                     <img src={`https://ui-avatars.com/api/?name=${data.source}&background=random`} className="w-full h-full" alt="Source" />
@@ -104,23 +129,40 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ data, onSwipe, active, ne
                 {data.title}
             </h2>
             
-            <p className="text-sm text-gray-200 line-clamp-2 mb-6 opacity-90">
+            <p className="text-sm text-gray-200 line-clamp-2 mb-6 opacity-90 font-medium">
                 {data.description}
             </p>
 
             <div className="flex gap-3">
-                <button className="flex-1 bg-white text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors active:scale-95 shadow-lg">
+                <button 
+                    onClick={(e) => { e.stopPropagation(); navigate(`/news/${data.id}`); }}
+                    className="flex-1 bg-white text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors active:scale-95 shadow-lg"
+                >
                     Read Story <ChevronRight size={16} />
                 </button>
+                
+                {/* Actions */}
                 <div className="flex gap-2">
-                    <button className="p-3 bg-white/20 backdrop-blur-md rounded-xl hover:bg-white/30 transition-colors">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onAIExplain?.(data.id); }}
+                        className="p-3 bg-indigo-600 rounded-xl text-white hover:bg-indigo-500 transition-colors shadow-lg active:scale-90"
+                        title="AI Explain"
+                    >
+                        <Sparkles size={20} className="fill-yellow-300 text-yellow-300" />
+                    </button>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onSave?.(data.id); }}
+                        className="p-3 bg-white/20 backdrop-blur-md rounded-xl hover:bg-white/30 transition-colors active:scale-90"
+                        title="Save"
+                    >
                         <Bookmark size={20} />
                     </button>
-                    <button className="p-3 bg-white/20 backdrop-blur-md rounded-xl hover:bg-white/30 transition-colors">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onShare?.(data.id); }}
+                        className="p-3 bg-white/20 backdrop-blur-md rounded-xl hover:bg-white/30 transition-colors active:scale-90"
+                        title="Share"
+                    >
                         <Share2 size={20} />
-                    </button>
-                    <button className="p-3 bg-indigo-500/80 backdrop-blur-md rounded-xl hover:bg-indigo-500 transition-colors">
-                        <Sparkles size={20} className="text-white" />
                     </button>
                 </div>
             </div>

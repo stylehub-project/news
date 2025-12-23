@@ -1,7 +1,8 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
+import SwipeableCardLoader from './SwipeableCardLoader';
 
-export type SmartLoaderType = 'home' | 'chat' | 'map' | 'reel' | 'profile' | 'article' | 'startup' | 'generic';
+export type SmartLoaderType = 'home' | 'chat' | 'map' | 'reel' | 'profile' | 'article' | 'startup' | 'generic' | 'headlines';
 
 interface SmartLoaderProps {
   type?: SmartLoaderType;
@@ -47,6 +48,8 @@ const SmartLoader: React.FC<SmartLoaderProps> = ({ type = 'generic', message, cl
         return renderPremiumLoader("Loading Satellite Data");
     case 'reel':
         return renderPremiumLoader("Preparing Stories");
+    case 'headlines':
+        return <SwipeableCardLoader />;
     case 'profile':
         return renderPremiumLoader("Syncing Preferences");
     case 'article':
