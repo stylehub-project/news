@@ -10,7 +10,7 @@ import AIInteractionModal from '../../components/chatbot/AIInteractionModal';
 import AIHubTour from '../../components/chatbot/AIHubTour';
 import ThinkingIndicator from '../../components/chatbot/ThinkingIndicator';
 import InteractiveAvatar from '../../components/chatbot/InteractiveAvatar';
-import { Trash2, StopCircle, Bot, Zap, RefreshCw, AudioWaveform } from 'lucide-react';
+import { Trash2, StopCircle, Bot, Zap, AudioWaveform } from 'lucide-react';
 import SmartLoader from '../../components/loaders/SmartLoader';
 import { useLoading } from '../../context/LoadingContext';
 import Button from '../../components/ui/Button';
@@ -57,7 +57,6 @@ const ChatPage: React.FC = () => {
   const [avatarState, setAvatarState] = useState<'idle' | 'thinking' | 'speaking' | 'error'>('idle');
   const [isInitializing, setIsInitializing] = useState(!isLoaded('chat') && messages.length === 0);
   
-  // Modes: Chat (Default), Live (VoiceMode), Generator (AudioGenerator)
   const [activeMode, setActiveMode] = useState<'chat' | 'live' | 'generator'>('chat');
   const [showInteractionModal, setShowInteractionModal] = useState(false);
   const [showTour, setShowTour] = useState(false);
@@ -83,8 +82,10 @@ const ChatPage: React.FC = () => {
   };
 
   useEffect(() => {
-      // Auto-start voice if param is set
-      if (searchParams.get('mode') === 'voice') {
+      // Auto-start generator if param is set
+      if (searchParams.get('mode') === 'generator') {
+          setActiveMode('generator');
+      } else if (searchParams.get('mode') === 'voice') {
           setActiveMode('live');
       }
   }, [searchParams]);
@@ -134,22 +135,6 @@ const ChatPage: React.FC = () => {
           sessionStorage.removeItem('news_club_chat_session');
           chatSessionRef.current = null;
       }
-  };
-
-  const resetConnection = () => {
-      chatSessionRef.current = null;
-      const apiKey = getApiKey();
-      if (apiKey) {
-          const ai = new GoogleGenAI({ apiKey });
-          chatSessionRef.current = ai.chats.create({ 
-              model: 'gemini-flash-lite-latest',
-              config: {
-                  systemInstruction: "You are News Gemini 🤖. Be expressive with emojis! ✨ Suggest 3 follow-up questions! 💡",
-                  tools: [{ googleSearch: {} }]
-              }
-          });
-      }
-      setAvatarState('idle');
   };
 
   const attemptSendMessage = async (text: string, attempt = 1): Promise<void> => {
@@ -251,12 +236,6 @@ const ChatPage: React.FC = () => {
   const handleSend = async (text: string) => {
     if (!text.trim()) return;
     
-    if (text === "Reset Connection") {
-        resetConnection();
-        setMessages(prev => prev.slice(0, -1));
-        return;
-    }
-
     const isRetry = text === "Retry ↻" || text === "Try Again";
     let messageToSend = text;
 
@@ -338,13 +317,9 @@ const ChatPage: React.FC = () => {
                     title="AI Interactions"
                 >
                     <AudioWaveform size={18} />
-                    {/* Notification Dot for feature awareness */}
                     {!showTour && !localStorage.getItem('has_seen_ai_hub_tour') && (
                         <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-gray-900"></span>
                     )}
-                </button>
-                <button onClick={resetConnection} className="p-2 bg-gray-100 dark:bg-white/5 rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-gray-400" title="Reset Connection">
-                    <RefreshCw size={16} />
                 </button>
                 <button onClick={handleClearChat} className="p-2 bg-gray-100 dark:bg-white/5 rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-gray-400" title="Clear Chat">
                     <Trash2 size={16} />
@@ -403,7 +378,7 @@ const ChatPage: React.FC = () => {
          <ChatInputBar 
             onSend={handleSend} 
             isLoading={isLoading || isStreaming} 
-            onVoiceClick={() => setShowInteractionModal(true)} // Can hijack this or add separate button
+            onVoiceClick={() => setShowInteractionModal(true)} 
          />
       </div>
     </div>

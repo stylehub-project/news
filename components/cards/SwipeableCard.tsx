@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Share2, Bookmark, Clock, ChevronRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { Share2, Bookmark, Clock, ChevronRight, Sparkles, X } from 'lucide-react';
 
 interface SwipeableCardProps {
   data: any;
@@ -34,27 +34,27 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ data, onSwipe, active, ne
     setDragStart(null);
   };
 
-  // Intro/Outro Animation Styles
+  // Stack Styles
   const getStyles = () => {
     if (active) {
       const rotation = offset / 20;
-      const opacity = 1 - Math.abs(offset) / 500;
+      const opacity = 1 - Math.abs(offset) / 800; // Slower fade
       return {
         transform: `translateX(${offset}px) rotate(${rotation}deg) scale(1)`,
         opacity: opacity,
-        zIndex: 10,
+        zIndex: 20,
         transition: isDragging ? 'none' : 'all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1)'
       };
     } else if (next) {
       return {
-        transform: 'scale(0.95) translateY(10px)',
-        opacity: 0.6,
-        zIndex: 5,
-        transition: 'all 0.5s ease'
+        transform: 'scale(0.92) translateY(30px)',
+        opacity: 1, // Keep visible for "stack" look
+        zIndex: 10,
+        transition: 'all 0.5s ease',
       };
     } else {
       return {
-        transform: 'scale(0.9) translateY(20px)',
+        transform: 'scale(0.85) translateY(60px)',
         opacity: 0,
         zIndex: 0
       };
@@ -69,8 +69,11 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ data, onSwipe, active, ne
       onTouchMove={active ? handleTouchMove : undefined}
       onTouchEnd={active ? handleTouchEnd : undefined}
     >
-      <div className="w-full h-full bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden relative border border-gray-100 dark:border-gray-700 select-none">
+      <div className={`w-full h-full bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden relative border border-gray-100 dark:border-gray-700 select-none ${next ? 'border-t-4 border-indigo-500/20' : ''}`}>
         
+        {/* Border Glow for Next Card hint */}
+        {next && <div className="absolute inset-0 bg-black/10 z-50"></div>}
+
         {/* Full Background Image */}
         <div className="absolute inset-0">
             <img src={data.imageUrl} alt={data.title} className="w-full h-full object-cover" />
@@ -88,7 +91,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ data, onSwipe, active, ne
         </div>
 
         {/* Content Overlay */}
-        <div className="absolute bottom-0 left-0 w-full p-6 text-white z-10">
+        <div className="absolute bottom-0 left-0 w-full p-6 text-white z-10 flex flex-col justify-end h-3/4 bg-gradient-to-t from-black via-black/60 to-transparent">
             <div className="flex items-center gap-2 mb-3">
                 <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center">
                     <img src={`https://ui-avatars.com/api/?name=${data.source}&background=random`} className="w-full h-full rounded-full" alt="Source" />
@@ -105,15 +108,20 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ data, onSwipe, active, ne
             </p>
 
             <div className="flex gap-3">
-                <button className="flex-1 bg-white text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors active:scale-95">
+                <button className="flex-1 bg-white text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors active:scale-95 shadow-lg">
                     Read Story <ChevronRight size={16} />
                 </button>
-                <button className="p-3 bg-white/20 backdrop-blur-md rounded-xl hover:bg-white/30 transition-colors">
-                    <Bookmark size={20} />
-                </button>
-                <button className="p-3 bg-white/20 backdrop-blur-md rounded-xl hover:bg-white/30 transition-colors">
-                    <Share2 size={20} />
-                </button>
+                <div className="flex gap-2">
+                    <button className="p-3 bg-white/20 backdrop-blur-md rounded-xl hover:bg-white/30 transition-colors">
+                        <Bookmark size={20} />
+                    </button>
+                    <button className="p-3 bg-white/20 backdrop-blur-md rounded-xl hover:bg-white/30 transition-colors">
+                        <Share2 size={20} />
+                    </button>
+                    <button className="p-3 bg-indigo-500/80 backdrop-blur-md rounded-xl hover:bg-indigo-500 transition-colors">
+                        <Sparkles size={20} className="text-white" />
+                    </button>
+                </div>
             </div>
         </div>
       </div>

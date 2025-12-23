@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import NewsCardBasic from '../../components/cards/NewsCardBasic';
-import HighlightReadingMode from '../../components/HighlightReadingMode';
 import SmartLoader from '../../components/loaders/SmartLoader';
 import { useLoading } from '../../context/LoadingContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -27,7 +26,6 @@ const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { isLoaded, markAsLoaded } = useLoading();
   const [isLoading, setIsLoading] = useState(!isLoaded('home'));
-  const [isReadingMode, setIsReadingMode] = useState(false);
   const [articles, setArticles] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -49,7 +47,7 @@ const HomePage: React.FC = () => {
     { label: t.newspaper, icon: Newspaper, color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200', path: '/newspaper' },
     { label: t.map_news, icon: Map, color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400', path: '/map' },
     { label: t.saved, icon: Bookmark, color: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400', path: '/bookmarks' },
-    { label: t.read_mode, icon: Headphones, color: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400', path: '/' }, 
+    { label: t.read_mode, icon: Headphones, color: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400', path: '/ai-chat?mode=generator' }, 
   ], [t]);
 
   // Initial Load
@@ -61,7 +59,7 @@ const HomePage: React.FC = () => {
             setTimeout(() => {
                 setIsLoading(false);
                 markAsLoaded('home');
-            }, 1500);
+            }, 800); // Reduced Loading Time
         }
     };
     initLoad();
@@ -115,45 +113,48 @@ const HomePage: React.FC = () => {
       }
   };
 
+  // Handler for Speak News Button
+  const handleSpeakNews = () => {
+      navigate('/ai-chat?mode=generator');
+  };
+
   if (isLoading) {
       return <SmartLoader type="home" />;
   }
 
   return (
-    <div className="h-full overflow-y-auto pb-24 bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+    <div className="h-full overflow-y-auto pb-24 bg-gray-50 dark:bg-black transition-colors duration-300">
       
       {/* Hero Section */}
       <div className="p-4 pb-2">
-         {isReadingMode && articles.length > 0 ? (
-             <HighlightReadingMode 
-                text={articles[0].description} 
-                onComplete={() => setIsReadingMode(false)}
-             />
-         ) : (
-            <div className="relative w-full rounded-2xl overflow-hidden shadow-lg h-48 bg-gradient-to-br from-blue-600 to-indigo-900 text-white flex flex-col justify-between p-5">
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20"></div>
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 animate-pulse-slow"></div>
-
-                <div className="relative z-10">
-                    <span className="text-xs font-bold bg-white/20 backdrop-blur-md px-2 py-1 rounded-lg uppercase tracking-wider">
+        <div className="relative w-full rounded-3xl overflow-hidden shadow-2xl h-56 bg-black text-white flex flex-col justify-between p-6">
+            {/* Background Image/Gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 to-black z-0"></div>
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 z-0"></div>
+            
+            {/* Content */}
+            <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-3">
+                    <span className="text-[10px] font-bold bg-white/10 backdrop-blur-md px-2 py-1 rounded border border-white/10 uppercase tracking-widest text-indigo-300">
                         {t.daily_briefing}
                     </span>
-                    <h1 className="text-2xl font-black mt-3 leading-tight drop-shadow-md">
-                        {articles.length > 0 ? articles[0].title : t.todays_highlights}
-                    </h1>
+                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>
                 </div>
-
-                <div className="relative z-10 flex items-center justify-between">
-                    <p className="text-sm text-blue-100 font-medium">{articles.length} Updates • Live</p>
-                    <button 
-                        onClick={() => setIsReadingMode(true)}
-                        className="flex items-center gap-2 bg-white text-blue-900 px-3 py-1.5 rounded-full text-xs font-bold shadow-md active:scale-95 transition-transform"
-                    >
-                        <Mic size={14} /> {t.speak_news}
-                    </button>
-                </div>
+                <h1 className="text-2xl font-black leading-tight drop-shadow-lg line-clamp-3">
+                    {articles.length > 0 ? articles[0].title : t.todays_highlights}
+                </h1>
             </div>
-         )}
+
+            <div className="relative z-10 flex items-center justify-between mt-auto pt-4">
+                <p className="text-xs text-gray-400 font-medium">{articles.length} Stories Updated</p>
+                <button 
+                    onClick={handleSpeakNews}
+                    className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:scale-105 active:scale-95 transition-transform"
+                >
+                    <Mic size={14} /> {t.speak_news}
+                </button>
+            </div>
+        </div>
       </div>
 
       {/* Feature Grid */}
@@ -179,16 +180,16 @@ const HomePage: React.FC = () => {
       <div className="px-4 mb-4">
           <div 
             onClick={() => navigate('/map')}
-            className="w-full h-24 bg-gray-800 rounded-xl relative overflow-hidden flex items-center justify-between p-5 cursor-pointer shadow-sm group"
+            className="w-full h-24 bg-gray-900 rounded-2xl relative overflow-hidden flex items-center justify-between p-5 cursor-pointer shadow-sm group border border-gray-800"
           >
               <div className="absolute inset-0 opacity-20 bg-[url('https://upload.wikimedia.org/wikipedia/commons/e/ec/World_map_blank_without_borders.svg')] bg-cover bg-center invert filter"></div>
               <div className="relative z-10 text-white">
                   <h3 className="font-bold text-lg flex items-center gap-2">
-                      <MapPin size={18} className="text-red-500" /> {t.news_around_you}
+                      <MapPin size={18} className="text-emerald-400" /> {t.news_around_you}
                   </h3>
-                  <p className="text-xs text-gray-300">{t.explore_map}</p>
+                  <p className="text-xs text-gray-400 mt-1">{t.explore_map}</p>
               </div>
-              <div className="relative z-10 bg-white/20 backdrop-blur-sm p-2 rounded-full group-hover:scale-110 transition-transform">
+              <div className="relative z-10 bg-white/10 backdrop-blur-sm p-2 rounded-full group-hover:scale-110 transition-transform">
                   <ArrowRight size={20} className="text-white" />
               </div>
           </div>

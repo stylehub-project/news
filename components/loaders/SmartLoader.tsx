@@ -1,12 +1,5 @@
 import React from 'react';
-import HomeContextLoader from './HomeContextLoader';
-import ChatContextLoader from './ChatContextLoader';
-import MapContextLoader from './MapContextLoader';
-import ReelLoader from './ReelLoader';
-import ProfileSetupLoader from './ProfileSetupLoader';
-import ParticleLoader from './ParticleLoader';
-import FactLoader from './FactLoader';
-import NewsSkeleton from '../skeletons/NewsSkeleton';
+import { Loader2 } from 'lucide-react';
 
 export type SmartLoaderType = 'home' | 'chat' | 'map' | 'reel' | 'profile' | 'article' | 'startup' | 'generic';
 
@@ -17,64 +10,64 @@ interface SmartLoaderProps {
 }
 
 const SmartLoader: React.FC<SmartLoaderProps> = ({ type = 'generic', message, className = '' }) => {
-  const renderContent = () => {
-    switch (type) {
-      case 'home':
-        return <HomeContextLoader />;
-      case 'chat':
-        return <ChatContextLoader />;
-      case 'map':
-        return <MapContextLoader />;
-      case 'reel':
-        return <ReelLoader />;
-      case 'profile':
-        return <ProfileSetupLoader />;
-      case 'article':
+  // Premium Minimalist Loader
+  const renderPremiumLoader = (text: string) => (
+    <div className={`flex flex-col items-center justify-center w-full h-full min-h-[300px] bg-white dark:bg-black ${className}`}>
+        <div className="relative flex items-center justify-center">
+            {/* Outer Ring */}
+            <div className="w-16 h-16 border-4 border-gray-100 dark:border-gray-800 rounded-full"></div>
+            {/* Spinning Indicator */}
+            <div className="absolute w-16 h-16 border-4 border-transparent border-t-indigo-600 rounded-full animate-spin"></div>
+            {/* Inner Brand/Icon */}
+            <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></div>
+            </div>
+        </div>
+        <p className="text-xs font-bold text-gray-400 mt-6 tracking-[0.2em] uppercase animate-pulse">{text}</p>
+    </div>
+  );
+
+  switch (type) {
+    case 'startup':
         return (
-          <div className="p-4 space-y-4 max-w-2xl mx-auto w-full pt-20">
-             <div className="space-y-3">
-                 <div className="h-8 bg-gray-200 rounded w-3/4 animate-pulse"></div>
-                 <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse mb-6"></div>
-                 <NewsSkeleton />
-                 <div className="space-y-2">
-                     <div className="h-4 bg-gray-100 rounded w-full animate-pulse"></div>
-                     <div className="h-4 bg-gray-100 rounded w-full animate-pulse"></div>
-                     <div className="h-4 bg-gray-100 rounded w-5/6 animate-pulse"></div>
+             <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-50 text-white">
+                 <div className="relative mb-8">
+                     <div className="w-20 h-20 bg-indigo-600 rounded-3xl rotate-45 flex items-center justify-center shadow-[0_0_40px_rgba(79,70,229,0.6)] animate-in zoom-in duration-700">
+                        <span className="text-4xl font-black text-white -rotate-45">N</span>
+                     </div>
+                 </div>
+                 <p className="text-indigo-400 text-xs font-medium tracking-[0.3em] uppercase animate-pulse">Initializing</p>
+             </div>
+         );
+    case 'home':
+        return renderPremiumLoader("Curating Your Feed");
+    case 'chat':
+        return renderPremiumLoader("Connecting to Gemini");
+    case 'map':
+        return renderPremiumLoader("Loading Satellite Data");
+    case 'reel':
+        return renderPremiumLoader("Preparing Stories");
+    case 'profile':
+        return renderPremiumLoader("Syncing Preferences");
+    case 'article':
+        return (
+          <div className="p-6 space-y-6 max-w-2xl mx-auto w-full pt-20 bg-white dark:bg-black">
+             <div className="space-y-4 animate-pulse">
+                 <div className="h-3 w-24 bg-indigo-50 dark:bg-indigo-900/30 rounded-full"></div>
+                 <div className="h-10 bg-gray-100 dark:bg-gray-800 rounded-xl w-3/4"></div>
+                 <div className="h-10 bg-gray-100 dark:bg-gray-800 rounded-xl w-1/2"></div>
+                 <div className="h-64 bg-gray-100 dark:bg-gray-800 rounded-2xl w-full mt-6"></div>
+                 <div className="space-y-2 mt-6">
+                     <div className="h-4 bg-gray-50 dark:bg-gray-900 rounded w-full"></div>
+                     <div className="h-4 bg-gray-50 dark:bg-gray-900 rounded w-full"></div>
+                     <div className="h-4 bg-gray-50 dark:bg-gray-900 rounded w-5/6"></div>
                  </div>
              </div>
           </div>
         );
-      case 'startup':
-         return (
-             <div className="fixed inset-0 bg-blue-600 flex flex-col items-center justify-center z-50 text-white">
-                 <ParticleLoader count={20} className="absolute inset-0 bg-transparent opacity-50" />
-                 <div className="relative z-10 w-full max-w-sm px-6">
-                     <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-8 mx-auto shadow-2xl animate-bounce">
-                        <span className="text-3xl font-black text-blue-600">N</span>
-                     </div>
-                     <FactLoader type="general" className="bg-white/10 border-white/20 text-white" />
-                 </div>
-             </div>
-         );
-      case 'generic':
-      default:
-        return (
-            <div className={`flex flex-col items-center justify-center w-full h-full min-h-[300px] bg-gray-50 ${className}`}>
-                <div className="relative">
-                    <div className="absolute inset-0 bg-blue-500 blur-xl opacity-20 animate-pulse rounded-full"></div>
-                    <ParticleLoader count={5} className="w-32 h-32 bg-transparent" />
-                </div>
-                {message && <p className="text-gray-500 font-medium mt-4 animate-pulse">{message}</p>}
-            </div>
-        );
-    }
-  };
-
-  return (
-    <div className={`w-full h-full ${className}`}>
-        {renderContent()}
-    </div>
-  );
+    default:
+        return renderPremiumLoader(message || "Loading");
+  }
 };
 
 export default SmartLoader;
