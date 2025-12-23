@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Play, Pause, Download, Sparkles, RefreshCw, Music, Settings2, FileText } from 'lucide-react';
+import { X, Play, Pause, Download, Sparkles, RefreshCw, Music, Settings2, FileText, Mic, Radio } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -107,9 +107,9 @@ interface AudioGeneratorProps {
 const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
   const [step, setStep] = useState<'config' | 'generating' | 'playing'>('config');
   const [topic, setTopic] = useState('');
-  const [language, setLanguage] = useState('Hinglish');
-  const [tone, setTone] = useState('Casual');
-  const [mode, setMode] = useState('Summary');
+  const [language, setLanguage] = useState('English');
+  const [tone, setTone] = useState('Reporter');
+  const [mode, setMode] = useState('Reporting');
   
   const [script, setScript] = useState('');
   const [loadingText, setLoadingText] = useState('');
@@ -130,27 +130,49 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
       return (typeof window !== 'undefined' && window.process?.env?.API_KEY) || (import.meta as any).env.VITE_API_KEY || '';
   };
 
-  const handleGenerate = async () => {
-      if (!topic.trim()) return;
+  const generateAudioWithSettings = async (t: string, l: string, tn: string, m: string) => {
+      setTopic(t);
+      setLanguage(l);
+      setTone(tn);
+      setMode(m);
+      
       setStep('generating');
-      setLoadingText('Drafting conversation script...');
+      setLoadingText('Connecting to Newsroom...');
 
       try {
           const apiKey = getApiKey();
           if (!apiKey) throw new Error("API Key Missing");
           const ai = new GoogleGenAI({ apiKey });
 
+          let promptToneInstruction = "";
+          if (tn === 'Reporter' && m === 'Reporting') {
+              promptToneInstruction = `
+              STYLE: Professional News Anchor / Broadcast Journalism.
+              STRUCTURE:
+              1. Start with a catchy news intro (e.g., "Welcome to News Club Daily...").
+              2. Host 'Joe' covers the main headlines.
+              3. Host 'Jane' provides analysis or a secondary story.
+              4. Fast-paced, energetic delivery. Use phrases like "Breaking News", "Developing Story", "Top of the hour".
+              5. Keep it crisp. No casual fillers like "um" or "uh".
+              `;
+          } else {
+              promptToneInstruction = `
+              Tone: ${tn}.
+              Mode: ${m} (If summary, keep it short. If Deep Dive, make it detailed).
+              Make it sound natural, engaging, and conversational.
+              `;
+          }
+
           // 1. Generate Script
           const scriptPrompt = `
-            Create a spoken podcast dialogue between two hosts, Joe (Male) and Jane (Female), about: "${topic}".
-            Language: ${language}.
-            Tone: ${tone}.
-            Mode: ${mode} (If summary, keep it short. If Deep Dive, make it detailed).
+            Create a spoken podcast dialogue between two hosts, Joe (Male) and Jane (Female), about: "${t}".
+            Language: ${l}.
+            ${promptToneInstruction}
             Format:
             Joe: [text]
             Jane: [text]
             ...
-            Make it sound natural, engaging, and conversational. Avoid formatting symbols like ** or *.
+            Avoid formatting symbols like ** or *. Just pure dialogue text.
           `;
 
           const scriptResponse = await ai.models.generateContent({
@@ -160,7 +182,7 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
           
           const generatedScript = scriptResponse.text || "Sorry, could not generate script.";
           setScript(generatedScript);
-          setLoadingText('Synthesizing high-fidelity audio...');
+          setLoadingText('Synthesizing high-fidelity broadcast...');
 
           // 2. Generate Audio
           const ttsResponse = await ai.models.generateContent({
@@ -216,6 +238,15 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
       }
   };
 
+  const handleGenerate = () => {
+      if (!topic.trim()) return;
+      generateAudioWithSettings(topic, language, tone, mode);
+  };
+
+  const handlePlayDemo = () => {
+      generateAudioWithSettings("Today's Top Global Headlines: Tech, Politics, and Finance", "English", "Reporter", "Reporting");
+  };
+
   const togglePlay = () => {
       if (!audioContextRef.current || !audioBufferRef.current) return;
 
@@ -248,15 +279,6 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
           };
 
           // Visualizer Loop
-          const updateVisuals = () => {
-              if (analyserRef.current && isPlaying) { // Check isPlaying in loop not perfectly reliable due to closure, relies on source state
-                  const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-                  analyserRef.current.getByteFrequencyData(dataArray);
-                  setVisualData(dataArray);
-                  requestAnimationFrame(updateVisuals);
-              }
-          };
-          // Start the loop external to this toggle to fix closure scope, or use ref
           animateVisualizer();
       }
   };
@@ -301,10 +323,35 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
               </div>
 
               <div className="flex-1 p-6 overflow-y-auto max-w-md mx-auto w-full space-y-6">
+                  
+                  {/* Demo Card */}
+                  <div 
+                    className="bg-gradient-to-r from-red-600 to-red-700 rounded-xl p-5 text-white shadow-xl relative overflow-hidden group cursor-pointer hover:shadow-2xl transition-all active:scale-98" 
+                    onClick={handlePlayDemo}
+                  >
+                        <div className="absolute right-[-10px] bottom-[-20px] opacity-10 transform rotate-12">
+                            <Radio size={80} />
+                        </div>
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="bg-white/20 backdrop-blur-md text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider border border-white/20">Demo</span>
+                                <span className="flex h-2 w-2 relative">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                                </span>
+                            </div>
+                            <h3 className="font-bold text-xl leading-tight mb-1">Today's Daily Briefing</h3>
+                            <p className="text-red-100 text-xs mb-4 opacity-90">Listen to today's top stories in broadcast style.</p>
+                            <div className="flex items-center gap-2 text-xs font-bold bg-white text-red-700 px-4 py-2 rounded-full w-fit shadow-md group-hover:bg-red-50 transition-colors">
+                                <Play size={12} fill="currentColor" /> Play Now
+                            </div>
+                        </div>
+                  </div>
+
                   <div>
-                      <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Topic / Headline</label>
+                      <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Custom Topic</label>
                       <textarea 
-                          className="w-full p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none text-gray-900 dark:text-white h-32 resize-none shadow-sm"
+                          className="w-full p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none text-gray-900 dark:text-white h-24 resize-none shadow-sm"
                           placeholder="What should they talk about? e.g. 'The future of space travel'..."
                           value={topic}
                           onChange={(e) => setTopic(e.target.value)}
@@ -317,10 +364,10 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
                           <select 
                             value={language}
                             onChange={(e) => setLanguage(e.target.value)}
-                            className="w-full p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white outline-none"
+                            className="w-full p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
                           >
-                              <option value="Hinglish">Hinglish (Default)</option>
                               <option value="English">English</option>
+                              <option value="Hinglish">Hinglish</option>
                               <option value="Hindi">Hindi</option>
                           </select>
                       </div>
@@ -329,8 +376,9 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
                           <select 
                             value={tone}
                             onChange={(e) => setTone(e.target.value)}
-                            className="w-full p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white outline-none"
+                            className="w-full p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
                           >
+                              <option value="Reporter">Reporter</option>
                               <option value="Casual">Casual</option>
                               <option value="Professional">Professional</option>
                               <option value="Dramatic">Dramatic</option>
@@ -341,12 +389,12 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
 
                   <div>
                       <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Mode</label>
-                      <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
-                          {['Summary', 'Deep Dive', 'Debate'].map(m => (
+                      <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg overflow-x-auto">
+                          {['Summary', 'Deep Dive', 'Debate', 'Reporting'].map(m => (
                               <button 
                                 key={m}
                                 onClick={() => setMode(m)}
-                                className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${mode === m ? 'bg-white dark:bg-gray-700 shadow text-indigo-600 dark:text-indigo-400' : 'text-gray-500'}`}
+                                className={`flex-1 py-2 px-3 text-xs font-bold rounded-md transition-all whitespace-nowrap ${mode === m ? 'bg-white dark:bg-gray-700 shadow text-indigo-600 dark:text-indigo-400' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
                               >
                                   {m}
                               </button>
