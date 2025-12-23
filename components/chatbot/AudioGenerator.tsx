@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Play, Pause, Download, Sparkles, RefreshCw, Music, Settings2, FileText, Zap, Radio, Clock } from 'lucide-react';
+import { X, Play, Pause, Download, Sparkles, RefreshCw, Music, Settings2, FileText, Mic, Radio, Clock, Zap } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import Button from '../ui/Button';
 
-// ... (Keep existing helpers: writeString, floatTo16BitPCM, encodeWAV, decodeBase64, decodeRawPCM)
+// --- Audio Helpers ---
+
 function writeString(view: DataView, offset: number, string: string) {
   for (let i = 0; i < string.length; i++) {
     view.setUint8(offset + i, string.charCodeAt(i));
@@ -26,8 +27,8 @@ function encodeWAV(samples: Float32Array, sampleRate: number) {
   writeString(view, 8, 'WAVE');
   writeString(view, 12, 'fmt ');
   view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); 
-  view.setUint16(22, 1, true); 
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // Mono
   view.setUint32(24, sampleRate, true);
   view.setUint32(28, sampleRate * 2, true);
   view.setUint16(32, 2, true);
@@ -39,6 +40,7 @@ function encodeWAV(samples: Float32Array, sampleRate: number) {
   return view;
 }
 
+// Decode Base64 string to Uint8Array
 function decodeBase64(base64: string) {
   const binaryString = atob(base64);
   const len = binaryString.length;
@@ -49,6 +51,7 @@ function decodeBase64(base64: string) {
   return bytes;
 }
 
+// Manual decoding of Raw PCM (Int16) to AudioBuffer (Float32)
 async function decodeRawPCM(
   data: Uint8Array,
   ctx: AudioContext,
@@ -149,7 +152,7 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
   const [playbackTime, setPlaybackTime] = useState(0);
   const startTimeRef = useRef(0);
 
-  const generateAudioWithSettings = async (t: string, l: string, tn: string, m: string, d: string) => {
+  const generateAudioWithSettings = async (t: string, l: string, tn: string, m: string, dur: string) => {
       setTopic(t);
       setStep('generating');
       setLoadingText('Connecting to Newsroom...');
@@ -160,14 +163,17 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
           const ai = new GoogleGenAI({ apiKey });
 
           // 1. Script Generation
-          const lengthInstruction = d === 'Short' ? "Keep it under 50 words." : "Keep it under 150 words with deeper detail.";
+          const durationConstraint = dur === 'Short' 
+            ? "Keep it very concise, under 100 words. Focus only on the most critical facts." 
+            : "Provide a detailed discussion, around 300 words. Explore nuances and context.";
+
           const scriptPrompt = `
             Create a spoken dialogue between Joe (Male) and Jane (Female) about: "${t}".
             Language: ${l} (If Hinglish, mix Hindi and English naturally).
             Tone: ${tn}. 
             Format: ${m}.
-            Structure lines as "Joe: ..." and "Jane: ...".
-            ${lengthInstruction}
+            Constraint: ${durationConstraint}
+            Structure lines strictly as "Joe: ..." and "Jane: ...".
           `;
 
           const scriptResponse = await ai.models.generateContent({
@@ -233,10 +239,8 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
       generateAudioWithSettings(topic, language, tone, mode, duration);
   };
 
-  const handleTodaysHeadlines = () => {
-      const todayTopic = "Top news headlines for today including tech, politics, and world events";
-      setTopic(todayTopic);
-      generateAudioWithSettings(todayTopic, language, tone, mode, duration);
+  const handleQuickDailyBriefing = () => {
+      generateAudioWithSettings("Today's Top Global Headlines", "English", "Professional", "News Briefing", duration);
   };
 
   const togglePlay = () => {
@@ -308,14 +312,14 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
                   <Button 
                     variant="secondary" 
                     fullWidth 
-                    onClick={handleTodaysHeadlines}
-                    className="border-indigo-100 dark:border-indigo-900 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300"
-                    leftIcon={<Zap size={16} />}
+                    onClick={handleQuickDailyBriefing}
+                    className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 border-indigo-100 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 shadow-sm"
+                    leftIcon={<Zap size={18} className="text-yellow-500 fill-yellow-500" />}
                   >
                     Generate Today's Headlines
                   </Button>
 
-                  <hr className="border-gray-200 dark:border-gray-800" />
+                  <div className="h-px bg-gray-200 dark:bg-gray-800 w-full"></div>
 
                   <div>
                       <label className="block text-sm font-bold mb-2">Topic</label>
@@ -331,7 +335,7 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
                       <div>
                           <label className="block text-xs font-bold uppercase mb-2">Language</label>
                           <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full p-3 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 outline-none">
-                              <option value="Hinglish">Hinglish (Default)</option>
+                              <option value="Hinglish">Hinglish</option>
                               <option value="English">English</option>
                               <option value="Hindi">Hindi</option>
                               <option value="Spanish">Spanish</option>
@@ -351,6 +355,7 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
                       </div>
                   </div>
 
+                  {/* Mode Selection */}
                   <div>
                       <label className="block text-xs font-bold uppercase mb-2">Format Mode</label>
                       <div className="grid grid-cols-2 gap-2">
@@ -358,7 +363,7 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
                               <button
                                 key={m}
                                 onClick={() => setMode(m)}
-                                className={`p-3 rounded-lg text-xs font-medium border transition-all ${mode === m ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-300'}`}
+                                className={`p-3 rounded-lg text-sm font-medium border transition-all ${mode === m ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-300'}`}
                               >
                                 {m}
                               </button>
@@ -366,17 +371,18 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
                       </div>
                   </div>
 
+                  {/* Duration Selection */}
                   <div>
                       <label className="block text-xs font-bold uppercase mb-2">Duration</label>
-                      <div className="flex gap-2">
+                      <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
                           {['Short', 'Long'].map((d) => (
                               <button
                                 key={d}
                                 onClick={() => setDuration(d as any)}
-                                className={`flex-1 p-3 rounded-lg text-sm font-medium border transition-all flex items-center justify-center gap-2 ${duration === d ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-300'}`}
+                                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${duration === d ? 'bg-white dark:bg-gray-700 shadow-sm text-indigo-600 dark:text-white' : 'text-gray-500'}`}
                               >
-                                {d === 'Short' ? <Zap size={14} /> : <Clock size={14} />}
-                                {d}
+                                  {d === 'Short' ? <Clock size={14} /> : <FileText size={14} />}
+                                  {d} ({d === 'Short' ? '~1 min' : '~3 min'})
                               </button>
                           ))}
                       </div>

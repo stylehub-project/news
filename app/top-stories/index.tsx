@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 import SwipeableCard from '../../components/cards/SwipeableCard';
 import SmartLoader from '../../components/loaders/SmartLoader';
-import { RefreshCw, Filter } from 'lucide-react';
-import { fetchNewsFeed } from '../../utils/aiService';
-import { useNavigate } from 'react-router-dom';
 import Toast, { ToastType } from '../../components/ui/Toast';
+import { fetchNewsFeed } from '../../utils/aiService';
 
 const TopStoriesPage = () => {
   const navigate = useNavigate();
@@ -13,13 +12,15 @@ const TopStoriesPage = () => {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [filter, setFilter] = useState('All');
-  const [toast, setToast] = useState<{ show: boolean; msg: string; type: ToastType }>({ show: false, msg: '', type: 'success' });
+  const [toast, setToast] = useState<{show: boolean, msg: string, type: ToastType}>({ show: false, msg: '', type: 'success' });
   
   // Throttle wheel events
   const lastWheelTime = useRef(0);
 
   const loadStories = async (selectedFilter = 'All') => {
       setLoading(true);
+      // Simulate network delay for loader demo
+      await new Promise(r => setTimeout(r, 1000));
       const news = await fetchNewsFeed(1, { category: selectedFilter, sort: 'Top' });
       setArticles(news);
       setLoading(false);
@@ -46,9 +47,58 @@ const TopStoriesPage = () => {
       if (now - lastWheelTime.current < 500) return; // Throttle 500ms
 
       if (e.deltaY > 50) {
-          // Scroll Down -> Next Story (Simulate Swipe Left/Next)
+          // Scroll Down -> Next Story
           lastWheelTime.current = now;
-          handleSwipe('left');
+          handleSwipe('left'); // Trigger swipe logic
+      }
+  };
+
+  // --- Interaction Handlers ---
+
+  const handleSave = (id: string) => {
+      try {
+          const article = articles.find(a => a.id === id);
+          if (!article) return;
+
+          const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
+          const exists = bookmarks.some((b: any) => b.id === id);
+          
+          if (exists) {
+              const filtered = bookmarks.filter((b: any) => b.id !== id);
+              localStorage.setItem('bookmarks', JSON.stringify(filtered));
+              setToast({ show: true, msg: 'Removed from Bookmarks', type: 'info' });
+          } else {
+              const newBookmark = { 
+                  id: article.id, 
+                  title: article.title, 
+                  source: article.source, 
+                  category: article.category,
+                  imageUrl: article.imageUrl,
+                  savedAt: new Date().toLocaleDateString()
+              };
+              localStorage.setItem('bookmarks', JSON.stringify([newBookmark, ...bookmarks]));
+              setToast({ show: true, msg: 'Saved to Bookmarks', type: 'success' });
+          }
+      } catch (e) {
+          console.error(e);
+      }
+  };
+
+  const handleShare = async (id: string) => {
+      const article = articles.find(a => a.id === id);
+      if (!article) return;
+
+      if (navigator.share) {
+          try {
+              await navigator.share({
+                  title: article.title,
+                  text: article.description,
+                  url: window.location.href
+              });
+          } catch (e) {}
+      } else {
+          setToast({ show: true, msg: 'Link copied to clipboard', type: 'success' });
+          navigator.clipboard.writeText(window.location.href);
       }
   };
 
@@ -59,24 +109,15 @@ const TopStoriesPage = () => {
       }
   };
 
-  const handleSave = (id: string) => {
-      setToast({ show: true, msg: 'Saved to bookmarks', type: 'success' });
-  };
-
-  const handleShare = (id: string) => {
-      setToast({ show: true, msg: 'Shared link copied', type: 'info' });
-  };
-
   return (
     <div className="h-full bg-gray-50 dark:bg-black flex flex-col relative overflow-hidden">
       
       {toast.show && (
-          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[60]">
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] animate-in fade-in slide-in-from-top-4">
               <Toast 
-                type={toast.type} 
-                message={toast.msg} 
-                onClose={() => setToast(prev => ({ ...prev, show: false }))} 
-                duration={2000}
+                  type={toast.type} 
+                  message={toast.msg} 
+                  onClose={() => setToast(prev => ({ ...prev, show: false }))} 
               />
           </div>
       )}
@@ -118,10 +159,10 @@ const TopStoriesPage = () => {
                                 key={article.id} 
                                 data={article} 
                                 active={true} 
-                                onSwipe={handleSwipe} 
-                                onAIExplain={handleAIExplain}
+                                onSwipe={handleSwipe}
                                 onSave={handleSave}
                                 onShare={handleShare}
+                                onAIExplain={handleAIExplain}
                             />
                           );
                       } else if (index === (currentIndex + 1) % articles.length) {
@@ -132,9 +173,6 @@ const TopStoriesPage = () => {
                                 active={false} 
                                 next={true} 
                                 onSwipe={handleSwipe}
-                                onAIExplain={handleAIExplain}
-                                onSave={handleSave}
-                                onShare={handleShare}
                             />
                           );
                       }

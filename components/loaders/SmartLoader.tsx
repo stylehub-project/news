@@ -1,6 +1,11 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 import SwipeableCardLoader from './SwipeableCardLoader';
+import HomeContextLoader from './HomeContextLoader';
+import ChatContextLoader from './ChatContextLoader';
+import MapContextLoader from './MapContextLoader';
+import ReelLoader from './ReelLoader';
+import ProfileSetupLoader from './ProfileSetupLoader';
 
 export type SmartLoaderType = 'home' | 'chat' | 'map' | 'reel' | 'profile' | 'article' | 'startup' | 'generic' | 'headlines';
 
@@ -11,7 +16,7 @@ interface SmartLoaderProps {
 }
 
 const SmartLoader: React.FC<SmartLoaderProps> = ({ type = 'generic', message, className = '' }) => {
-  // Premium Minimalist Loader
+  // Premium Minimalist Loader for generic/article states
   const renderPremiumLoader = (text: string) => (
     <div className={`flex flex-col items-center justify-center w-full h-full min-h-[300px] bg-white dark:bg-black ${className}`}>
         <div className="relative flex items-center justify-center">
@@ -41,17 +46,17 @@ const SmartLoader: React.FC<SmartLoaderProps> = ({ type = 'generic', message, cl
              </div>
          );
     case 'home':
-        return renderPremiumLoader("Curating Your Feed");
+        return <HomeContextLoader />;
     case 'chat':
-        return renderPremiumLoader("Connecting to Gemini");
+        return <ChatContextLoader />;
     case 'map':
-        return renderPremiumLoader("Loading Satellite Data");
+        return <MapContextLoader />;
     case 'reel':
-        return renderPremiumLoader("Preparing Stories");
+        return <ReelLoader />;
     case 'headlines':
         return <SwipeableCardLoader />;
     case 'profile':
-        return renderPremiumLoader("Syncing Preferences");
+        return <ProfileSetupLoader />;
     case 'article':
         return (
           <div className="p-6 space-y-6 max-w-2xl mx-auto w-full pt-20 bg-white dark:bg-black">
