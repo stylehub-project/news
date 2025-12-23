@@ -13,7 +13,7 @@ const INITIAL_REELS = [
     id: '1',
     title: 'Global Markets Rally as Tech Giants Announce New AI Partnership',
     description: 'Major tech companies have agreed on a unified framework for AI development, causing stock markets to surge globally. Analysts predict this could be the biggest shift in the industry since the internet.',
-    // Updated Image URL to a reliable source
+    // Updated Image URL
     imageUrl: 'https://images.unsplash.com/photo-1611974765270-ca12586343bb?q=80&w=1000&auto=format&fit=crop', 
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-futuristic-robotic-arm-working-on-a-circuit-board-42996-large.mp4',
     source: 'TechCrunch',
@@ -32,9 +32,9 @@ const INITIAL_REELS = [
     factCheck: { status: 'Verified', score: 98 },
     location: { name: 'San Francisco, CA', lat: 37.7749, lng: -122.4194 },
     relatedNews: [
-        { id: 'r1', title: 'EU AI Act enters final stages', image: 'https://picsum.photos/150/150?random=1', time: '1h ago' },
-        { id: 'r2', title: 'Semiconductor stocks surge', image: 'https://picsum.photos/150/150?random=2', time: '3h ago' },
-        { id: 'r3', title: 'Opinion: The future of work', image: 'https://picsum.photos/150/150?random=3', time: '5h ago' }
+        { id: 'r1', title: 'EU AI Act enters final stages', image: 'https://picsum.photos/seed/tech1/150/150', time: '1h ago' },
+        { id: 'r2', title: 'Semiconductor stocks surge', image: 'https://picsum.photos/seed/tech2/150/150', time: '3h ago' },
+        { id: 'r3', title: 'Opinion: The future of work', image: 'https://picsum.photos/seed/tech3/150/150', time: '5h ago' }
     ],
     personalizationReason: "Because you read Tech"
   },
@@ -59,8 +59,8 @@ const INITIAL_REELS = [
     factCheck: { status: 'Verified', score: 95 },
     location: { name: 'Boca Chica, TX', lat: 25.9973, lng: -97.1560 },
     relatedNews: [
-        { id: 'r4', title: 'NASA congratulates SpaceX', image: 'https://picsum.photos/150/150?random=4', time: '30m ago' },
-        { id: 'r5', title: 'Mars colonization timeline', image: 'https://picsum.photos/150/150?random=5', time: '6h ago' }
+        { id: 'r4', title: 'NASA congratulates SpaceX', image: 'https://picsum.photos/seed/space1/150/150', time: '30m ago' },
+        { id: 'r5', title: 'Mars colonization timeline', image: 'https://picsum.photos/seed/space2/150/150', time: '6h ago' }
     ],
     personalizationReason: "Trending Worldwide"
   },
@@ -85,8 +85,8 @@ const INITIAL_REELS = [
     ],
     factCheck: { status: 'Reviewing', score: 75 },
     relatedNews: [
-        { id: 'r6', title: 'Tesla stock analysis', image: 'https://picsum.photos/150/150?random=6', time: '1d ago' },
-        { id: 'r7', title: 'Lithium mining impact', image: 'https://picsum.photos/150/150?random=7', time: '2d ago' }
+        { id: 'r6', title: 'Tesla stock analysis', image: 'https://picsum.photos/seed/green1/150/150', time: '1d ago' },
+        { id: 'r7', title: 'Lithium mining impact', image: 'https://picsum.photos/seed/green2/150/150', time: '2d ago' }
     ],
     personalizationReason: "Popular in Science"
   }
@@ -166,7 +166,8 @@ const ReelPage: React.FC = () => {
           const newReels = INITIAL_REELS.map(r => ({
               ...r,
               id: `${r.id}-${Date.now()}-${Math.random()}`,
-              title: `${r.title} (Updated Feed)`
+              title: `${r.title} (Updated Feed)`,
+              imageUrl: `https://picsum.photos/seed/${Date.now() + Math.random()}/1000/1500` // New image for each fetch
           }));
           
           setReels(prev => [...prev, ...newReels]);

@@ -8,7 +8,8 @@ const getApiKey = () => {
 export const fetchNewsFeed = async (page: number, filters: any) => {
   try {
     const apiKey = getApiKey();
-    if (!apiKey) throw new Error("API Key Missing");
+    // If no API key, immediately return mock data to prevent errors in dev mode
+    if (!apiKey) return getMockData(page, filters.category);
     
     const ai = new GoogleGenAI({ apiKey });
     
@@ -61,67 +62,58 @@ export const fetchNewsFeed = async (page: number, filters: any) => {
     });
 
     const text = response.text;
-    if (!text) return getMockData();
+    if (!text) return getMockData(page, filters.category);
     
     try {
-        // Sanitize markdown code blocks if present (common issue even with responseMimeType)
         const cleanText = text.replace(/```json\n?|```/g, '').trim();
         return JSON.parse(cleanText);
     } catch (parseError) {
         console.warn("JSON Parse Failed, using fallback data", parseError);
-        return getMockData();
+        return getMockData(page, filters.category);
     }
 
   } catch (error) {
     console.error("AI Fetch Error", error);
-    return getMockData();
+    // Fallback to mock data with pagination support
+    return getMockData(page, filters.category);
   }
 };
 
-const getMockData = () => [
-    {
-        id: `err-${Date.now()}-1`,
-        title: "Global Markets Rally Amidst Tech Innovation Surge",
-        description: "Major indices hit record highs as new AI regulations provide clarity for investors.",
-        source: "Financial Times",
-        timeAgo: "1h ago",
-        category: "Business",
-        imageUrl: "https://images.unsplash.com/photo-1611974765270-ca12586343bb?q=80&w=1000&auto=format&fit=crop"
-    },
-    {
-        id: `err-${Date.now()}-2`,
-        title: "Breakthrough in Clean Energy Storage Announced",
-        description: "Scientists have developed a new battery technology that could revolutionize solar power.",
-        source: "Science Daily",
-        timeAgo: "3h ago",
-        category: "Science",
-        imageUrl: "https://images.unsplash.com/photo-1509391366360-2e959784a276?q=80&w=1000&auto=format&fit=crop"
-    },
-    {
-        id: `err-${Date.now()}-3`,
-        title: "New Space Mission to Mars Confirmed for 2026",
-        description: "International space agencies announce joint venture for next-gen rover deployment.",
-        source: "SpaceNews",
-        timeAgo: "5h ago",
-        category: "Technology",
-        imageUrl: "https://images.unsplash.com/photo-1517976487492-5750f3195933?q=80&w=1000&auto=format&fit=crop"
-    },
-    {
-        id: `err-${Date.now()}-4`,
-        title: "AI Policy Summit Concludes with Historic Agreement",
-        description: "World leaders sign first comprehensive treaty on artificial intelligence safety.",
-        source: "Global Policy",
-        timeAgo: "6h ago",
-        category: "Politics",
-        imageUrl: "https://images.unsplash.com/photo-1555421689-d68471e18963?q=80&w=1000&auto=format&fit=crop"
-    },
-    {
-        id: `err-${Date.now()}-5`,
-        title: "Health Tech: Wearables Predict Viral Outbreaks",
-        description: "New study shows smartwatches can detect flu symptoms days before they appear.",
-        source: "Healthline",
-        timeAgo: "8h ago",
-        category: "Health",
-        imageUrl: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?q=80&w=1000&auto=format&fit=crop"
-    }
-];
+const getMockData = (page: number, category: string = 'General') => {
+    // Generate deterministic but unique data based on page number
+    // This ensures infinite scroll loads "new" data every time the page increments
+    const baseSeed = page * 100;
+    
+    return Array.from({ length: 5 }).map((_, i) => {
+        const itemSeed = baseSeed + i;
+        const categories = ['Technology', 'Business', 'Science', 'Politics', 'Health', 'World'];
+        const cat = category === 'All' ? categories[itemSeed % categories.length] : category;
+        
+        return {
+            id: `news-${Date.now()}-${itemSeed}`,
+            title: getHeadline(cat, itemSeed),
+            description: "Detailed analysis of the current situation reveals significant shifts in the global landscape, affecting markets and consumer behavior alike. Experts suggest immediate action.",
+            source: ["TechCrunch", "BBC", "CNN", "Reuters", "The Verge", "Bloomberg"][itemSeed % 6],
+            timeAgo: `${(i % 12) + 1}h ago`,
+            category: cat,
+            // Use picsum with seed for consistent but unique images per item
+            imageUrl: `https://picsum.photos/seed/${itemSeed}/800/600` 
+        };
+    });
+};
+
+const getHeadline = (category: string, seed: number) => {
+    const templates = [
+        "Major Breakthrough in {cat} Shocks Industry Experts",
+        "Global {cat} Summit Reaches Historic Agreement",
+        "Why {cat} is the Next Big Investment Opportunity",
+        "The Future of {cat}: Trends to Watch in 2025",
+        "Controversial {cat} Policy Sparks Debate Worldwide",
+        "Top 10 Innovations in {cat} You Need to Know",
+        "{cat} Giant Announces Surprise Merger",
+        "Local Impact of Global {cat} Changes",
+        "New Report Reveals Hidden Risks in {cat} Sector",
+        "Exclusive: Inside the {cat} Revolution"
+    ];
+    return templates[seed % templates.length].replace("{cat}", category);
+};
