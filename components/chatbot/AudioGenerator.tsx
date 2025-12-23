@@ -58,7 +58,13 @@ async function decodeRawPCM(
   sampleRate: number = 24000,
   numChannels: number = 1,
 ): Promise<AudioBuffer> {
-  const dataInt16 = new Int16Array(data.buffer);
+  // Ensure we have an even number of bytes for Int16Array
+  let alignedData = data;
+  if (data.byteLength % 2 !== 0) {
+      alignedData = data.slice(0, data.byteLength - 1);
+  }
+
+  const dataInt16 = new Int16Array(alignedData.buffer);
   const frameCount = dataInt16.length / numChannels;
   const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
 

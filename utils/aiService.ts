@@ -61,31 +61,67 @@ export const fetchNewsFeed = async (page: number, filters: any) => {
     });
 
     const text = response.text;
-    if (!text) return [];
+    if (!text) return getMockData();
     
-    return JSON.parse(text);
+    try {
+        // Sanitize markdown code blocks if present (common issue even with responseMimeType)
+        const cleanText = text.replace(/```json\n?|```/g, '').trim();
+        return JSON.parse(cleanText);
+    } catch (parseError) {
+        console.warn("JSON Parse Failed, using fallback data", parseError);
+        return getMockData();
+    }
+
   } catch (error) {
     console.error("AI Fetch Error", error);
-    // Fallback Mock Data if API fails
-    return [
-        {
-            id: `err-${Date.now()}-1`,
-            title: "Global Markets Rally Amidst Tech Innovation Surge",
-            description: "Major indices hit record highs as new AI regulations provide clarity for investors.",
-            source: "Financial Times",
-            timeAgo: "1h ago",
-            category: "Business",
-            imageUrl: "https://picsum.photos/600/400?random=201"
-        },
-        {
-            id: `err-${Date.now()}-2`,
-            title: "Breakthrough in Clean Energy Storage Announced",
-            description: "Scientists have developed a new battery technology that could revolutionize solar power.",
-            source: "Science Daily",
-            timeAgo: "3h ago",
-            category: "Science",
-            imageUrl: "https://picsum.photos/600/400?random=202"
-        }
-    ];
+    return getMockData();
   }
 };
+
+const getMockData = () => [
+    {
+        id: `err-${Date.now()}-1`,
+        title: "Global Markets Rally Amidst Tech Innovation Surge",
+        description: "Major indices hit record highs as new AI regulations provide clarity for investors.",
+        source: "Financial Times",
+        timeAgo: "1h ago",
+        category: "Business",
+        imageUrl: "https://images.unsplash.com/photo-1611974765270-ca12586343bb?q=80&w=1000&auto=format&fit=crop"
+    },
+    {
+        id: `err-${Date.now()}-2`,
+        title: "Breakthrough in Clean Energy Storage Announced",
+        description: "Scientists have developed a new battery technology that could revolutionize solar power.",
+        source: "Science Daily",
+        timeAgo: "3h ago",
+        category: "Science",
+        imageUrl: "https://images.unsplash.com/photo-1509391366360-2e959784a276?q=80&w=1000&auto=format&fit=crop"
+    },
+    {
+        id: `err-${Date.now()}-3`,
+        title: "New Space Mission to Mars Confirmed for 2026",
+        description: "International space agencies announce joint venture for next-gen rover deployment.",
+        source: "SpaceNews",
+        timeAgo: "5h ago",
+        category: "Technology",
+        imageUrl: "https://images.unsplash.com/photo-1517976487492-5750f3195933?q=80&w=1000&auto=format&fit=crop"
+    },
+    {
+        id: `err-${Date.now()}-4`,
+        title: "AI Policy Summit Concludes with Historic Agreement",
+        description: "World leaders sign first comprehensive treaty on artificial intelligence safety.",
+        source: "Global Policy",
+        timeAgo: "6h ago",
+        category: "Politics",
+        imageUrl: "https://images.unsplash.com/photo-1555421689-d68471e18963?q=80&w=1000&auto=format&fit=crop"
+    },
+    {
+        id: `err-${Date.now()}-5`,
+        title: "Health Tech: Wearables Predict Viral Outbreaks",
+        description: "New study shows smartwatches can detect flu symptoms days before they appear.",
+        source: "Healthline",
+        timeAgo: "8h ago",
+        category: "Health",
+        imageUrl: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?q=80&w=1000&auto=format&fit=crop"
+    }
+];
