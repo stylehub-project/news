@@ -15,6 +15,7 @@ import { Trash2, StopCircle, Bot, Zap, AudioWaveform } from 'lucide-react';
 import SmartLoader from '../../components/loaders/SmartLoader';
 import { useLoading } from '../../context/LoadingContext';
 import Button from '../../components/ui/Button';
+import Toast from '../../components/ui/Toast';
 
 // Helper to get API Key safely checking multiple environments
 const getApiKey = () => {
@@ -61,6 +62,7 @@ const ChatPage: React.FC = () => {
   const [activeMode, setActiveMode] = useState<'chat' | 'live' | 'generator'>('chat');
   const [showInteractionModal, setShowInteractionModal] = useState(false);
   const [showTour, setShowTour] = useState(false);
+  const [showFeatureToast, setShowFeatureToast] = useState(false);
 
   const [hasInteracted, setHasInteracted] = useState(messages.length > 0);
   
@@ -68,12 +70,18 @@ const ChatPage: React.FC = () => {
   const chatSessionRef = useRef<Chat | null>(null);
   const autoTriggeredRef = useRef(false);
 
-  // Check Tour Status on Mount
+  // Check Tour Status on Mount & New Feature Discovery
   useEffect(() => {
       const hasSeenTour = localStorage.getItem('has_seen_ai_hub_tour');
+      const hasSeenActions = localStorage.getItem('has_seen_chat_actions_v1');
+
       if (!hasSeenTour && !isInitializing && !searchParams.get('context')) {
           // Delay slightly to let UI settle
           const timer = setTimeout(() => setShowTour(true), 1000);
+          return () => clearTimeout(timer);
+      } else if (!hasSeenActions && !isInitializing) {
+          // If tour already seen, show new feature toast
+          const timer = setTimeout(() => setShowFeatureToast(true), 2500);
           return () => clearTimeout(timer);
       }
   }, [isInitializing, searchParams]);
@@ -81,6 +89,13 @@ const ChatPage: React.FC = () => {
   const handleCloseTour = () => {
       setShowTour(false);
       localStorage.setItem('has_seen_ai_hub_tour', 'true');
+      // Chain feature toast after tour
+      setTimeout(() => setShowFeatureToast(true), 1000);
+  };
+
+  const handleDismissToast = () => {
+      setShowFeatureToast(false);
+      localStorage.setItem('has_seen_chat_actions_v1', 'true');
   };
 
   useEffect(() => {
@@ -294,6 +309,18 @@ const ChatPage: React.FC = () => {
       <div className="absolute inset-0 z-0 pointer-events-none">
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
       </div>
+
+      {/* Feature Toast */}
+      {showFeatureToast && (
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-xs px-4 animate-in slide-in-from-top-4 fade-in">
+              <Toast 
+                  type="info" 
+                  message="New: Listen, Copy & Share AI responses! 🎧" 
+                  onClose={handleDismissToast} 
+                  duration={5000}
+              />
+          </div>
+      )}
 
       {/* Modes Overlays */}
       {activeMode === 'live' && <VoiceMode onClose={() => setActiveMode('chat')} />}

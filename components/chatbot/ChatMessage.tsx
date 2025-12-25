@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { User, ExternalLink, ArrowRight, Flag, Info, CheckCircle2, Wand2 } from 'lucide-react';
+
+import React, { useState, useEffect } from 'react';
+import { User, ExternalLink, ArrowRight, Flag, Info, CheckCircle2, Wand2, Volume2, StopCircle, Copy, Share2, Check } from 'lucide-react';
 import HighlightReadingMode from '../HighlightReadingMode';
 import StoryboardAttachment, { StoryboardData } from './StoryboardAttachment';
 import ImageAttachment from './ImageAttachment';
@@ -35,6 +36,19 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
   const isUser = message.role === 'user';
   const [isReported, setIsReported] = useState(false);
   const [aiState, setAiState] = useState<'idle' | 'speaking'>('idle');
+  
+  // Action States
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+
+  // Cleanup speech on unmount
+  useEffect(() => {
+    return () => {
+      if (isSpeaking) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [isSpeaking]);
 
   const handleReport = () => {
       setIsReported(true);
@@ -44,6 +58,77 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
   const handleAvatarClick = () => {
       setAiState('speaking');
       setTimeout(() => setAiState('idle'), 1500);
+  };
+
+  // --- Feature Implementation ---
+
+  const getSweetVoice = () => {
+      const voices = window.speechSynthesis.getVoices();
+      return voices.find(v => v.name === "Google US English") || 
+             voices.find(v => v.name === "Microsoft Zira - English (United States)") || 
+             voices.find(v => v.name.includes("Samantha")) || 
+             voices.find(v => v.name.includes("Female") && v.lang.startsWith("en")) ||
+             voices.find(v => v.lang.startsWith("en")) ||
+             voices[0];
+  };
+
+  const handleReadAloud = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (isSpeaking) {
+          window.speechSynthesis.cancel();
+          setIsSpeaking(false);
+          setAiState('idle');
+          return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(message.content);
+      const voice = getSweetVoice();
+      if(voice) utterance.voice = voice;
+      
+      utterance.pitch = 1.1; // Sweet/Friendly Tone
+      utterance.rate = 1.0;
+      utterance.volume = 1.0;
+
+      utterance.onstart = () => {
+          setIsSpeaking(true);
+          setAiState('speaking');
+      };
+      
+      utterance.onend = () => {
+          setIsSpeaking(false);
+          setAiState('idle');
+      };
+      
+      utterance.onerror = () => {
+          setIsSpeaking(false);
+          setAiState('idle');
+      };
+
+      window.speechSynthesis.speak(utterance);
+  };
+
+  const handleCopy = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      navigator.clipboard.writeText(message.content);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleShare = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (navigator.share) {
+          try {
+              await navigator.share({
+                  title: 'AI Insight from News Club',
+                  text: message.content,
+              });
+          } catch (err) {
+              // Share cancelled or failed, fallback to copy
+              handleCopy(e);
+          }
+      } else {
+          handleCopy(e);
+      }
   };
 
   return (
@@ -66,7 +151,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                     <div className="relative">
                         <div className="absolute inset-0 bg-indigo-500 blur-md opacity-30 rounded-full"></div>
                         <InteractiveAvatar 
-                            state={message.isStreaming ? 'speaking' : aiState} 
+                            state={message.isStreaming || isSpeaking ? 'speaking' : aiState} 
                             size={40} 
                             onClick={handleAvatarClick}
                         />
@@ -116,9 +201,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                 </div>
             )}
 
-            {/* Footer Sources & Metadata (Only for AI) */}
+            {/* Footer Actions, Sources & Metadata (Only for AI) */}
             {!isUser && !message.isStreaming && (
-                <div className="mt-4 pt-3 border-t border-gray-100 dark:border-white/5 flex flex-col gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                <div className="mt-4 pt-3 border-t border-gray-100 dark:border-white/5 flex flex-col gap-2 transition-opacity">
+                    
+                    {/* Source Links */}
                     {message.sources && message.sources.length > 0 && (
                         <div className="flex flex-wrap gap-2 mb-1">
                             {message.sources.map((src, i) => (
@@ -140,13 +227,45 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                         <span className="text-[10px] text-gray-400 dark:text-slate-500 font-mono">
                             Generated by Gemini • {message.timestamp || 'Just now'}
                         </span>
-                        <div className="flex gap-2">
+                        
+                        {/* New Feature: Action Buttons */}
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={handleReadAloud} 
+                                className={`p-1.5 rounded-full transition-colors flex items-center gap-1 ${isSpeaking ? 'bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400' : 'text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:text-slate-500 dark:hover:text-indigo-300 dark:hover:bg-white/10'}`} 
+                                title={isSpeaking ? "Stop Reading" : "Read Aloud"}
+                            >
+                                {isSpeaking ? <StopCircle size={14} className="animate-pulse" /> : <Volume2 size={14} />}
+                                {isSpeaking && <span className="text-[10px] font-bold">Stop</span>}
+                            </button>
+
+                            <button 
+                                onClick={handleCopy} 
+                                className={`p-1.5 rounded-full transition-colors ${isCopied ? 'text-green-500 bg-green-50 dark:bg-green-900/30' : 'text-gray-400 hover:text-green-500 hover:bg-green-50 dark:text-slate-500 dark:hover:text-green-300 dark:hover:bg-white/10'}`} 
+                                title="Copy Text"
+                            >
+                                {isCopied ? <Check size={14} /> : <Copy size={14} />}
+                            </button>
+
+                            <button 
+                                onClick={handleShare} 
+                                className="p-1.5 rounded-full transition-colors text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:text-slate-500 dark:hover:text-blue-300 dark:hover:bg-white/10" 
+                                title="Share"
+                            >
+                                <Share2 size={14} />
+                            </button>
+
+                            {/* Separator */}
+                            <div className="w-px h-3 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+
+                            {/* Report Flag */}
                             {isReported ? (
-                                <span className="text-[10px] text-green-500 flex items-center gap-1"><CheckCircle2 size={10}/> Feedback Sent</span>
+                                <span className="text-[10px] text-green-500 flex items-center gap-1"><CheckCircle2 size={10}/></span>
                             ) : (
                                 <button 
                                     onClick={handleReport}
-                                    className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 rounded transition-colors" 
+                                    className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-300 dark:text-slate-600 hover:text-gray-600 dark:hover:text-slate-300 rounded transition-colors" 
+                                    title="Report Issue"
                                 >
                                     <Flag size={10} />
                                 </button>
