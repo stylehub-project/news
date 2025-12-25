@@ -90,6 +90,7 @@ export const modifyText = async (text: string, instruction: string) => {
             await new Promise(r => setTimeout(r, 1000));
             if (instruction.includes('Simplify')) return "Here is a simplified version of the text. It uses easier words.";
             if (instruction.includes('Catchier')) return "SHOCKING UPDATE: " + text.substring(0, 20) + "...";
+            if (instruction.includes('Rewrite')) return text + " (Reframed for " + instruction.split('perspective')[0] + ")";
             return text + " (Edited)";
         }
 
