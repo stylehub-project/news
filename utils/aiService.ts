@@ -7,14 +7,15 @@ const getApiKey = () => {
 };
 
 export const fetchNewsFeed = async (page: number, filters: any) => {
+  const language = filters.language || 'English';
+  
   try {
     const apiKey = getApiKey();
-    if (!apiKey) return getMockData(page, filters.category);
+    if (!apiKey) return getMockData(page, filters.category, language);
     
     const ai = new GoogleGenAI({ apiKey });
     
     const topic = filters.category === 'All' ? 'latest global news' : `${filters.category} news`;
-    const language = filters.language || 'English';
 
     const filterContext = `
       Focus on: ${filters.filter || 'General'}
@@ -65,19 +66,19 @@ export const fetchNewsFeed = async (page: number, filters: any) => {
     });
 
     const text = response.text;
-    if (!text) return getMockData(page, filters.category);
+    if (!text) return getMockData(page, filters.category, language);
     
     try {
         const cleanText = text.replace(/```json\n?|```/g, '').trim();
         return JSON.parse(cleanText);
     } catch (parseError) {
         console.warn("JSON Parse Failed, using fallback data", parseError);
-        return getMockData(page, filters.category);
+        return getMockData(page, filters.category, language);
     }
 
   } catch (error) {
     console.error("AI Fetch Error", error);
-    return getMockData(page, filters.category);
+    return getMockData(page, filters.category, language);
   }
 };
 
@@ -104,27 +105,59 @@ export const modifyText = async (text: string, instruction: string) => {
     }
 };
 
-const getMockData = (page: number, category: string = 'General') => {
+const getMockData = (page: number, category: string = 'General', language: string = 'English') => {
     const baseSeed = page * 100;
+    const isHindi = language === 'Hindi';
+
     return Array.from({ length: 5 }).map((_, i) => {
         const itemSeed = baseSeed + i;
         const categories = ['Technology', 'Business', 'Science', 'Politics', 'Health', 'World'];
         const cat = category === 'All' ? categories[itemSeed % categories.length] : category;
         
+        const descriptionEn = "Detailed analysis of the current situation reveals significant shifts in the global landscape, affecting markets and consumer behavior alike. Experts suggest immediate action.";
+        const descriptionHi = "वर्तमान स्थिति का विस्तृत विश्लेषण वैश्विक परिदृश्य में महत्वपूर्ण बदलावों को दर्शाता है, जो बाजारों और उपभोक्ता व्यवहार को समान रूप से प्रभावित कर रहा है। विशेषज्ञ तत्काल कार्रवाई का सुझाव देते हैं।";
+
         return {
             id: `news-${Date.now()}-${itemSeed}`,
-            title: getHeadline(cat, itemSeed),
-            description: "Detailed analysis of the current situation reveals significant shifts in the global landscape, affecting markets and consumer behavior alike. Experts suggest immediate action.",
+            title: getHeadline(cat, itemSeed, isHindi),
+            description: isHindi ? descriptionHi : descriptionEn,
             source: ["TechCrunch", "BBC", "CNN", "Reuters", "The Verge", "Bloomberg"][itemSeed % 6],
-            timeAgo: `${(i % 12) + 1}h ago`,
+            timeAgo: isHindi ? `${(i % 12) + 1} घंटे पहले` : `${(i % 12) + 1}h ago`,
             category: cat,
             imageUrl: `https://picsum.photos/seed/${itemSeed}/800/600` 
         };
     });
 };
 
-const getHeadline = (category: string, seed: number) => {
-    const templates = [
+const getHeadline = (category: string, seed: number, isHindi: boolean) => {
+    if (isHindi) {
+        const templatesHi = [
+            "{cat} में बड़ी सफलता ने उद्योग विशेषज्ञों को चौंका दिया",
+            "वैश्विक {cat} शिखर सम्मेलन में ऐतिहासिक समझौता",
+            "क्यों {cat} अगला बड़ा निवेश अवसर है",
+            "2025 में देखने के लिए {cat} का भविष्य: रुझान",
+            "विवादास्पद {cat} नीति पर दुनिया भर में बहस छिड़ी",
+            "शीर्ष 10 {cat} नवाचार जो आपको जानने चाहिए",
+            "{cat} दिग्गज ने आश्चर्यजनक विलय की घोषणा की",
+            "वैश्विक {cat} परिवर्तनों का स्थानीय प्रभाव",
+            "नई रिपोर्ट में {cat} क्षेत्र में छिपे जोखिमों का खुलासा",
+            "विशेष: {cat} क्रांति के अंदर"
+        ];
+        // Simple mapping for category names to Hindi
+        const catMap: Record<string, string> = {
+            'Technology': 'तकनीक',
+            'Business': 'व्यापार',
+            'Science': 'विज्ञान',
+            'Politics': 'राजनीति',
+            'Health': 'स्वास्थ्य',
+            'World': 'दुनिया',
+            'General': 'सामान्य'
+        };
+        const displayCat = catMap[category] || category;
+        return templatesHi[seed % templatesHi.length].replace("{cat}", displayCat);
+    }
+
+    const templatesEn = [
         "Major Breakthrough in {cat} Shocks Industry Experts",
         "Global {cat} Summit Reaches Historic Agreement",
         "Why {cat} is the Next Big Investment Opportunity",
@@ -136,7 +169,7 @@ const getHeadline = (category: string, seed: number) => {
         "New Report Reveals Hidden Risks in {cat} Sector",
         "Exclusive: Inside the {cat} Revolution"
     ];
-    return templates[seed % templates.length].replace("{cat}", category);
+    return templatesEn[seed % templatesEn.length].replace("{cat}", category);
 };
 
 export const fetchNewspaperContent = async (title: string, config: any) => {
