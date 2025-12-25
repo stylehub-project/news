@@ -63,16 +63,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
       setTimeout(() => setAiState('idle'), 1500);
   };
 
-  // --- Advanced Emotional Voice Engine ---
+  // --- Advanced News Report Voice Engine ---
 
   const getBestVoice = () => {
       const voices = window.speechSynthesis.getVoices();
-      // Priority: Indian English Female -> Indian English -> Generic Female -> Generic English
-      return voices.find(v => (v.lang === 'en-IN' || v.lang.includes('India')) && v.name.includes('Google')) || // Google English India (Sweet)
-             voices.find(v => v.name.includes('Heera')) || // Microsoft Heera
-             voices.find(v => v.lang === 'en-IN') || 
-             voices.find(v => v.name.includes("Samantha")) || 
-             voices.find(v => v.name === "Google US English") ||
+      // Priority: Professional News Broadcasting Voices
+      return voices.find(v => v.name === "Google US English") || 
+             voices.find(v => v.name === "Microsoft Zira - English (United States)") ||
+             voices.find(v => v.lang === 'en-GB' && v.name.includes("Google")) || // British News Style
+             voices.find(v => v.lang === 'en-US') || 
              voices[0];
   };
 
@@ -94,9 +93,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
 
       // --- Parsing Content for Tone ---
       // We break the text into segments.
-      // Headings -> Deeper, Slower, Authoritative
-      // Bold -> Deep, Emphatic
-      // Normal -> Higher pitch, Sweet, Faster
+      // Headings -> Deeper, Slower, Authoritative (News Anchor Headline style)
+      // Bold -> Emphatic, slightly slower
+      // Normal -> Neutral, professional pace
       
       const segments: { text: string; tone: 'normal' | 'bold' | 'heading' }[] = [];
       const lines = message.content.split('\n');
@@ -145,22 +144,22 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
           const u = new SpeechSynthesisUtterance(segment.text);
           u.voice = getBestVoice();
 
-          // Apply Tonal Emotions
+          // Apply News Report Tonal Emotions
           switch (segment.tone) {
               case 'heading':
-                  u.pitch = 0.8;  // Deep voice
-                  u.rate = 0.9;   // Slower, commanding
+                  u.pitch = 0.9;  // Slightly deeper, authoritative
+                  u.rate = 0.85;  // Slower, deliberate headline reading
                   u.volume = 1.0;
                   break;
               case 'bold':
-                  u.pitch = 0.85; // Slightly deep for emphasis
-                  u.rate = 0.95;  // Deliberate
+                  u.pitch = 0.95; // Slight emphasis
+                  u.rate = 0.9;   // Clear articulation
                   u.volume = 1.0;
                   break;
               case 'normal':
               default:
-                  u.pitch = 1.1;  // Sweet, soft, higher pitch
-                  u.rate = 1.05;  // Conversational flow
+                  u.pitch = 1.0;  // Neutral professional pitch
+                  u.rate = 1.0;   // Standard broadcast speed
                   u.volume = 1.0;
                   break;
           }
@@ -307,7 +306,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                             <button 
                                 onClick={handleReadAloud} 
                                 className={`p-1.5 rounded-full transition-colors flex items-center gap-1 ${isSpeaking ? 'bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400 shadow-sm' : 'text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:text-slate-500 dark:hover:text-indigo-300 dark:hover:bg-white/10'}`} 
-                                title={isSpeaking ? "Stop Reading" : "Read with Emotion"}
+                                title={isSpeaking ? "Stop Report" : "Listen to Report"}
                             >
                                 {isSpeaking ? <StopCircle size={14} className="animate-pulse" /> : <Volume2 size={14} />}
                                 {isSpeaking && <span className="text-[10px] font-bold">Stop</span>}

@@ -35,12 +35,11 @@ const HighlightReadingMode: React.FC<HighlightReadingModeProps> = ({
   }, []);
 
   const getBestVoice = () => {
-      // Priority list for Indian English voice
-      return voices.find(v => (v.lang === 'en-IN' || v.lang.includes('India')) && v.name.includes('Google')) || 
-             voices.find(v => v.name.includes('Heera')) || 
-             voices.find(v => v.lang === 'en-IN' || v.lang.includes('India')) ||
-             voices.find(v => v.name.includes("Samantha")) || 
-             voices.find(v => v.name === "Google US English") ||
+      // Priority list for News Anchor Voice
+      return voices.find(v => v.name === "Google US English") || 
+             voices.find(v => v.name === "Microsoft Zira - English (United States)") ||
+             voices.find(v => v.lang === 'en-GB' && v.name.includes("Google")) || 
+             voices.find(v => v.lang === 'en-US') || 
              voices[0];
   };
 
@@ -57,7 +56,7 @@ const HighlightReadingMode: React.FC<HighlightReadingModeProps> = ({
         } else if (!window.speechSynthesis.speaking) {
             const u = new SpeechSynthesisUtterance(text);
             u.voice = getBestVoice();
-            u.pitch = 1.05; // Slightly higher pitch for softer tone
+            u.pitch = 1.0; // Professional, neutral pitch
             u.rate = speed; 
             u.volume = 1;
             

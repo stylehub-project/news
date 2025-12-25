@@ -29,17 +29,17 @@ const StoryboardAttachment: React.FC<StoryboardAttachmentProps> = ({ data }) => 
     } else {
       const utterance = new SpeechSynthesisUtterance(data.summary);
       
-      // Sweet Indian Voice Configuration
+      // Professional News Voice Configuration
       const voices = window.speechSynthesis.getVoices();
-      const sweetVoice = voices.find(v => (v.lang === 'en-IN' || v.lang.includes('India')) && v.name.includes('Google')) || 
-                         voices.find(v => v.name.includes('Heera')) || 
-                         voices.find(v => v.lang === 'en-IN' || v.lang.includes('India')) ||
-                         voices.find(v => v.name.includes("Samantha")) || 
-                         voices[0];
+      const newsVoice = voices.find(v => v.name === "Google US English") || 
+                        voices.find(v => v.name === "Microsoft Zira - English (United States)") ||
+                        voices.find(v => v.lang === 'en-GB' && v.name.includes("Google")) ||
+                        voices.find(v => v.lang === 'en-US') || 
+                        voices[0];
       
-      if (sweetVoice) utterance.voice = sweetVoice;
-      utterance.pitch = 1.05;
-      utterance.rate = 1.0;
+      if (newsVoice) utterance.voice = newsVoice;
+      utterance.pitch = 1.0; // Neutral, professional pitch
+      utterance.rate = 1.0; // Standard broadcast rate
 
       utterance.onend = () => setIsPlaying(false);
       window.speechSynthesis.speak(utterance);
