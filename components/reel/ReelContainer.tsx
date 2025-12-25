@@ -1,4 +1,5 @@
-import React, { useRef, useEffect } from 'react';
+
+import React, { useRef } from 'react';
 
 interface ReelContainerProps {
   children: React.ReactNode;
@@ -7,12 +8,10 @@ interface ReelContainerProps {
 const ReelContainer: React.FC<ReelContainerProps> = ({ children }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Optional: Add intersection observer here to detect active slide
-  
   return (
     <div 
       ref={containerRef}
-      className="h-[calc(100vh)] w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide bg-black relative"
+      className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide bg-black relative overscroll-y-contain"
       style={{ scrollBehavior: 'smooth' }}
     >
       {children}

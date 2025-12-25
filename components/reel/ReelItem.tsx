@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Loader2 } from 'lucide-react';
 import ReelActionBar from './ReelActionBar';
@@ -38,7 +39,8 @@ interface ReelItemProps {
 
 const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFinished }) => {
   // --- Media State ---
-  const [isVideo] = useState(!!data.videoUrl);
+  // Initial state based on prop, but can change if video fails
+  const [isVideo, setIsVideo] = useState(!!data.videoUrl);
   const [isBuffering, setIsBuffering] = useState(false);
   const [progress, setProgress] = useState(0);
   const [mediaLoaded, setMediaLoaded] = useState(false);
@@ -86,11 +88,14 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
         videoRef.current.currentTime = 0;
       }
     } else {
-      if (videoRef.current && mediaLoaded) {
-        videoRef.current.play().catch(() => {});
+      if (videoRef.current && mediaLoaded && isVideo) {
+        videoRef.current.play().catch(() => {
+            // If autoplay fails (e.g. power saving), just fallback or ignore
+            console.log('Autoplay blocked');
+        });
       }
     }
-  }, [isActive, mediaLoaded]);
+  }, [isActive, mediaLoaded, isVideo]);
 
   useEffect(() => {
     const isPausedInteraction = isExpanded || isCommentsOpen || isShareOpen || isOptionsOpen;
@@ -101,6 +106,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
               videoRef.current.play().catch(() => {});
           }
       } else {
+          // Image Timer Logic
           progressInterval.current = setInterval(() => {
             setProgress((prev) => {
               if (prev >= 100) {
@@ -129,6 +135,17 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
 
   const handleVideoEnded = () => {
       if (isAutoScroll) onFinished();
+      else if (videoRef.current) {
+          videoRef.current.currentTime = 0;
+          videoRef.current.play();
+      }
+  };
+
+  const handleVideoError = () => {
+      console.warn("Video failed to load, falling back to image:", data.videoUrl);
+      setIsVideo(false);
+      setIsBuffering(false);
+      setMediaLoaded(false); // Reset to trigger image load
   };
 
   const handleLike = (e?: React.MouseEvent) => {
@@ -201,7 +218,6 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
     const diffTime = Date.now() - touchStartRef.current.time;
 
     // Small movement and short time = Click/Tap
-    // REPLACE PAUSE WITH EXPAND AS REQUESTED
     if (diffTime < 250 && Math.abs(diffX) < 10 && Math.abs(diffY) < 10) {
         setIsExpanded(true);
     }
@@ -236,6 +252,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
       )}
 
       <div className="absolute inset-0 bg-black">
+        {/* Background Blur Placeholder (Shows until media loads) */}
         <BlurImageLoader 
             src={data.imageUrl}
             className={`absolute inset-0 w-full h-full object-cover blur-2xl scale-110 transition-opacity duration-700 ${mediaLoaded ? 'opacity-0' : 'opacity-100'}`}
@@ -248,7 +265,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
                 src={data.videoUrl}
                 poster={data.imageUrl}
                 className={`w-full h-full object-cover transition-opacity duration-500 ${mediaLoaded ? 'opacity-100' : 'opacity-0'}`}
-                loop={!isAutoScroll}
+                loop={false} // Managed manually for auto-scroll logic
                 playsInline
                 muted
                 onLoadedData={() => setMediaLoaded(true)}
@@ -256,6 +273,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
                 onEnded={handleVideoEnded}
                 onWaiting={() => setIsBuffering(true)}
                 onPlaying={() => setIsBuffering(false)}
+                onError={handleVideoError}
             />
         ) : (
             <BlurImageLoader 
@@ -269,7 +287,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/90 pointer-events-none" />
       </div>
 
-      {isBuffering && (
+      {isVideo && isBuffering && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
               <Loader2 size={48} className="text-white/80 animate-spin" />
           </div>
