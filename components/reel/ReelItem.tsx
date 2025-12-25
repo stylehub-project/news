@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef, memo } from 'react';
+import { Loader2 } from 'lucide-react';
 import ReelActionBar from './ReelActionBar';
 import ReelInfoBar from './ReelInfoBar';
 import ReelCommentsSheet from './ReelCommentsSheet';
@@ -9,7 +9,6 @@ import ReelOptionsSheet from './ReelOptionsSheet';
 import ReelExpandLayer from './ReelExpandLayer';
 import LikeAnimation from './LikeAnimation';
 import Toast, { ToastType } from '../ui/Toast';
-import BlurImageLoader from '../loaders/BlurImageLoader';
 
 interface ReelItemProps {
   data: {
@@ -37,9 +36,8 @@ interface ReelItemProps {
   onFinished: () => void;
 }
 
-const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFinished }) => {
+const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished }) => {
   // --- Media State ---
-  // Initial state based on prop, but can change if video fails
   const [isVideo, setIsVideo] = useState(!!data.videoUrl);
   const [isBuffering, setIsBuffering] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -75,33 +73,43 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
       } catch (e) {}
   }, [data.id]);
 
+  // Video Playback Logic
   useEffect(() => {
+    const video = videoRef.current;
+    
     if (!isActive) {
+      // Deactivate
       setProgress(0);
       setIsExpanded(false);
       setIsCommentsOpen(false);
       setIsShareOpen(false);
       setIsOptionsOpen(false);
       
-      // Stop video but DO NOT reset time to 0 to prevent flashing
-      if (videoRef.current) {
-        videoRef.current.pause();
+      if (video) {
+        video.pause();
+        // Do NOT reset currentTime to 0 to avoid poster flashing on quick scroll back
       }
     } else {
-      // Small delay to allow scroll to settle before playing
-      const timer = setTimeout(() => {
-          if (videoRef.current && mediaLoaded && isVideo) {
-            videoRef.current.play().catch(() => {
-                console.log('Autoplay blocked');
-            });
+      // Activate
+      if (video && isVideo) {
+          // Promise-based play handling to prevent "The play() request was interrupted" error
+          const playPromise = video.play();
+          if (playPromise !== undefined) {
+              playPromise.catch(() => {
+                  // Auto-play was prevented
+                  // console.log('Autoplay prevented');
+              });
           }
-      }, 100);
-      return () => clearTimeout(timer);
+      }
     }
-  }, [isActive, mediaLoaded, isVideo]);
+  }, [isActive, isVideo]);
 
+  // Progress Bar Logic
   useEffect(() => {
     const isPausedInteraction = isExpanded || isCommentsOpen || isShareOpen || isOptionsOpen;
+
+    // Clear existing interval
+    if (progressInterval.current) clearInterval(progressInterval.current);
 
     if (isActive && !isPausedInteraction) {
       if (isVideo) {
@@ -121,7 +129,6 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
           }, UPDATE_INTERVAL);
       }
     } else {
-      if (progressInterval.current) clearInterval(progressInterval.current);
       if (videoRef.current && !videoRef.current.paused) videoRef.current.pause();
     }
 
@@ -132,15 +139,21 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
 
   const handleVideoTimeUpdate = () => {
       if (videoRef.current && videoRef.current.duration > 0) {
-          setProgress((videoRef.current.currentTime / videoRef.current.duration) * 100);
+          const val = (videoRef.current.currentTime / videoRef.current.duration) * 100;
+          // Only update state if change is significant to reduce renders
+          if (Math.abs(val - progress) > 0.5) {
+              setProgress(val);
+          }
       }
   };
 
   const handleVideoEnded = () => {
-      if (isAutoScroll) onFinished();
-      else if (videoRef.current) {
+      if (isAutoScroll) {
+          onFinished();
+      } else if (videoRef.current) {
+          // Loop manually
           videoRef.current.currentTime = 0;
-          videoRef.current.play();
+          videoRef.current.play().catch(() => {});
       }
   };
 
@@ -148,7 +161,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
       console.warn("Video failed to load, falling back to image:", data.videoUrl);
       setIsVideo(false);
       setIsBuffering(false);
-      setMediaLoaded(false); // Reset to trigger image load
+      setMediaLoaded(true); // Treat fallback as loaded
   };
 
   const handleLike = (e?: React.MouseEvent) => {
@@ -170,7 +183,6 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
       try {
           const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
           if (newState) {
-              // Add to bookmarks
               const newBookmark = { 
                   id: data.id, 
                   title: data.title, 
@@ -183,7 +195,6 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
               setToast({ show: true, msg: 'Saved to Bookmarks', type: 'success' });
               if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(20);
           } else {
-              // Remove
               const filtered = bookmarks.filter((b: any) => b.id !== data.id);
               localStorage.setItem('bookmarks', JSON.stringify(filtered));
               setToast({ show: true, msg: 'Removed from Bookmarks', type: 'info' });
@@ -238,10 +249,11 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
 
   return (
     <div 
-        className="h-full w-full relative bg-gray-900 flex items-center justify-center overflow-hidden select-none touch-pan-y backface-hidden transform-gpu"
+        className="h-full w-full relative bg-gray-900 flex items-center justify-center overflow-hidden select-none touch-pan-y"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onDoubleClick={handleDoubleClick}
+        style={{ transform: 'translateZ(0)' }} // Force hardware acceleration
     >
       {toast.show && (
           <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[60]">
@@ -254,25 +266,26 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
           </div>
       )}
 
-      {/* Layer 1: Background Image (Always present for smoothness) */}
-      <div className="absolute inset-0 bg-black z-0">
-        <BlurImageLoader 
+      {/* Layer 1: Persistent Background Image (Low Z-Index) */}
+      <div className="absolute inset-0 z-0">
+        <img 
             src={data.imageUrl}
-            className={`absolute inset-0 w-full h-full object-cover blur-md scale-110 transition-opacity duration-1000 ${mediaLoaded && isVideo ? 'opacity-0' : 'opacity-100'}`}
+            className="w-full h-full object-cover"
             alt=""
+            loading="lazy"
         />
-        <div className="absolute inset-0 bg-black/30"></div>
+        <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
       </div>
 
-      {/* Layer 2: Video Player */}
+      {/* Layer 2: Video Player (Mid Z-Index) */}
       {isVideo && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-transparent">
             <video
                 ref={videoRef}
                 src={data.videoUrl}
-                poster={data.imageUrl} // Native poster for redundancy
-                className={`w-full h-full object-cover transition-opacity duration-700 ${mediaLoaded ? 'opacity-100' : 'opacity-0'}`}
-                loop={false} 
+                poster={data.imageUrl}
+                className={`w-full h-full object-cover transition-opacity duration-500 ${mediaLoaded ? 'opacity-100' : 'opacity-0'}`}
+                loop={false}
                 playsInline
                 muted
                 preload="auto"
@@ -286,19 +299,19 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
         </div>
       )}
 
-      {/* Layer 3: Image Mode Fallback (if video fails or is not present) */}
+      {/* Layer 3: High Res Image (If not video or while video loads) */}
       {!isVideo && (
          <div className="absolute inset-0 z-10">
-            <BlurImageLoader 
+            <img
                 src={data.imageUrl} 
                 onLoad={() => setMediaLoaded(true)}
-                className={`w-full h-full object-cover transition-all duration-[15000ms] ease-linear will-change-transform ${mediaLoaded ? 'opacity-100' : 'opacity-0'} ${isActive ? 'scale-110' : 'scale-100'}`}
-                alt="" 
+                className={`w-full h-full object-cover transition-transform duration-[15000ms] ease-linear ${isActive ? 'scale-110' : 'scale-100'}`}
+                alt={data.title}
             />
          </div>
       )}
       
-      {/* Gradient Overlay for Text Visibility */}
+      {/* Gradient Overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/90 pointer-events-none z-20" />
 
       {/* Buffering Indicator */}
@@ -360,6 +373,15 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
       </div>
     </div>
   );
-};
+}, (prev, next) => {
+    // Custom equality check for React.memo
+    // Only re-render if:
+    // 1. The ID changed (new item)
+    // 2. Active state changed (scroll)
+    // 3. Auto-scroll state changed
+    return prev.data.id === next.data.id && 
+           prev.isActive === next.isActive && 
+           prev.isAutoScroll === next.isAutoScroll;
+});
 
 export default ReelItem;

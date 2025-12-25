@@ -115,7 +115,8 @@ const ReelPage: React.FC = () => {
 
       const formattedNewReels = newItems.map((item: any, index: number) => ({
           ...item,
-          id: `${item.id}-${Date.now()}`, // Ensure unique IDs for new items
+          // Ensure unique ID generation doesn't conflict with existing
+          id: `${item.id}-${Date.now()}-${Math.random()}`, 
           videoUrl: index % 3 === 0 ? 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-solar-panel-forest-42805-large.mp4' : undefined,
           likes: Math.floor(Math.random() * 5000).toString(),
           comments: Math.floor(Math.random() * 200).toString(),
@@ -157,7 +158,7 @@ const ReelPage: React.FC = () => {
     return () => observer.disconnect();
   }, [reels, isLoading]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     const currentIndex = reels.findIndex(r => r.id === activeReelId);
     if (currentIndex < reels.length - 1) {
         const nextId = reels[currentIndex + 1].id;
@@ -166,7 +167,7 @@ const ReelPage: React.FC = () => {
     } else {
         setIsAutoScroll(false); 
     }
-  };
+  }, [reels, activeReelId]);
 
   if (isLoading) {
       return <SmartLoader type="reel" />;
