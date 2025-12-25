@@ -24,22 +24,6 @@ interface ReelExpandLayerProps {
 const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data }) => {
   const navigate = useNavigate();
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-
-  // Load voices securely
-  useEffect(() => {
-    const loadVoices = () => {
-      const vs = window.speechSynthesis.getVoices();
-      setVoices(vs);
-    };
-    
-    loadVoices();
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
-    
-    return () => { window.speechSynthesis.onvoiceschanged = null; };
-  }, []);
 
   // Stop voice when closing
   useEffect(() => {
@@ -49,16 +33,8 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
     }
   }, [isOpen]);
 
-  const getBestVoice = () => {
-      return voices.find(v => v.name === "Google US English") || 
-             voices.find(v => v.name === "Microsoft Zira - English (United States)") || 
-             voices.find(v => v.name.includes("Samantha")) || 
-             voices.find(v => v.name.includes("Female") && v.lang.startsWith("en")) ||
-             voices.find(v => v.lang.startsWith("en")) ||
-             voices[0];
-  };
-
-  const toggleVoice = () => {
+  const toggleVoice = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (isPlayingVoice) {
       window.speechSynthesis.cancel();
       setIsPlayingVoice(false);
@@ -67,33 +43,24 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
       if (!text) return;
 
       window.speechSynthesis.cancel();
-
       const utterance = new SpeechSynthesisUtterance(text);
-      const voice = getBestVoice();
-      if (voice) utterance.voice = voice;
-      
       utterance.pitch = 1.1;
       utterance.rate = 1.0;
-      utterance.volume = 1.0;
-
       utterance.onend = () => setIsPlayingVoice(false);
-      utterance.onerror = (e) => {
-          console.error("Speech Error", e);
-          setIsPlayingVoice(false);
-      };
-
       window.speechSynthesis.speak(utterance);
       setIsPlayingVoice(true);
     }
   };
 
-  const handleChat = () => {
-      navigate(`/ai-chat?context=reel&headline=${encodeURIComponent(data.title)}`);
+  const handleFullArticle = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      // Ensure we navigate using articleId, not the unique reel ID
+      navigate(`/news/${data.articleId}`);
   };
 
-  const handleFullArticle = () => {
-      // Critical Fix: Use articleId instead of the composite Reel ID
-      navigate(`/news/${data.articleId}`);
+  const handleChat = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      navigate(`/ai-chat?context=reel&headline=${encodeURIComponent(data.title)}`);
   };
 
   return (
@@ -131,8 +98,6 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
 
         {/* Summary Card */}
         <div className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 p-5 rounded-2xl border border-indigo-500/30 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
-            
             <div className="flex justify-between items-start mb-3 relative z-10">
                 <h3 className="text-white font-bold text-lg flex items-center gap-2">
                     <BrainCircuit size={20} className="text-indigo-400" />
@@ -140,7 +105,7 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
                 </h3>
                 <button 
                     onClick={toggleVoice}
-                    className={`p-2 rounded-full transition-all ${isPlayingVoice ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.6)] animate-pulse' : 'bg-indigo-600/30 text-white hover:bg-indigo-600/50'}`}
+                    className={`p-2 rounded-full transition-all ${isPlayingVoice ? 'bg-indigo-500 text-white shadow-lg animate-pulse' : 'bg-indigo-600/30 text-white hover:bg-indigo-600/50'}`}
                 >
                     {isPlayingVoice ? <Pause size={16} /> : <Volume2 size={16} />}
                 </button>
@@ -158,7 +123,7 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
                 </h4>
                 <div className="space-y-2">
                     {data.keyPoints.map((point, i) => (
-                        <div key={i} className="flex gap-3 items-start p-3 bg-gray-800/50 rounded-xl border border-gray-700/50 hover:bg-gray-800 transition-colors">
+                        <div key={i} className="flex gap-3 items-start p-3 bg-gray-800/50 rounded-xl border border-gray-700/50">
                             <span className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-600/20 text-blue-400 text-xs font-bold shrink-0 mt-0.5">{i + 1}</span>
                             <p className="text-sm text-gray-300">{point}</p>
                         </div>
@@ -166,24 +131,6 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
                 </div>
             </div>
         )}
-
-        {/* Location Insight */}
-        {data.location ? (
-            <div>
-                <h4 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <MapPin size={14} /> Location Context
-                </h4>
-                <div className="h-32 w-full bg-gray-800 rounded-xl overflow-hidden relative border border-gray-700 group">
-                    <div className="absolute inset-0 bg-[url('https://upload.wikimedia.org/wikipedia/commons/e/ec/World_map_blank_without_borders.svg')] bg-cover bg-center opacity-40 group-hover:opacity-60 transition-opacity group-hover:scale-105 duration-700"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="flex items-center gap-2 bg-black/60 px-4 py-2 rounded-full backdrop-blur-md border border-gray-600 shadow-lg">
-                            <Globe size={14} className="text-emerald-400" />
-                            <span className="text-xs font-bold text-white">{data.location.name}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        ) : null}
 
         <div className="h-4"></div>
       </div>

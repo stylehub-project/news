@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, PlayCircle } from 'lucide-react';
+import { ChevronLeft, PlayCircle, PauseCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ReelContainer from '../../components/reel/ReelContainer';
 import ReelItem from '../../components/reel/ReelItem';
@@ -21,56 +21,53 @@ const ReelPage: React.FC = () => {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [hasRestoredPosition, setHasRestoredPosition] = useState(false);
+  const [isMutedGlobal, setIsMutedGlobal] = useState(true); // Global mute state
   
-  // Track IDs to prevent duplicates strictly
+  // Track IDs to prevent duplicate rendering keys
   const loadedIdsRef = useRef<Set<string>>(new Set());
 
-  // 1. Fetch Data Based on Language
+  // 1. Initial Data Fetch
   useEffect(() => {
       let isMounted = true;
       const loadReels = async () => {
-          loadedIdsRef.current.clear(); // Reset on language change
+          loadedIdsRef.current.clear();
           const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
           
+          // Fetch initial batch
           const newsItems = await fetchNewsFeed(1, { category: 'All', sort: 'Latest', language: langName });
           
           const formattedReels = newsItems.map((item: any, index: number) => {
-              const uniqueId = `${item.id}-p1-${index}`; // Stable ID for React List
+              // Construct a stable, deterministic ID for the list
+              const uniqueKey = `${item.id}-p1-${index}`; 
               return {
                 ...item,
-                id: uniqueId,
-                articleId: item.id, // ORIGINAL ID FOR NAVIGATION
+                id: uniqueKey,       // React Key
+                articleId: item.id,  // Actual Content ID for navigation
                 videoUrl: index % 2 === 0 ? 'https://assets.mixkit.co/videos/preview/mixkit-futuristic-robotic-arm-working-on-a-circuit-board-42996-large.mp4' : undefined,
                 tags: [item.category, contentLanguage === 'hi' ? 'ताज़ा खबर' : 'Trending'],
                 aiEnhanced: true,
                 aiSummary: item.description,
-                keyPoints: contentLanguage === 'hi' 
-                    ? ['मुख्य बिंदु 1: विस्तृत विश्लेषण', 'बाजार पर प्रभाव', 'विशेषज्ञों की राय']
-                    : ['Key Point 1: Detailed analysis', 'Market Impact', 'Expert Opinion'],
+                keyPoints: ['Key Impact', 'Market Shift', 'Future Outlook'],
                 factCheck: { status: 'Verified', score: 95 + (index % 5) },
-                location: { name: contentLanguage === 'hi' ? 'नई दिल्ली, भारत' : 'New York, USA', lat: 40.7128, lng: -74.0060 },
-                personalizationReason: contentLanguage === 'hi' ? 'आपके लिए अनुशंसित' : 'Recommended for you'
+                location: { name: 'Global', lat: 0, lng: 0 },
+                personalizationReason: 'For You'
               };
           });
 
           if (isMounted) {
-              // Deduplicate immediately
-              const uniqueReels = formattedReels.filter((r: any) => {
-                  if (loadedIdsRef.current.has(r.id)) return false;
-                  loadedIdsRef.current.add(r.id);
-                  return true;
-              });
-
-              setReels(uniqueReels);
-              if (uniqueReels.length > 0) {
-                  setActiveReelId(uniqueReels[0].id);
+              setReels(formattedReels);
+              if (formattedReels.length > 0) {
+                  setActiveReelId(formattedReels[0].id);
+                  // Track loaded IDs
+                  formattedReels.forEach((r: any) => loadedIdsRef.current.add(r.id));
               }
               markAsLoaded('reel');
 
-              const hintShown = localStorage.getItem('swipe_hint_shown');
+              // Show hint only once per session
+              const hintShown = sessionStorage.getItem('reel_hint_shown');
               if (!hintShown) {
                   setShowHint(true);
-                  localStorage.setItem('swipe_hint_shown', 'true');
+                  sessionStorage.setItem('reel_hint_shown', 'true');
               }
           }
       };
@@ -79,46 +76,7 @@ const ReelPage: React.FC = () => {
       return () => { isMounted = false; };
   }, [contentLanguage, markAsLoaded]);
 
-  // 2. Restore Scroll Position
-  useEffect(() => {
-      if (reels.length > 0 && !hasRestoredPosition) {
-          const lastId = sessionStorage.getItem('news-reel-last-id');
-          if (lastId) {
-              setTimeout(() => {
-                  const element = document.getElementById(`reel-${lastId}`);
-                  if (element) {
-                      element.scrollIntoView({ behavior: 'auto' });
-                      setActiveReelId(lastId);
-                  }
-              }, 10);
-          }
-          setHasRestoredPosition(true);
-      }
-  }, [reels, hasRestoredPosition]);
-
-  // 3. Infinite Scroll & Preload
-  useEffect(() => {
-    if (activeReelId && reels.length > 0) {
-        sessionStorage.setItem('news-reel-last-id', activeReelId);
-
-        const currentIndex = reels.findIndex(r => r.id === activeReelId);
-        
-        if (currentIndex !== -1) {
-            // Preload next images
-            const nextReels = reels.slice(currentIndex + 1, currentIndex + 3);
-            nextReels.forEach(reel => {
-                const img = new Image();
-                img.src = reel.imageUrl;
-            });
-
-            if (currentIndex >= reels.length - 2 && !isFetchingMore) {
-                fetchMoreReels();
-            }
-        }
-    }
-  }, [activeReelId, reels, isFetchingMore]);
-
-  // 4. Data Fetching
+  // 2. Infinite Scroll Fetching
   const fetchMoreReels = useCallback(async () => {
       if (isFetchingMore) return; 
       setIsFetchingMore(true);
@@ -129,31 +87,24 @@ const ReelPage: React.FC = () => {
           const newItems = await fetchNewsFeed(nextPage, { category: 'All', sort: 'Latest', language: langName });
 
           const formattedNewReels = newItems.map((item: any, index: number) => {
-              const uniqueId = `${item.id}-p${nextPage}-${index}`; 
+              const uniqueKey = `${item.id}-p${nextPage}-${index}`; 
               return {
                   ...item,
-                  id: uniqueId, 
-                  articleId: item.id, // Ensure original ID is passed for navigation
+                  id: uniqueKey,
+                  articleId: item.id,
                   videoUrl: index % 3 === 0 ? 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-solar-panel-forest-42805-large.mp4' : undefined,
                   tags: [item.category],
                   aiEnhanced: true,
                   aiSummary: item.description,
-                  keyPoints: contentLanguage === 'hi' 
-                    ? ['अतिरिक्त जानकारी', 'वैश्विक संदर्भ']
-                    : ['Additional Context', 'Global Scale'],
+                  keyPoints: ['Details', 'Analysis'],
                   factCheck: { status: 'Verified', score: 92 },
-                  personalizationReason: contentLanguage === 'hi' ? 'लोकप्रिय' : 'Popular Now'
+                  personalizationReason: 'Trending'
               };
           });
           
           setReels(prev => {
-              const uniqueNew = formattedNewReels.filter((r: any) => {
-                  if (loadedIdsRef.current.has(r.id)) return false;
-                  loadedIdsRef.current.add(r.id);
-                  return true;
-              });
-              
-              if (uniqueNew.length === 0) return prev;
+              const uniqueNew = formattedNewReels.filter((r: any) => !loadedIdsRef.current.has(r.id));
+              uniqueNew.forEach((r: any) => loadedIdsRef.current.add(r.id));
               return [...prev, ...uniqueNew];
           });
       } catch (err) {
@@ -163,25 +114,34 @@ const ReelPage: React.FC = () => {
       }
   }, [reels.length, contentLanguage, isFetchingMore]);
 
-  // 5. Intersection Observer
+  // 3. Preload & Infinite Scroll Trigger
+  useEffect(() => {
+    if (!activeReelId || reels.length === 0) return;
+
+    const currentIndex = reels.findIndex(r => r.id === activeReelId);
+    if (currentIndex === -1) return;
+
+    // Trigger fetch if close to end
+    if (currentIndex >= reels.length - 2 && !isFetchingMore) {
+        fetchMoreReels();
+    }
+  }, [activeReelId, reels, isFetchingMore, fetchMoreReels]);
+
+  // 4. Robust Intersection Observer
   useEffect(() => {
     if (reels.length === 0) return;
 
-    const options = {
-        threshold: 0.7 // Higher threshold to ensure stability before switching active state
-    };
-
-    const observer = new IntersectionObserver((entries) => {
+    const observer = new IntersectionObserver(
+      (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             const id = entry.target.getAttribute('data-id');
-            if (id) {
-                // Determine which element is MOST visible if multiple intersect
-                setActiveReelId(id);
-            }
+            if (id) setActiveReelId(id);
           }
         });
-    }, options);
+      },
+      { threshold: 0.7 } // High threshold prevents flipping while scrolling fast
+    );
 
     const elements = document.querySelectorAll('.reel-item');
     elements.forEach((el) => observer.observe(el));
@@ -189,7 +149,7 @@ const ReelPage: React.FC = () => {
     return () => observer.disconnect();
   }, [reels.length]);
 
-  const handleNext = useCallback(() => {
+  const handleAutoScrollNext = useCallback(() => {
     const currentIndex = reels.findIndex(r => r.id === activeReelId);
     if (currentIndex < reels.length - 1) {
         const nextId = reels[currentIndex + 1].id;
@@ -203,14 +163,14 @@ const ReelPage: React.FC = () => {
   return (
     <div className="h-full w-full bg-black relative">
       
-      {showHint && reels.length > 0 && activeReelId === reels[0].id && <SwipeHint />}
+      {showHint && <SwipeHint />}
 
-      {/* Top Header Overlay */}
+      {/* Header Overlay */}
       <div className="absolute top-0 left-0 w-full z-40 p-4 pt-4 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
          <button 
             onClick={() => navigate('/')} 
             className="p-2 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-colors pointer-events-auto"
-            aria-label="Back to Home"
+            aria-label="Back"
          >
             <ChevronLeft size={24} />
          </button>
@@ -223,9 +183,8 @@ const ReelPage: React.FC = () => {
                     ? 'bg-blue-600 text-white' 
                     : 'bg-black/30 text-gray-300 border border-white/20'
                 }`}
-                aria-label="Toggle Auto-Scroll"
              >
-                <PlayCircle size={14} className={isAutoScroll ? 'animate-pulse' : ''} />
+                {isAutoScroll ? <PauseCircle size={14} /> : <PlayCircle size={14} />}
                 {contentLanguage === 'hi' ? 'ऑटो-प्ले' : 'Auto-Scroll'}
              </button>
          </div>
@@ -248,7 +207,9 @@ const ReelPage: React.FC = () => {
                     data={reel} 
                     isActive={activeReelId === reel.id} 
                     isAutoScroll={isAutoScroll}
-                    onFinished={handleNext}
+                    isMutedGlobal={isMutedGlobal}
+                    onToggleMute={() => setIsMutedGlobal(!isMutedGlobal)}
+                    onFinished={handleAutoScrollNext}
                  />
               </div>
             ))
