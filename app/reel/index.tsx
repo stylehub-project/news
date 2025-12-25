@@ -18,30 +18,27 @@ const ReelPage: React.FC = () => {
   const [reels, setReels] = useState<any[]>([]);
   const [activeReelId, setActiveReelId] = useState<string>('');
   const [isAutoScroll, setIsAutoScroll] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); // Start loading immediately
+  const [isLoading, setIsLoading] = useState(true); 
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [hasRestoredPosition, setHasRestoredPosition] = useState(false);
 
   // 1. Fetch Data Based on Language
   useEffect(() => {
+      let isMounted = true;
       const loadReels = async () => {
           setIsLoading(true);
           const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
           
-          // Fetch generic news to convert to reels
           const newsItems = await fetchNewsFeed(1, { category: 'All', sort: 'Latest', language: langName });
           
-          // Transform to Reel Data Structure
           const formattedReels = newsItems.map((item: any, index: number) => ({
               ...item,
-              // Add Reel-specific mock data if not present in basic news feed
               videoUrl: index % 2 === 0 ? 'https://assets.mixkit.co/videos/preview/mixkit-futuristic-robotic-arm-working-on-a-circuit-board-42996-large.mp4' : undefined,
               likes: Math.floor(Math.random() * 8000 + 1000).toString(),
               comments: Math.floor(Math.random() * 500).toString(),
               tags: [item.category, contentLanguage === 'hi' ? 'ताज़ा खबर' : 'Trending'],
               aiEnhanced: true,
-              // Use description as summary, or mock a richer one
               aiSummary: item.description,
               keyPoints: contentLanguage === 'hi' 
                 ? ['मुख्य बिंदु 1: विस्तृत विश्लेषण', 'बाजार पर प्रभाव', 'विशेषज्ञों की राय']
@@ -51,23 +48,24 @@ const ReelPage: React.FC = () => {
               personalizationReason: contentLanguage === 'hi' ? 'आपके लिए अनुशंसित' : 'Recommended for you'
           }));
 
-          setReels(formattedReels);
-          if (formattedReels.length > 0) {
-              setActiveReelId(formattedReels[0].id);
-          }
-          
-          setIsLoading(false);
-          markAsLoaded('reel');
+          if (isMounted) {
+              setReels(formattedReels);
+              if (formattedReels.length > 0) {
+                  setActiveReelId(formattedReels[0].id);
+              }
+              setIsLoading(false);
+              markAsLoaded('reel');
 
-          // Show hint only once
-          const hintShown = localStorage.getItem('swipe_hint_shown');
-          if (!hintShown) {
-              setShowHint(true);
-              localStorage.setItem('swipe_hint_shown', 'true');
+              const hintShown = localStorage.getItem('swipe_hint_shown');
+              if (!hintShown) {
+                  setShowHint(true);
+                  localStorage.setItem('swipe_hint_shown', 'true');
+              }
           }
       };
 
       loadReels();
+      return () => { isMounted = false; };
   }, [contentLanguage, markAsLoaded]);
 
   // 2. Restore Scroll Position
@@ -85,24 +83,21 @@ const ReelPage: React.FC = () => {
       }
   }, [isLoading, reels, hasRestoredPosition]);
 
-  // 3. Preload & Infinite Scroll Logic
+  // 3. Infinite Scroll & Preload
   useEffect(() => {
     if (!isLoading && activeReelId && reels.length > 0) {
-        // Save state
         sessionStorage.setItem('news-reel-last-id', activeReelId);
 
-        // Find index
         const currentIndex = reels.findIndex(r => r.id === activeReelId);
         
-        // Preload next images
         if (currentIndex !== -1) {
+            // Preload next images
             const nextReels = reels.slice(currentIndex + 1, currentIndex + 3);
             nextReels.forEach(reel => {
                 const img = new Image();
                 img.src = reel.imageUrl;
             });
 
-            // Trigger Infinite Fetch
             if (currentIndex >= reels.length - 2 && !isFetchingMore) {
                 fetchMoreReels();
             }
@@ -110,7 +105,7 @@ const ReelPage: React.FC = () => {
     }
   }, [activeReelId, isLoading, reels, isFetchingMore]);
 
-  // 4. Data Fetching (Infinite Scroll)
+  // 4. Data Fetching
   const fetchMoreReels = useCallback(async () => {
       setIsFetchingMore(true);
       
@@ -120,7 +115,7 @@ const ReelPage: React.FC = () => {
 
       const formattedNewReels = newItems.map((item: any, index: number) => ({
           ...item,
-          id: `${item.id}-${Date.now()}`, // Ensure unique IDs
+          id: `${item.id}-${Date.now()}`, // Ensure unique IDs for new items
           videoUrl: index % 3 === 0 ? 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-solar-panel-forest-42805-large.mp4' : undefined,
           likes: Math.floor(Math.random() * 5000).toString(),
           comments: Math.floor(Math.random() * 200).toString(),
@@ -210,7 +205,12 @@ const ReelPage: React.FC = () => {
 
       <ReelContainer>
         {reels.map((reel) => (
-          <div key={reel.id} id={`reel-${reel.id}`} data-id={reel.id} className="reel-item h-full w-full snap-start">
+          <div 
+            key={reel.id} 
+            id={`reel-${reel.id}`} 
+            data-id={reel.id} 
+            className="reel-item h-full w-full snap-start transform-gpu"
+          >
              <ReelItem 
                 data={reel} 
                 isActive={activeReelId === reel.id} 

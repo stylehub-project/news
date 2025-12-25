@@ -83,17 +83,20 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
       setIsShareOpen(false);
       setIsOptionsOpen(false);
       
+      // Stop video but DO NOT reset time to 0 to prevent flashing
       if (videoRef.current) {
         videoRef.current.pause();
-        videoRef.current.currentTime = 0;
       }
     } else {
-      if (videoRef.current && mediaLoaded && isVideo) {
-        videoRef.current.play().catch(() => {
-            // If autoplay fails (e.g. power saving), just fallback or ignore
-            console.log('Autoplay blocked');
-        });
-      }
+      // Small delay to allow scroll to settle before playing
+      const timer = setTimeout(() => {
+          if (videoRef.current && mediaLoaded && isVideo) {
+            videoRef.current.play().catch(() => {
+                console.log('Autoplay blocked');
+            });
+          }
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [isActive, mediaLoaded, isVideo]);
 
@@ -235,7 +238,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
 
   return (
     <div 
-        className="h-full w-full relative bg-gray-900 flex items-center justify-center overflow-hidden select-none touch-pan-y"
+        className="h-full w-full relative bg-gray-900 flex items-center justify-center overflow-hidden select-none touch-pan-y backface-hidden transform-gpu"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onDoubleClick={handleDoubleClick}
@@ -251,23 +254,28 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
           </div>
       )}
 
-      <div className="absolute inset-0 bg-black">
-        {/* Background Blur Placeholder (Shows until media loads) */}
+      {/* Layer 1: Background Image (Always present for smoothness) */}
+      <div className="absolute inset-0 bg-black z-0">
         <BlurImageLoader 
             src={data.imageUrl}
-            className={`absolute inset-0 w-full h-full object-cover blur-2xl scale-110 transition-opacity duration-700 ${mediaLoaded ? 'opacity-0' : 'opacity-100'}`}
+            className={`absolute inset-0 w-full h-full object-cover blur-md scale-110 transition-opacity duration-1000 ${mediaLoaded && isVideo ? 'opacity-0' : 'opacity-100'}`}
             alt=""
         />
-        
-        {isVideo ? (
+        <div className="absolute inset-0 bg-black/30"></div>
+      </div>
+
+      {/* Layer 2: Video Player */}
+      {isVideo && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-transparent">
             <video
                 ref={videoRef}
                 src={data.videoUrl}
-                poster={data.imageUrl}
-                className={`w-full h-full object-cover transition-opacity duration-500 ${mediaLoaded ? 'opacity-100' : 'opacity-0'}`}
-                loop={false} // Managed manually for auto-scroll logic
+                poster={data.imageUrl} // Native poster for redundancy
+                className={`w-full h-full object-cover transition-opacity duration-700 ${mediaLoaded ? 'opacity-100' : 'opacity-0'}`}
+                loop={false} 
                 playsInline
                 muted
+                preload="auto"
                 onLoadedData={() => setMediaLoaded(true)}
                 onTimeUpdate={handleVideoTimeUpdate}
                 onEnded={handleVideoEnded}
@@ -275,24 +283,32 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
                 onPlaying={() => setIsBuffering(false)}
                 onError={handleVideoError}
             />
-        ) : (
+        </div>
+      )}
+
+      {/* Layer 3: Image Mode Fallback (if video fails or is not present) */}
+      {!isVideo && (
+         <div className="absolute inset-0 z-10">
             <BlurImageLoader 
                 src={data.imageUrl} 
                 onLoad={() => setMediaLoaded(true)}
-                className={`w-full h-full object-cover transition-all duration-[15000ms] ease-linear will-change-transform ${mediaLoaded ? 'opacity-90' : 'opacity-0'} ${isActive ? 'scale-110' : 'scale-100'}`}
+                className={`w-full h-full object-cover transition-all duration-[15000ms] ease-linear will-change-transform ${mediaLoaded ? 'opacity-100' : 'opacity-0'} ${isActive ? 'scale-110' : 'scale-100'}`}
                 alt="" 
             />
-        )}
-        
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/90 pointer-events-none" />
-      </div>
+         </div>
+      )}
+      
+      {/* Gradient Overlay for Text Visibility */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/90 pointer-events-none z-20" />
 
+      {/* Buffering Indicator */}
       {isVideo && isBuffering && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
               <Loader2 size={48} className="text-white/80 animate-spin" />
           </div>
       )}
 
+      {/* Progress Bar */}
       <div className="absolute top-0 left-0 w-full h-1 bg-white/20 z-50">
         <div 
             className="h-full bg-white transition-all duration-100 ease-linear shadow-[0_0_10px_rgba(255,255,255,0.8)]"
@@ -308,7 +324,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
         data={data}
       />
 
-      <div className={`transition-opacity duration-300 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+      <div className={`transition-opacity duration-300 z-30 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <ReelActionBar 
             likes={isLiked ? (parseInt(data.likes) + 1).toString() : data.likes}
             comments={data.comments}
@@ -323,7 +339,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
         />
       </div>
 
-      <div className={`transition-opacity duration-300 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+      <div className={`transition-opacity duration-300 z-30 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <ReelInfoBar 
             title={data.title}
             description={data.description}
@@ -337,7 +353,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoScroll, onFin
         />
       </div>
 
-      <div onClick={(e) => e.stopPropagation()}>
+      <div onClick={(e) => e.stopPropagation()} className="z-40 relative">
         <ReelCommentsSheet isOpen={isCommentsOpen} onClose={() => setIsCommentsOpen(false)} />
         <ReelShareSheet isOpen={isShareOpen} onClose={() => setIsShareOpen(false)} />
         <ReelOptionsSheet isOpen={isOptionsOpen} onClose={() => setIsOptionsOpen(false)} category={data.category} source={data.source} />
