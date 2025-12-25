@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, Zap, PlayCircle, Loader2 } from 'lucide-react';
+import { ChevronLeft, PlayCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ReelContainer from '../../components/reel/ReelContainer';
 import ReelItem from '../../components/reel/ReelItem';
-import SmartLoader from '../../components/loaders/SmartLoader';
+import ReelLoader from '../../components/loaders/ReelLoader';
 import SwipeHint from '../../components/reel/SwipeHint';
 import { useLoading } from '../../context/LoadingContext';
 import { fetchNewsFeed } from '../../utils/aiService';
@@ -12,13 +12,13 @@ import { useLanguage } from '../../context/LanguageContext';
 
 const ReelPage: React.FC = () => {
   const navigate = useNavigate();
-  const { isLoaded, markAsLoaded } = useLoading();
+  const { markAsLoaded } = useLoading();
   const { contentLanguage } = useLanguage();
   
   const [reels, setReels] = useState<any[]>([]);
   const [activeReelId, setActiveReelId] = useState<string>('');
   const [isAutoScroll, setIsAutoScroll] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); 
+  // Removed isLoading state that blocked rendering
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [hasRestoredPosition, setHasRestoredPosition] = useState(false);
@@ -27,7 +27,6 @@ const ReelPage: React.FC = () => {
   useEffect(() => {
       let isMounted = true;
       const loadReels = async () => {
-          setIsLoading(true);
           const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
           
           const newsItems = await fetchNewsFeed(1, { category: 'All', sort: 'Latest', language: langName });
@@ -53,7 +52,6 @@ const ReelPage: React.FC = () => {
               if (formattedReels.length > 0) {
                   setActiveReelId(formattedReels[0].id);
               }
-              setIsLoading(false);
               markAsLoaded('reel');
 
               const hintShown = localStorage.getItem('swipe_hint_shown');
@@ -70,7 +68,7 @@ const ReelPage: React.FC = () => {
 
   // 2. Restore Scroll Position
   useEffect(() => {
-      if (!isLoading && reels.length > 0 && !hasRestoredPosition) {
+      if (reels.length > 0 && !hasRestoredPosition) {
           const lastId = sessionStorage.getItem('news-reel-last-id');
           if (lastId) {
               const element = document.getElementById(`reel-${lastId}`);
@@ -81,11 +79,11 @@ const ReelPage: React.FC = () => {
           }
           setHasRestoredPosition(true);
       }
-  }, [isLoading, reels, hasRestoredPosition]);
+  }, [reels, hasRestoredPosition]);
 
   // 3. Infinite Scroll & Preload
   useEffect(() => {
-    if (!isLoading && activeReelId && reels.length > 0) {
+    if (activeReelId && reels.length > 0) {
         sessionStorage.setItem('news-reel-last-id', activeReelId);
 
         const currentIndex = reels.findIndex(r => r.id === activeReelId);
@@ -103,7 +101,7 @@ const ReelPage: React.FC = () => {
             }
         }
     }
-  }, [activeReelId, isLoading, reels, isFetchingMore]);
+  }, [activeReelId, reels, isFetchingMore]);
 
   // 4. Data Fetching
   const fetchMoreReels = useCallback(async () => {
@@ -115,7 +113,7 @@ const ReelPage: React.FC = () => {
 
       const formattedNewReels = newItems.map((item: any, index: number) => ({
           ...item,
-          // Use stable ID composition (original ID + page index) instead of Date.now() to prevent key churn
+          // Use stable ID composition
           id: `${item.id}-p${nextPage}-${index}`, 
           videoUrl: index % 3 === 0 ? 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-solar-panel-forest-42805-large.mp4' : undefined,
           likes: Math.floor(Math.random() * 5000).toString(),
@@ -136,7 +134,7 @@ const ReelPage: React.FC = () => {
 
   // 5. Intersection Observer
   useEffect(() => {
-    if (isLoading || reels.length === 0) return;
+    if (reels.length === 0) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -156,7 +154,7 @@ const ReelPage: React.FC = () => {
     elements.forEach((el) => observer.observe(el));
 
     return () => observer.disconnect();
-  }, [reels, isLoading]);
+  }, [reels]);
 
   const handleNext = useCallback(() => {
     const currentIndex = reels.findIndex(r => r.id === activeReelId);
@@ -168,10 +166,6 @@ const ReelPage: React.FC = () => {
         setIsAutoScroll(false); 
     }
   }, [reels, activeReelId]);
-
-  if (isLoading) {
-      return <SmartLoader type="reel" />;
-  }
 
   return (
     <div className="h-full w-full bg-black relative">
@@ -205,22 +199,28 @@ const ReelPage: React.FC = () => {
       </div>
 
       <ReelContainer>
-        {reels.map((reel) => (
-          <div 
-            key={reel.id} 
-            id={`reel-${reel.id}`} 
-            data-id={reel.id} 
-            className="reel-item h-full w-full snap-start snap-always transform-gpu"
-          >
-             <ReelItem 
-                data={reel} 
-                isActive={activeReelId === reel.id} 
-                isAutoScroll={isAutoScroll}
-                onFinished={handleNext}
-             />
-          </div>
-        ))}
-        {/* Removed loading indicator div */}
+        {reels.length === 0 ? (
+            // Immediate structure feedback
+            <div className="h-full w-full snap-start snap-always">
+                <ReelLoader />
+            </div>
+        ) : (
+            reels.map((reel) => (
+              <div 
+                key={reel.id} 
+                id={`reel-${reel.id}`} 
+                data-id={reel.id} 
+                className="reel-item h-full w-full snap-start snap-always transform-gpu"
+              >
+                 <ReelItem 
+                    data={reel} 
+                    isActive={activeReelId === reel.id} 
+                    isAutoScroll={isAutoScroll}
+                    onFinished={handleNext}
+                 />
+              </div>
+            ))
+        )}
       </ReelContainer>
     </div>
   );

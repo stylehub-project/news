@@ -36,14 +36,12 @@ interface ReelItemProps {
 }
 
 const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished }) => {
-  // --- Media State ---
   const [isVideo, setIsVideo] = useState(!!data.videoUrl);
   const [progress, setProgress] = useState(0);
   
-  // videoPlaying: True ONLY when time is advancing and we are ready to show
+  // videoPlaying: Controls poster fade-out.
   const [videoPlaying, setVideoPlaying] = useState(false);
   
-  // --- Interaction State ---
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
@@ -54,7 +52,6 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
   
   const [toast, setToast] = useState<{ show: boolean; msg: string; type: ToastType }>({ show: false, msg: '', type: 'success' });
 
-  // --- Refs ---
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
@@ -62,7 +59,6 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
   const REEL_DURATION = 15000; 
   const UPDATE_INTERVAL = 50;
 
-  // Load saved state on mount
   useEffect(() => {
       try {
           const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
@@ -72,39 +68,32 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
       } catch (e) {}
   }, [data.id]);
 
-  // Video Playback Control
   useEffect(() => {
     const video = videoRef.current;
     
     if (!isActive) {
-      // RESET STATE WHEN SCROLLED AWAY
       setProgress(0);
       setIsExpanded(false);
       setIsCommentsOpen(false);
       setIsShareOpen(false);
       setIsOptionsOpen(false);
-      setVideoPlaying(false); // Reset this so poster comes back immediately
+      setVideoPlaying(false);
       
       if (video) {
         video.pause();
-        // Do NOT reset currentTime to 0 here to prevent "black flash" on rapid scroll
       }
     } else {
-      // ACTIVATE
       if (video && isVideo) {
-          // Force play
           const playPromise = video.play();
           if (playPromise !== undefined) {
-              playPromise.catch(() => { /* Autoplay prevented */ });
+              playPromise.catch(() => { /* Autoplay prevented or error */ });
           }
       } else if (!isVideo) {
-          // If it's just an image, "play" immediately
           setVideoPlaying(true); 
       }
     }
   }, [isActive, isVideo]);
 
-  // Progress Bar Logic
   useEffect(() => {
     const isPausedInteraction = isExpanded || isCommentsOpen || isShareOpen || isOptionsOpen;
 
@@ -116,7 +105,6 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
               videoRef.current.play().catch(() => {});
           }
       } else {
-          // Image Timer Logic
           progressInterval.current = setInterval(() => {
             setProgress((prev) => {
               if (prev >= 100) {
@@ -128,7 +116,6 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
           }, UPDATE_INTERVAL);
       }
     } else {
-      // Pause
       if (videoRef.current && !videoRef.current.paused) videoRef.current.pause();
     }
 
@@ -142,7 +129,6 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
           const val = (videoRef.current.currentTime / videoRef.current.duration) * 100;
           if (Math.abs(val - progress) > 0.5) setProgress(val);
           
-          // Crucial: Only consider playing if we have advanced past 0.1s
           if (!videoPlaying && videoRef.current.currentTime > 0.1) {
               setVideoPlaying(true);
           }
@@ -159,12 +145,10 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
   };
 
   const handleVideoError = () => {
-      console.warn("Video load error, falling back to image");
       setIsVideo(false);
-      setVideoPlaying(true); // Show static content
+      setVideoPlaying(true);
   };
 
-  // ... Interaction Handlers (Like, Share, etc.) ...
   const handleLike = (e?: React.MouseEvent) => {
       e?.stopPropagation();
       const newState = !isLiked;
@@ -253,13 +237,12 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
           </div>
       )}
 
-      {/* --- LAYER 1: VIDEO (Z-10) --- */}
       {isVideo && (
         <div className="absolute inset-0 z-10 bg-black">
             <video
                 ref={videoRef}
                 src={data.videoUrl}
-                poster={data.imageUrl} // Native poster as backup
+                poster={data.imageUrl}
                 className={`w-full h-full object-cover transition-opacity duration-300 ${videoPlaying ? 'opacity-100' : 'opacity-0'}`}
                 loop={false}
                 playsInline
@@ -267,32 +250,25 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
                 preload="auto"
                 onTimeUpdate={handleVideoTimeUpdate}
                 onEnded={handleVideoEnded}
-                // No buffering indicators
                 onError={handleVideoError}
             />
         </div>
       )}
 
-      {/* --- LAYER 2: HIGH RES POSTER (Z-20) --- */}
-      {/* This layer sits on TOP of the video and only fades out when video is truly playing */}
+      {/* Poster Image - High Res, Always Visible until playing */}
       <div className={`absolute inset-0 z-20 pointer-events-none transition-opacity duration-700 ease-in-out ${videoPlaying ? 'opacity-0' : 'opacity-100'}`}>
-         {/* Use a simple img tag for maximum reliability. The bg-black container handles the "loading" color. */}
          <img 
             src={data.imageUrl} 
             className="w-full h-full object-cover" 
             alt=""
             loading="eager"
          />
-         {/* Gradient overlay on poster to match video style if needed */}
          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60"></div>
       </div>
 
-      {/* --- LAYER 3: OVERLAYS (Z-30+) --- */}
-      
-      {/* Gradient for Text Readability */}
+      {/* UI Overlays */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/90 pointer-events-none z-30" />
 
-      {/* Progress Bar */}
       <div className="absolute top-0 left-0 w-full h-1 bg-white/20 z-50">
         <div 
             className="h-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)] transition-all duration-100 ease-linear"
