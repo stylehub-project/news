@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { Camera, Settings, LogOut, ShieldCheck, Zap, Globe, Smartphone, BookOpen } from 'lucide-react';
+import { Camera, Settings, ShieldCheck, Zap, Globe, Smartphone, BookOpen, RotateCcw } from 'lucide-react';
 import PageHeader from '../../components/PageHeader';
 import ThemeSwitcher from '../../components/ThemeSwitcher';
 import { useLanguage } from '../../context/LanguageContext';
@@ -8,6 +9,14 @@ import { translations } from '../../utils/translations';
 const ProfilePage: React.FC = () => {
   const { appLanguage, setAppLanguage, contentLanguage, setContentLanguage } = useLanguage();
   const t = translations[appLanguage];
+
+  const handleResetApp = () => {
+      if (window.confirm("Are you sure you want to reset the app? This will clear all your saved data, preferences, and bookmarks.")) {
+          localStorage.clear();
+          sessionStorage.clear();
+          window.location.reload();
+      }
+  };
 
   return (
     <div className="bg-gray-50 dark:bg-gray-900 h-full flex flex-col transition-colors duration-300">
@@ -146,10 +155,13 @@ const ProfilePage: React.FC = () => {
                  </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between text-red-500 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20 transition-all border-l-4 border-l-transparent hover:border-l-red-500">
+            <div 
+                onClick={handleResetApp}
+                className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between text-red-500 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20 transition-all border-l-4 border-l-transparent hover:border-l-red-500"
+            >
                 <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-xl"><LogOut size={20}/></div>
-                    <span className="font-bold">{t.log_out}</span>
+                    <div className="p-2.5 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-xl"><RotateCcw size={20}/></div>
+                    <span className="font-bold">Reset App</span>
                 </div>
             </div>
         </div>

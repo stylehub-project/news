@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 
 const getApiKey = () => {
@@ -13,10 +14,13 @@ export const fetchNewsFeed = async (page: number, filters: any) => {
     const ai = new GoogleGenAI({ apiKey });
     
     const topic = filters.category === 'All' ? 'latest global news' : `${filters.category} news`;
+    const language = filters.language || 'English';
+
     const filterContext = `
       Focus on: ${filters.filter || 'General'}
       Region: ${filters.state || 'Global'}
       Sort by: ${filters.sort || 'Latest'}
+      Output Language: ${language}
     `;
 
     const prompt = `
@@ -26,8 +30,8 @@ export const fetchNewsFeed = async (page: number, filters: any) => {
       
       Return a JSON array with these properties for each article:
       - id: string (unique)
-      - title: string
-      - description: string (short summary)
+      - title: string (Translate to ${language})
+      - description: string (Short summary in ${language})
       - source: string
       - timeAgo: string (e.g. '2h ago')
       - category: string

@@ -7,9 +7,11 @@ import AIQuickPreviewSheet from '../../components/cards/AIQuickPreviewSheet';
 import SmartLoader from '../../components/loaders/SmartLoader';
 import Toast, { ToastType } from '../../components/ui/Toast';
 import { fetchNewsFeed } from '../../utils/aiService';
+import { useLanguage } from '../../context/LanguageContext';
 
 const TopStoriesPage = () => {
   const navigate = useNavigate();
+  const { contentLanguage } = useLanguage();
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -24,16 +26,17 @@ const TopStoriesPage = () => {
 
   const loadStories = async (selectedFilter = 'All') => {
       setLoading(true);
+      const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
       // Fetch data with specific sort for Top Headlines
-      const news = await fetchNewsFeed(1, { category: selectedFilter, sort: 'Top' });
+      const news = await fetchNewsFeed(1, { category: selectedFilter, sort: 'Top', language: langName });
       setArticles(news);
       setLoading(false);
       setCurrentIndex(0);
   };
 
   useEffect(() => {
-      loadStories();
-  }, []);
+      loadStories(filter);
+  }, [contentLanguage]);
 
   const handleFilterChange = (newFilter: string) => {
       setFilter(newFilter);

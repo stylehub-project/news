@@ -1,13 +1,16 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 import NewsCardBasic from '../../components/cards/NewsCardBasic';
 import SmartLoader from '../../components/loaders/SmartLoader';
 import { fetchNewsFeed } from '../../utils/aiService';
+import { useLanguage } from '../../context/LanguageContext';
 
 const CategoryPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { contentLanguage } = useLanguage();
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -17,12 +20,13 @@ const CategoryPage = () => {
   useEffect(() => {
       const loadData = async () => {
           setLoading(true);
-          const news = await fetchNewsFeed(1, { category: title, sort: 'Latest' });
+          const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
+          const news = await fetchNewsFeed(1, { category: title, sort: 'Latest', language: langName });
           setArticles(news);
           setLoading(false);
       };
       if (id) loadData();
-  }, [id, title]);
+  }, [id, title, contentLanguage]);
 
   const handleCardClick = (newsId: string) => {
       navigate(`/news/${newsId}`);

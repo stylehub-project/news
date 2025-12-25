@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { 
     PlayCircle, 
@@ -35,7 +36,7 @@ const HomePage: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState('Latest');
   const FILTERS = ['Latest', 'Popular', 'Positive', 'Tech', 'India', 'World'];
 
-  const { appLanguage } = useLanguage();
+  const { appLanguage, contentLanguage } = useLanguage();
   const t = translations[appLanguage];
   const observer = useRef<IntersectionObserver | null>(null);
 
@@ -53,17 +54,21 @@ const HomePage: React.FC = () => {
   // Initial Load
   useEffect(() => {
     const initLoad = async () => {
-        const initialNews = await fetchNewsFeed(1, { category: 'All', sort: 'Latest' });
+        setIsLoading(true);
+        const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
+        const initialNews = await fetchNewsFeed(1, { category: 'All', sort: 'Latest', language: langName });
         setArticles(initialNews);
         if (isLoading) {
             setTimeout(() => {
                 setIsLoading(false);
                 markAsLoaded('home');
-            }, 800); // Reduced Loading Time
+            }, 800);
+        } else {
+            setIsLoading(false);
         }
     };
     initLoad();
-  }, []);
+  }, [contentLanguage]);
 
   // Filter Change
   const handleFilterChange = async (filter: string) => {
@@ -71,7 +76,8 @@ const HomePage: React.FC = () => {
       setIsLoading(true);
       setPage(1);
       setArticles([]);
-      const news = await fetchNewsFeed(1, { category: 'All', filter: filter, state: filter === 'India' ? 'India' : 'Global' });
+      const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
+      const news = await fetchNewsFeed(1, { category: 'All', filter: filter, state: filter === 'India' ? 'India' : 'Global', language: langName });
       setArticles(news);
       setIsLoading(false);
   };
@@ -81,7 +87,8 @@ const HomePage: React.FC = () => {
       if (isFetchingMore || !hasMore) return;
       setIsFetchingMore(true);
       const nextPage = page + 1;
-      const news = await fetchNewsFeed(nextPage, { category: 'All', filter: activeFilter });
+      const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
+      const news = await fetchNewsFeed(nextPage, { category: 'All', filter: activeFilter, language: langName });
       
       if (news.length === 0) setHasMore(false);
       else {
@@ -180,17 +187,19 @@ const HomePage: React.FC = () => {
       <div className="px-4 mb-4">
           <div 
             onClick={() => navigate('/map')}
-            className="w-full h-24 bg-gray-900 rounded-2xl relative overflow-hidden flex items-center justify-between p-5 cursor-pointer shadow-sm group border border-gray-800"
+            className="w-full h-24 bg-gray-900 rounded-2xl relative overflow-hidden flex items-center justify-center p-5 cursor-pointer shadow-sm group border border-gray-800"
           >
               <div className="absolute inset-0 opacity-20 bg-[url('https://upload.wikimedia.org/wikipedia/commons/e/ec/World_map_blank_without_borders.svg')] bg-cover bg-center invert filter"></div>
-              <div className="relative z-10 text-white">
-                  <h3 className="font-bold text-lg flex items-center gap-2">
-                      <MapPin size={18} className="text-emerald-400" /> {t.news_around_you}
-                  </h3>
-                  <p className="text-xs text-gray-400 mt-1">{t.explore_map}</p>
-              </div>
-              <div className="relative z-10 bg-white/10 backdrop-blur-sm p-2 rounded-full group-hover:scale-110 transition-transform">
-                  <ArrowRight size={20} className="text-white" />
+              <div className="relative z-10 text-white w-full flex justify-between items-center">
+                  <div>
+                    <h3 className="font-bold text-lg flex items-center gap-2">
+                        <MapPin size={18} className="text-emerald-400" /> {t.news_around_you}
+                    </h3>
+                    <p className="text-xs text-gray-400 mt-1">{t.explore_map}</p>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-sm p-2 rounded-full group-hover:scale-110 transition-transform">
+                      <ArrowRight size={20} className="text-white" />
+                  </div>
               </div>
           </div>
       </div>
