@@ -13,7 +13,7 @@ import { Volume2, VolumeX } from 'lucide-react';
 interface ReelItemProps {
   data: {
     id: string;
-    articleId: string; // Original ID for routing
+    articleId: string;
     title: string;
     description: string;
     imageUrl: string;
@@ -54,8 +54,6 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
-  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
-  const tapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const REEL_DURATION = 15000; 
   const UPDATE_INTERVAL = 50;
@@ -165,7 +163,7 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
           const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
           if (newState) {
               const newBookmark = { 
-                  id: data.articleId, // Save original article ID
+                  id: data.articleId, 
                   title: data.title, 
                   source: data.source, 
                   category: data.category,
@@ -194,68 +192,33 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
       }
   };
 
-  // --- Touch Logic for Tap/Double Tap ---
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (isExpanded) return;
-    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, time: Date.now() };
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (isExpanded || !touchStartRef.current) return;
-    const diffX = e.changedTouches[0].clientX - touchStartRef.current.x;
-    const diffY = e.changedTouches[0].clientY - touchStartRef.current.y;
-    const diffTime = Date.now() - touchStartRef.current.time;
-
-    // Detect Tap vs Swipe
-    if (diffTime < 250 && Math.abs(diffX) < 10 && Math.abs(diffY) < 10) {
-        // It's a tap
-        if (tapTimeoutRef.current) {
-            // Double Tap Detected
-            clearTimeout(tapTimeoutRef.current);
-            tapTimeoutRef.current = null;
-            handleLike();
-        } else {
-            // Wait for possible second tap
-            tapTimeoutRef.current = setTimeout(() => {
-                // Single Tap Action: Toggle Mute
-                if (videoRef.current) {
-                    videoRef.current.muted = !videoRef.current.muted;
-                    setIsMuted(videoRef.current.muted);
-                    setShowMuteAnimation(true);
-                    setTimeout(() => setShowMuteAnimation(false), 1000);
-                }
-                tapTimeoutRef.current = null;
-            }, 300);
-        }
-    } else if (Math.abs(diffY) > 50 && diffY < 0 && Math.abs(diffX) < 30) {
-        // Swipe Up (Usually handled by scroll, but could trigger expand if strict)
-        // setIsExpanded(true);
-    }
-  };
-
-  // --- Mouse Logic for Desktop ---
+  // Simplified click handler for mute/like
   const handleClick = (e: React.MouseEvent) => {
       if (isExpanded) return;
-      if (e.detail === 2) {
-          handleLike();
-      } else if (e.detail === 1) {
-          // Delay to check for double click
-          // Desktop specific toggle play/pause or mute
-          if (videoRef.current) {
-              videoRef.current.muted = !videoRef.current.muted;
-              setIsMuted(videoRef.current.muted);
-              setShowMuteAnimation(true);
-              setTimeout(() => setShowMuteAnimation(false), 1000);
-          }
+      
+      // If double click logic needed, it can be added here, but single click Mute is standard
+      if (videoRef.current) {
+          videoRef.current.muted = !videoRef.current.muted;
+          setIsMuted(videoRef.current.muted);
+          setShowMuteAnimation(true);
+          setTimeout(() => setShowMuteAnimation(false), 1000);
+      }
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!isLiked) handleLike();
+      else {
+          setShowLikeAnimation(true);
+          setTimeout(() => setShowLikeAnimation(false), 1000);
       }
   };
 
   return (
     <div 
         className="h-full w-full relative bg-black flex items-center justify-center overflow-hidden select-none touch-pan-y"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
         onClick={handleClick}
+        onDoubleClick={handleDoubleClick}
         style={{ transform: 'translateZ(0)' }} 
     >
       {toast.show && (
@@ -315,15 +278,15 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
           </div>
       )}
 
-      {/* Expand Layer (AI Analysis) */}
+      {/* Expand Layer (AI Analysis) - Strictly on top */}
       <ReelExpandLayer 
         isOpen={isExpanded} 
         onClose={() => setIsExpanded(false)} 
         data={data}
       />
 
-      {/* Controls */}
-      <div className={`transition-opacity duration-300 z-40 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+      {/* Controls - Keep visible to prevent flickering during transition */}
+      <div className="z-40">
         <ReelActionBar 
             isLiked={isLiked}
             isSaved={isSaved}
@@ -336,7 +299,7 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
         />
       </div>
 
-      <div className={`transition-opacity duration-300 z-40 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+      <div className="z-40">
         <ReelInfoBar 
             title={data.title}
             description={data.description}

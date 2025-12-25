@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ChevronRight, Clock, Sparkles, TrendingUp, UserCheck, MapPin } from 'lucide-react';
 
@@ -53,20 +54,20 @@ const ReelInfoBar: React.FC<ReelInfoBarProps> = ({
   }
 
   return (
-    // Increase bottom padding from pb-24 to pb-32 to clear safe areas on mobile
+    // Keep bottom padding to clear safe areas on mobile
     <div className="absolute left-0 bottom-0 w-full p-5 pb-32 z-10 pointer-events-none flex flex-col items-start gap-3">
       <div className="pointer-events-auto w-[82%] max-w-[500px]">
         
         {/* Personalization Signal */}
         {reason && (
-            <div className="mb-2 inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/20 px-2 py-1 rounded-lg text-[10px] font-bold text-blue-200 animate-in slide-in-from-bottom-2 fade-in duration-500 uppercase tracking-wide">
+            <div className="mb-2 inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/20 px-2 py-1 rounded-lg text-[10px] font-bold text-blue-200 uppercase tracking-wide">
                 {getReasonIcon()}
                 {reason}
             </div>
         )}
 
         {/* Metadata Row */}
-        <div className="mb-2 animate-in slide-in-from-bottom-2 duration-500 flex flex-wrap items-center gap-2">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
             <span className="bg-blue-600 text-white text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider shadow-lg shadow-blue-900/50">
                 {category}
             </span>
@@ -89,13 +90,13 @@ const ReelInfoBar: React.FC<ReelInfoBarProps> = ({
         </div>
         
         {/* Headline */}
-        <h2 className={`${titleClass} font-black mb-3 drop-shadow-md text-white animate-in slide-in-from-bottom-3 duration-700`}>
+        <h2 className={`${titleClass} font-black mb-3 drop-shadow-md text-white`}>
             {title}
         </h2>
         
         {/* Description */}
         <div className="relative overflow-hidden mb-4">
-            <p className="text-sm text-gray-200 leading-relaxed font-medium line-clamp-3 drop-shadow-sm animate-in slide-in-from-bottom-4 duration-1000">
+            <p className="text-sm text-gray-200 leading-relaxed font-medium line-clamp-3 drop-shadow-sm">
                 <HighlightText text={description} highlights={tags} />
             </p>
         </div>

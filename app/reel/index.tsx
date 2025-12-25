@@ -167,24 +167,24 @@ const ReelPage: React.FC = () => {
   useEffect(() => {
     if (reels.length === 0) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
+    const options = {
+        threshold: 0.7 // Higher threshold to ensure stability before switching active state
+    };
+
+    const observer = new IntersectionObserver((entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             const id = entry.target.getAttribute('data-id');
             if (id) {
+                // Determine which element is MOST visible if multiple intersect
                 setActiveReelId(id);
             }
           }
         });
-      },
-      { threshold: 0.6 } 
-    );
+    }, options);
 
-    setTimeout(() => {
-        const elements = document.querySelectorAll('.reel-item');
-        elements.forEach((el) => observer.observe(el));
-    }, 100);
+    const elements = document.querySelectorAll('.reel-item');
+    elements.forEach((el) => observer.observe(el));
 
     return () => observer.disconnect();
   }, [reels.length]);
