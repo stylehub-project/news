@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Search } from 'lucide-react';
 import GenericPageSkeleton from '../../components/skeletons/GenericPageSkeleton';
@@ -19,12 +20,12 @@ const SearchPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
-             <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-100 px-4 py-3">
-                <div className="bg-gray-100 p-3 rounded-xl flex items-center gap-2 focus-within:ring-2 focus-within:ring-blue-100 focus-within:bg-white transition-all">
+        <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-300">
+             <div className="sticky top-0 z-40 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 px-4 py-3">
+                <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-xl flex items-center gap-2 focus-within:ring-2 focus-within:ring-blue-100 dark:focus-within:ring-blue-900/30 focus-within:bg-white dark:focus-within:bg-gray-800 transition-all">
                     <Search className="text-gray-400" size={20} />
                     <input 
-                        className="bg-transparent outline-none w-full text-sm" 
+                        className="bg-transparent outline-none w-full text-sm dark:text-white dark:placeholder:text-gray-500" 
                         placeholder="Search keywords, topics..." 
                         autoFocus 
                         value={query}

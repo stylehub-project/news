@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Chrome, ArrowRight, Github } from 'lucide-react';
@@ -13,18 +14,18 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="h-full w-full bg-white flex flex-col p-6 relative overflow-hidden">
+    <div className="h-full w-full bg-white dark:bg-gray-900 flex flex-col p-6 relative overflow-hidden transition-colors duration-300">
         {/* Decorative Background */}
-        <div className="absolute top-0 right-0 w-80 h-80 bg-blue-100 rounded-full blur-[80px] translate-x-1/2 -translate-y-1/2 opacity-60" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-100 rounded-full blur-[60px] -translate-x-1/2 translate-y-1/2 opacity-60" />
+        <div className="absolute top-0 right-0 w-80 h-80 bg-blue-100 dark:bg-blue-900/20 rounded-full blur-[80px] translate-x-1/2 -translate-y-1/2 opacity-60 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-100 dark:bg-indigo-900/20 rounded-full blur-[60px] -translate-x-1/2 translate-y-1/2 opacity-60 pointer-events-none" />
 
         <div className="flex-1 flex flex-col justify-center relative z-10 max-w-sm mx-auto w-full">
             <div className="mb-8">
                 <div className="w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl mb-6 shadow-lg shadow-blue-500/20">
                     N
                 </div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2 tracking-tight">Welcome Back</h1>
-                <p className="text-gray-500 text-lg">Sign in to continue to News Club.</p>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 tracking-tight">Welcome Back</h1>
+                <p className="text-gray-500 dark:text-gray-400 text-lg">Sign in to continue to News Club.</p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-5">
@@ -32,17 +33,17 @@ const LoginPage: React.FC = () => {
                     type="email" 
                     placeholder="Email Address" 
                     icon={<Mail size={20} />} 
-                    className="bg-gray-50 border-gray-200 py-3.5"
+                    className="bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 py-3.5 dark:text-white"
                 />
                 <div>
                     <Input 
                         type="password" 
                         placeholder="Password" 
                         icon={<Lock size={20} />} 
-                        className="bg-gray-50 border-gray-200 py-3.5"
+                        className="bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 py-3.5 dark:text-white"
                     />
                     <div className="flex justify-end mt-2">
-                        <button type="button" className="text-sm font-semibold text-blue-600 hover:text-blue-700">Forgot Password?</button>
+                        <button type="button" className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">Forgot Password?</button>
                     </div>
                 </div>
                 
@@ -52,22 +53,22 @@ const LoginPage: React.FC = () => {
             </form>
 
             <div className="relative my-8 text-center">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
-                <span className="relative bg-white px-4 text-sm text-gray-400 font-medium uppercase tracking-wider">Or continue with</span>
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200 dark:border-gray-800"></div></div>
+                <span className="relative bg-white dark:bg-gray-900 px-4 text-sm text-gray-400 font-medium uppercase tracking-wider">Or continue with</span>
             </div>
 
             <div className="space-y-3">
-                 <Button fullWidth variant="secondary" className="justify-center border-gray-200 py-3 text-gray-600 font-semibold" onClick={() => navigate('/onboarding')}>
+                 <Button fullWidth variant="secondary" className="justify-center border-gray-200 dark:border-gray-700 py-3 text-gray-600 dark:text-gray-200 font-semibold dark:bg-gray-800 dark:hover:bg-gray-700" onClick={() => navigate('/onboarding')}>
                     <Chrome size={20} className="mr-2" /> Google
                  </Button>
-                 <Button fullWidth variant="ghost" className="text-gray-500 font-medium" onClick={() => navigate('/onboarding')}>
+                 <Button fullWidth variant="ghost" className="text-gray-500 dark:text-gray-400 font-medium hover:bg-gray-50 dark:hover:bg-gray-800" onClick={() => navigate('/onboarding')}>
                     Continue as Guest
                  </Button>
             </div>
         </div>
         
         <div className="text-center mt-4">
-            <p className="text-sm text-gray-400">Don't have an account? <button className="text-blue-600 font-bold" onClick={() => navigate('/onboarding')}>Sign Up</button></p>
+            <p className="text-sm text-gray-400">Don't have an account? <button className="text-blue-600 dark:text-blue-400 font-bold" onClick={() => navigate('/onboarding')}>Sign Up</button></p>
         </div>
     </div>
   );

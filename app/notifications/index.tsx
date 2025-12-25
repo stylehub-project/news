@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import PageHeader from '../../components/PageHeader';
 import { Bell, Zap, Bookmark, ShieldAlert, Settings, Info, MessageSquare } from 'lucide-react';
@@ -22,23 +23,23 @@ const NotificationsPage: React.FC = () => {
       case 'trending': return <Zap size={20} className="text-blue-500" />;
       case 'saved': return <Bookmark size={20} className="text-green-500 fill-green-500" />;
       case 'admin': return <ShieldAlert size={20} className="text-purple-500" />;
-      case 'system': return <Settings size={20} className="text-gray-500" />;
+      case 'system': return <Settings size={20} className="text-gray-500 dark:text-gray-400" />;
       default: return <Info size={20} className="text-gray-400" />;
     }
   };
 
   const getBgColor = (type: string) => {
       switch(type) {
-          case 'breaking': return 'bg-red-50 border-red-100';
-          case 'admin': return 'bg-purple-50 border-purple-100';
-          default: return 'bg-white border-gray-100';
+          case 'breaking': return 'bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30';
+          case 'admin': return 'bg-purple-50 dark:bg-purple-900/10 border-purple-100 dark:border-purple-900/30';
+          default: return 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700';
       }
   };
 
   const filtered = filter === 'all' ? NOTIFICATIONS : NOTIFICATIONS.filter(n => n.type === filter);
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-gray-50 dark:bg-black pb-24 transition-colors duration-300">
       <PageHeader title="Notifications" showBack />
       
       <div className="p-4">
@@ -50,7 +51,7 @@ const NotificationsPage: React.FC = () => {
                         key={f}
                         onClick={() => setFilter(f)}
                         className={`px-4 py-2 rounded-full text-xs font-bold capitalize whitespace-nowrap transition-colors ${
-                            filter === f ? 'bg-black text-white' : 'bg-white border border-gray-200 text-gray-600'
+                            filter === f ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'
                         }`}
                     >
                         {f}
@@ -70,20 +71,20 @@ const NotificationsPage: React.FC = () => {
                         <div className="absolute top-4 right-4 w-2 h-2 bg-blue-500 rounded-full"></div>
                     )}
                     
-                    <div className="p-2 bg-white rounded-full shadow-sm shrink-0 mt-0.5 border border-gray-100">
+                    <div className="p-2 bg-white dark:bg-gray-700 rounded-full shadow-sm shrink-0 mt-0.5 border border-gray-100 dark:border-gray-600">
                         {getIcon(note.type)}
                     </div>
                     
                     <div className="flex-1">
                         <div className="flex justify-between items-start pr-4">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">{note.type}</span>
-                            <span className="text-[10px] text-gray-400">{note.time}</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">{note.type}</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">{note.time}</span>
                         </div>
-                        <h3 className={`text-sm font-bold leading-snug ${note.type === 'breaking' ? 'text-red-900' : 'text-gray-900'}`}>
+                        <h3 className={`text-sm font-bold leading-snug ${note.type === 'breaking' ? 'text-red-900 dark:text-red-300' : 'text-gray-900 dark:text-gray-100'}`}>
                             {note.title}
                         </h3>
                         {note.type === 'admin' && (
-                            <p className="text-xs text-gray-600 mt-1">Tap to view full message from the editorial team.</p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Tap to view full message from the editorial team.</p>
                         )}
                          {note.type === 'breaking' && (
                             <div className="mt-2 flex gap-2">
@@ -95,7 +96,7 @@ const NotificationsPage: React.FC = () => {
             ))}
 
             {filtered.length === 0 && (
-                <div className="text-center py-12 text-gray-400">
+                <div className="text-center py-12 text-gray-400 dark:text-gray-600">
                     <Bell size={48} className="mx-auto mb-3 opacity-20" />
                     <p>No notifications found.</p>
                 </div>

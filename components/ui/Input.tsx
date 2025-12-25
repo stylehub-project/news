@@ -1,3 +1,4 @@
+
 import React, { forwardRef } from 'react';
 import { Search } from 'lucide-react';
 
@@ -21,14 +22,14 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({
   const baseStyles = "w-full outline-none transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed";
   
   const variants = {
-    default: "bg-gray-50 border border-gray-200 focus:bg-white focus:border-blue-500 rounded-xl px-4 py-3 placeholder:text-gray-400",
-    underline: "bg-transparent border-b border-gray-200 px-0 py-2 rounded-none focus:border-blue-600 placeholder:text-gray-400",
-    search: "bg-gray-100 hover:bg-gray-200 focus:bg-white border border-transparent focus:border-blue-500 rounded-full px-5 py-2.5 pl-11",
+    default: "bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:bg-white dark:focus:bg-gray-700 focus:border-blue-500 dark:focus:border-blue-500 rounded-xl px-4 py-3 placeholder:text-gray-400 dark:text-white",
+    underline: "bg-transparent border-b border-gray-200 dark:border-gray-700 px-0 py-2 rounded-none focus:border-blue-600 dark:focus:border-blue-400 placeholder:text-gray-400 dark:text-white",
+    search: "bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 focus:bg-white dark:focus:bg-gray-900 border border-transparent focus:border-blue-500 rounded-full px-5 py-2.5 pl-11 dark:text-white",
   };
 
   return (
     <div className={`flex flex-col gap-1.5 w-full ${containerClassName}`}>
-      {label && <label className="text-sm font-medium text-gray-700 ml-1">{label}</label>}
+      {label && <label className="text-sm font-medium text-gray-700 dark:text-gray-300 ml-1">{label}</label>}
       <div className="relative">
         {(variant === 'search' || icon) && (
           <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">

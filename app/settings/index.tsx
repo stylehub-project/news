@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import PageHeader from '../../components/PageHeader';
 import { User, Bell, Globe, Moon, Database, Link as LinkIcon, ChevronRight, LogOut, Check } from 'lucide-react';
@@ -129,6 +130,12 @@ const SettingsPage: React.FC = () => {
         <Button variant="ghost" fullWidth className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600">
             <LogOut size={18} /> Log Out
         </Button>
+
+        {/* Branding Tagline */}
+        <div className="text-center py-6 opacity-50">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">A Product by Style Hub</p>
+            <p className="text-[9px] text-gray-400 mt-1">The Hub of Upcoming Technical Generation</p>
+        </div>
       </div>
     </div>
   );

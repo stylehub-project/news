@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import PageHeader from '../../components/PageHeader';
 import WorldMap from '../../components/map/WorldMap';
@@ -38,7 +39,7 @@ const MapPage: React.FC = () => {
   }
 
   return (
-    <div className="relative w-full h-full bg-slate-100 overflow-hidden flex flex-col pb-[70px]">
+    <div className="relative w-full h-full bg-slate-100 dark:bg-slate-900 overflow-hidden flex flex-col pb-[70px] transition-colors duration-300">
         {/* Navbar with Integrated Filter Dropside */}
         <div className="absolute top-0 left-0 right-0 z-30 pointer-events-none">
              <PageHeader 

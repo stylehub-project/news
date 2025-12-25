@@ -305,6 +305,12 @@ const FloatingFeedback: React.FC = () => {
                         <Send size={16} /> Send Report
                     </Button>
                 </div>
+
+                {/* Tagline */}
+                <div className="text-center pt-4 border-t border-gray-100 dark:border-gray-800 mt-2">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">A Service by Style Hub</p>
+                    <p className="text-[9px] text-gray-400 mt-0.5">The Hub of Upcoming Technical Generation</p>
+                </div>
             </div>
         </Modal>
 

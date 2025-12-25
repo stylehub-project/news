@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Grid } from 'lucide-react';
 import PageHeader from '../../components/PageHeader';
@@ -15,7 +16,7 @@ const CategoriesPage = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-24">
+        <div className="min-h-screen bg-gray-50 dark:bg-black pb-24 transition-colors duration-300">
             <PageHeader title="Explore Topics" />
             <div className="p-4 grid grid-cols-2 gap-4">
                 {categories.map(cat => (
@@ -24,7 +25,7 @@ const CategoriesPage = () => {
                     </Link>
                 ))}
                 
-                <div className="col-span-2 mt-4 p-6 bg-white rounded-xl border border-dashed border-gray-300 flex flex-col items-center text-gray-400">
+                <div className="col-span-2 mt-4 p-6 bg-white dark:bg-gray-900 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center text-gray-400 dark:text-gray-500 transition-colors">
                     <Grid size={32} className="mb-2" />
                     <span className="text-sm">More categories loading...</span>
                 </div>
