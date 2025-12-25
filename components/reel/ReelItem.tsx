@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { Loader2 } from 'lucide-react';
 import ReelActionBar from './ReelActionBar';
 import ReelInfoBar from './ReelInfoBar';
 import ReelCommentsSheet from './ReelCommentsSheet';
@@ -39,7 +38,6 @@ interface ReelItemProps {
 const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished }) => {
   // --- Media State ---
   const [isVideo, setIsVideo] = useState(!!data.videoUrl);
-  const [isBuffering, setIsBuffering] = useState(false);
   const [progress, setProgress] = useState(0);
   
   // videoPlaying: True ONLY when time is advancing and we are ready to show
@@ -269,8 +267,7 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
                 preload="auto"
                 onTimeUpdate={handleVideoTimeUpdate}
                 onEnded={handleVideoEnded}
-                onWaiting={() => setIsBuffering(true)}
-                onPlaying={() => setIsBuffering(false)}
+                // No buffering indicators
                 onError={handleVideoError}
             />
         </div>
@@ -292,13 +289,6 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
 
       {/* --- LAYER 3: OVERLAYS (Z-30+) --- */}
       
-      {/* Buffering Spinner */}
-      {isVideo && isBuffering && videoPlaying && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-              <Loader2 size={48} className="text-white/80 animate-spin drop-shadow-md" />
-          </div>
-      )}
-
       {/* Gradient for Text Readability */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/90 pointer-events-none z-30" />
 
