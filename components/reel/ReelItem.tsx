@@ -41,7 +41,11 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
   const [isVideo, setIsVideo] = useState(!!data.videoUrl);
   const [isBuffering, setIsBuffering] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [mediaLoaded, setMediaLoaded] = useState(false);
+  
+  // videoReady: Video has enough data to play
+  // videoPlaying: Video is actually advancing
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoPlaying, setVideoPlaying] = useState(false);
   
   // --- Interaction State ---
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
@@ -84,20 +88,18 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
       setIsCommentsOpen(false);
       setIsShareOpen(false);
       setIsOptionsOpen(false);
+      setVideoPlaying(false);
       
       if (video) {
         video.pause();
-        // Do NOT reset currentTime to 0 to avoid poster flashing on quick scroll back
       }
     } else {
       // Activate
       if (video && isVideo) {
-          // Promise-based play handling to prevent "The play() request was interrupted" error
           const playPromise = video.play();
           if (playPromise !== undefined) {
               playPromise.catch(() => {
-                  // Auto-play was prevented
-                  // console.log('Autoplay prevented');
+                  // Autoplay prevented
               });
           }
       }
@@ -113,7 +115,8 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
 
     if (isActive && !isPausedInteraction) {
       if (isVideo) {
-          if (videoRef.current && videoRef.current.paused && mediaLoaded) {
+          // Video progress is handled by onTimeUpdate, but ensure play state
+          if (videoRef.current && videoRef.current.paused && videoReady) {
               videoRef.current.play().catch(() => {});
           }
       } else {
@@ -135,14 +138,17 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
     return () => {
       if (progressInterval.current) clearInterval(progressInterval.current);
     };
-  }, [isActive, isVideo, isAutoScroll, onFinished, isExpanded, isCommentsOpen, isShareOpen, isOptionsOpen, mediaLoaded]);
+  }, [isActive, isVideo, isAutoScroll, onFinished, isExpanded, isCommentsOpen, isShareOpen, isOptionsOpen, videoReady]);
 
   const handleVideoTimeUpdate = () => {
       if (videoRef.current && videoRef.current.duration > 0) {
           const val = (videoRef.current.currentTime / videoRef.current.duration) * 100;
-          // Only update state if change is significant to reduce renders
           if (Math.abs(val - progress) > 0.5) {
               setProgress(val);
+          }
+          // If we have valid time update, we are definitely playing
+          if (!videoPlaying && videoRef.current.currentTime > 0.1) {
+              setVideoPlaying(true);
           }
       }
   };
@@ -161,7 +167,7 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
       console.warn("Video failed to load, falling back to image:", data.videoUrl);
       setIsVideo(false);
       setIsBuffering(false);
-      setMediaLoaded(true); // Treat fallback as loaded
+      setVideoPlaying(false);
   };
 
   const handleLike = (e?: React.MouseEvent) => {
@@ -231,7 +237,6 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
     const diffY = e.changedTouches[0].clientY - touchStartRef.current.y;
     const diffTime = Date.now() - touchStartRef.current.time;
 
-    // Small movement and short time = Click/Tap
     if (diffTime < 250 && Math.abs(diffX) < 10 && Math.abs(diffY) < 10) {
         setIsExpanded(true);
     }
@@ -266,57 +271,50 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
           </div>
       )}
 
-      {/* Layer 1: Persistent Background Image (Low Z-Index) */}
-      <div className="absolute inset-0 z-0">
-        <img 
-            src={data.imageUrl}
-            className="w-full h-full object-cover"
-            alt=""
-            loading="lazy"
-        />
-        <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
-      </div>
-
-      {/* Layer 2: Video Player (Mid Z-Index) */}
+      {/* Layer 1: Video Player (Mid Z-Index) */}
       {isVideo && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-transparent">
+        <div className="absolute inset-0 z-10 bg-black">
             <video
                 ref={videoRef}
                 src={data.videoUrl}
                 poster={data.imageUrl}
-                className={`w-full h-full object-cover transition-opacity duration-500 ${mediaLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className="w-full h-full object-cover"
                 loop={false}
                 playsInline
                 muted
                 preload="auto"
-                onLoadedData={() => setMediaLoaded(true)}
+                onLoadedData={() => setVideoReady(true)}
                 onTimeUpdate={handleVideoTimeUpdate}
                 onEnded={handleVideoEnded}
                 onWaiting={() => setIsBuffering(true)}
-                onPlaying={() => setIsBuffering(false)}
+                onPlaying={() => {
+                    setIsBuffering(false);
+                    setVideoPlaying(true);
+                }}
                 onError={handleVideoError}
             />
         </div>
       )}
 
-      {/* Layer 3: High Res Image (If not video or while video loads) */}
-      {!isVideo && (
-         <div className="absolute inset-0 z-10">
-            <img
-                src={data.imageUrl} 
-                onLoad={() => setMediaLoaded(true)}
-                className={`w-full h-full object-cover transition-transform duration-[15000ms] ease-linear ${isActive ? 'scale-110' : 'scale-100'}`}
-                alt={data.title}
-            />
-         </div>
-      )}
+      {/* Layer 2: High Res Image Overlay (Fade out when video plays) */}
+      <div 
+        className={`absolute inset-0 z-20 pointer-events-none transition-opacity duration-500 ease-out ${videoPlaying ? 'opacity-0' : 'opacity-100'}`}
+      >
+        <img 
+            src={data.imageUrl}
+            className={`w-full h-full object-cover ${isActive && !videoPlaying ? 'scale-105 transition-transform duration-[10s]' : ''}`}
+            alt=""
+        />
+        {/* Only show blur backdrop if we are falling back to image mode or waiting */}
+        <div className="absolute inset-0 bg-black/10"></div>
+      </div>
       
-      {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/90 pointer-events-none z-20" />
+      {/* Layer 3: Gradient Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/90 pointer-events-none z-30" />
 
-      {/* Buffering Indicator */}
-      {isVideo && isBuffering && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+      {/* Buffering Indicator - Show only if we really expect video */}
+      {isVideo && isBuffering && videoPlaying && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40">
               <Loader2 size={48} className="text-white/80 animate-spin" />
           </div>
       )}
@@ -337,7 +335,7 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
         data={data}
       />
 
-      <div className={`transition-opacity duration-300 z-30 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+      <div className={`transition-opacity duration-300 z-40 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <ReelActionBar 
             likes={isLiked ? (parseInt(data.likes) + 1).toString() : data.likes}
             comments={data.comments}
@@ -352,7 +350,7 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
         />
       </div>
 
-      <div className={`transition-opacity duration-300 z-30 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+      <div className={`transition-opacity duration-300 z-40 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <ReelInfoBar 
             title={data.title}
             description={data.description}
@@ -366,7 +364,7 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
         />
       </div>
 
-      <div onClick={(e) => e.stopPropagation()} className="z-40 relative">
+      <div onClick={(e) => e.stopPropagation()} className="z-50 relative">
         <ReelCommentsSheet isOpen={isCommentsOpen} onClose={() => setIsCommentsOpen(false)} />
         <ReelShareSheet isOpen={isShareOpen} onClose={() => setIsShareOpen(false)} />
         <ReelOptionsSheet isOpen={isOptionsOpen} onClose={() => setIsOptionsOpen(false)} category={data.category} source={data.source} />
@@ -374,11 +372,10 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
     </div>
   );
 }, (prev, next) => {
-    // Custom equality check for React.memo
-    // Only re-render if:
-    // 1. The ID changed (new item)
-    // 2. Active state changed (scroll)
-    // 3. Auto-scroll state changed
+    // Re-render if:
+    // 1. ID changed (new item)
+    // 2. Active state changed (scrolled into view)
+    // 3. Auto-scroll changed
     return prev.data.id === next.data.id && 
            prev.isActive === next.isActive && 
            prev.isAutoScroll === next.isAutoScroll;

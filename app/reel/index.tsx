@@ -115,8 +115,8 @@ const ReelPage: React.FC = () => {
 
       const formattedNewReels = newItems.map((item: any, index: number) => ({
           ...item,
-          // Ensure unique ID generation doesn't conflict with existing
-          id: `${item.id}-${Date.now()}-${Math.random()}`, 
+          // Use stable ID composition (original ID + page index) instead of Date.now() to prevent key churn
+          id: `${item.id}-p${nextPage}-${index}`, 
           videoUrl: index % 3 === 0 ? 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-solar-panel-forest-42805-large.mp4' : undefined,
           likes: Math.floor(Math.random() * 5000).toString(),
           comments: Math.floor(Math.random() * 200).toString(),
@@ -210,7 +210,7 @@ const ReelPage: React.FC = () => {
             key={reel.id} 
             id={`reel-${reel.id}`} 
             data-id={reel.id} 
-            className="reel-item h-full w-full snap-start transform-gpu"
+            className="reel-item h-full w-full snap-start snap-always transform-gpu"
           >
              <ReelItem 
                 data={reel} 
