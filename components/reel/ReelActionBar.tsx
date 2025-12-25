@@ -1,10 +1,8 @@
 
 import React from 'react';
-import { Heart, MessageCircle, Share2, Bookmark, Sparkles, MoreHorizontal } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, Sparkles, RefreshCw } from 'lucide-react';
 
 interface ReelActionBarProps {
-  likes?: string;
-  comments?: string;
   isLiked?: boolean;
   isSaved?: boolean;
   onLike?: (e?: React.MouseEvent) => void;
@@ -12,6 +10,8 @@ interface ReelActionBarProps {
   onShare?: (e?: React.MouseEvent) => void;
   onSave?: (e?: React.MouseEvent) => void;
   onAIExplain?: (e?: React.MouseEvent) => void;
+  onSwitchPerspective?: (e?: React.MouseEvent) => void;
+  currentPerspective?: string;
   onMore?: (e?: React.MouseEvent) => void;
 }
 
@@ -23,75 +23,62 @@ const ReelActionBar: React.FC<ReelActionBarProps> = ({
   onShare,
   onSave,
   onAIExplain,
+  onSwitchPerspective,
+  currentPerspective = 'Neutral',
   onMore
 }) => {
-  const buttonBaseClass = "p-3 bg-black/40 border border-white/10 backdrop-blur-xl rounded-full text-white hover:bg-black/60 transition-all active:scale-90 shadow-lg flex items-center justify-center w-12 h-12";
-
-  const handleAction = (e: React.MouseEvent, action?: (e?: React.MouseEvent) => void) => {
-      e.stopPropagation();
-      action?.(e);
-  };
-
   return (
-    <div className="absolute right-4 bottom-24 flex flex-col gap-4 items-center z-20 pb-safe pointer-events-auto">
-      {/* Like */}
-      <button 
-        onClick={(e) => handleAction(e, onLike)}
-        className="group relative active:scale-90 transition-transform w-12 h-12 flex items-center justify-center"
-        aria-label={isLiked ? "Unlike" : "Like"}
-      >
-        <div className={`p-3 rounded-full backdrop-blur-xl border border-white/10 transition-all duration-300 shadow-lg w-full h-full flex items-center justify-center ${isLiked ? 'bg-red-500/80 text-white' : 'bg-black/40 text-white hover:bg-black/60'}`}>
-          <Heart size={24} className={`transition-transform duration-200 ${isLiked ? 'fill-current scale-110' : ''}`} />
+    <div className="flex items-center justify-between px-2">
+        {/* Left Actions */}
+        <div className="flex items-center gap-4">
+            <button 
+                onClick={(e) => { e.stopPropagation(); onLike?.(e); }} 
+                className="flex flex-col items-center gap-1 group"
+            >
+                <div className={`p-2 rounded-full transition-colors ${isLiked ? 'text-red-500 bg-red-500/10' : 'text-gray-400 hover:text-white'}`}>
+                    <Heart size={24} className={isLiked ? 'fill-current' : ''} />
+                </div>
+                <span className="text-[10px] text-gray-500 font-medium">Like</span>
+            </button>
+
+            <button 
+                onClick={(e) => { e.stopPropagation(); onSwitchPerspective?.(e); }} 
+                className="flex flex-col items-center gap-1 group"
+            >
+                <div className="p-2 rounded-full text-indigo-400 hover:text-white hover:bg-indigo-500/20 transition-all">
+                    <RefreshCw size={24} className="group-hover:rotate-180 transition-transform duration-500" />
+                </div>
+                <span className="text-[10px] text-gray-500 font-medium whitespace-nowrap">{currentPerspective}</span>
+            </button>
+
+            <button 
+                onClick={(e) => { e.stopPropagation(); onShare?.(e); }} 
+                className="flex flex-col items-center gap-1 group"
+            >
+                <div className="p-2 rounded-full text-gray-400 hover:text-white transition-colors">
+                    <Share2 size={24} />
+                </div>
+                <span className="text-[10px] text-gray-500 font-medium">Share</span>
+            </button>
         </div>
-      </button>
 
-      {/* Comment */}
-      <button 
-        onClick={(e) => handleAction(e, onComment)}
-        className={buttonBaseClass}
-        aria-label="Comments"
-      >
-        <MessageCircle size={24} />
-      </button>
+        {/* Center/Right Actions */}
+        <div className="flex items-center gap-3">
+             <button 
+                onClick={(e) => { e.stopPropagation(); onAIExplain?.(e); }} 
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 rounded-full text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-500 transition-all active:scale-95"
+            >
+                <Sparkles size={16} className="text-yellow-300 fill-yellow-300" />
+                <span className="text-xs font-bold">Explain</span>
+            </button>
 
-      {/* AI Explain */}
-      <button 
-          onClick={(e) => handleAction(e, onAIExplain)}
-          className="group relative active:scale-95 transition-transform w-14 h-14 flex items-center justify-center"
-          aria-label="AI Explain"
-      >
-          <div className="absolute inset-0 bg-indigo-500 rounded-full blur-md opacity-50 group-hover:opacity-80 transition-opacity animate-pulse-slow"></div>
-          <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-600 to-violet-600 rounded-full text-white shadow-xl border border-white/30">
-              <Sparkles size={26} className="text-yellow-200 group-hover:rotate-12 transition-transform" />
-          </div>
-      </button>
-
-      {/* Save */}
-      <button 
-        onClick={(e) => handleAction(e, onSave)}
-        className={`${buttonBaseClass} ${isSaved ? 'text-blue-400 border-blue-400/50' : ''}`}
-        aria-label={isSaved ? "Unsave" : "Save"}
-      >
-        <Bookmark size={24} className={isSaved ? 'fill-current' : ''} />
-      </button>
-
-      {/* Share */}
-      <button 
-        onClick={(e) => handleAction(e, onShare)}
-        className={buttonBaseClass}
-        aria-label="Share"
-      >
-        <Share2 size={24} />
-      </button>
-
-      {/* More Options */}
-      <button 
-        onClick={(e) => handleAction(e, onMore)}
-        className={buttonBaseClass}
-        aria-label="More Options"
-      >
-        <MoreHorizontal size={24} />
-      </button>
+            <button 
+                onClick={(e) => { e.stopPropagation(); onSave?.(e); }} 
+                className={`p-2 rounded-full border transition-colors ${isSaved ? 'bg-blue-600 border-blue-600 text-white' : 'border-white/20 text-gray-400 hover:text-white hover:border-white/40'}`}
+            >
+                <Bookmark size={20} className={isSaved ? 'fill-current' : ''} />
+            </button>
+        </div>
     </div>
   );
 };
