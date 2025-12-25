@@ -3,8 +3,8 @@ import React from 'react';
 import { Heart, MessageCircle, Share2, Bookmark, Sparkles, MoreHorizontal } from 'lucide-react';
 
 interface ReelActionBarProps {
-  likes: string;
-  comments: string;
+  likes?: string;
+  comments?: string;
   isLiked?: boolean;
   isSaved?: boolean;
   onLike?: (e?: React.MouseEvent) => void;

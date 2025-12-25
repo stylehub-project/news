@@ -20,8 +20,6 @@ interface ReelItemProps {
     category: string;
     aiEnhanced?: boolean;
     timeAgo: string;
-    likes: string;
-    comments: string;
     tags?: string[];
     aiSummary?: string;
     keyPoints?: string[];
@@ -59,15 +57,7 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
   const REEL_DURATION = 15000; 
   const UPDATE_INTERVAL = 50;
 
-  useEffect(() => {
-      try {
-          const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
-          if (bookmarks.some((b: any) => b.id === data.id)) {
-              setIsSaved(true);
-          }
-      } catch (e) {}
-  }, [data.id]);
-
+  // Video Management
   useEffect(() => {
     const video = videoRef.current;
     
@@ -77,23 +67,29 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
       setIsCommentsOpen(false);
       setIsShareOpen(false);
       setIsOptionsOpen(false);
-      setVideoPlaying(false);
+      setVideoPlaying(false); // Bring back poster immediately when scrolling away
       
       if (video) {
         video.pause();
+        // Do NOT reset currentTime to 0 to avoid black flash if quickly scrolling back
       }
     } else {
       if (video && isVideo) {
           const playPromise = video.play();
           if (playPromise !== undefined) {
-              playPromise.catch(() => { /* Autoplay prevented or error */ });
+              playPromise.catch(() => {
+                  // Autoplay failed, fallback handled by UI (poster remains)
+                  console.log("Autoplay blocked/failed");
+              });
           }
       } else if (!isVideo) {
+          // If no video, we set playing to true to start the progress bar for the image
           setVideoPlaying(true); 
       }
     }
   }, [isActive, isVideo]);
 
+  // Progress Bar Logic
   useEffect(() => {
     const isPausedInteraction = isExpanded || isCommentsOpen || isShareOpen || isOptionsOpen;
 
@@ -105,6 +101,7 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
               videoRef.current.play().catch(() => {});
           }
       } else {
+          // Image Timer Logic
           progressInterval.current = setInterval(() => {
             setProgress((prev) => {
               if (prev >= 100) {
@@ -129,7 +126,8 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
           const val = (videoRef.current.currentTime / videoRef.current.duration) * 100;
           if (Math.abs(val - progress) > 0.5) setProgress(val);
           
-          if (!videoPlaying && videoRef.current.currentTime > 0.1) {
+          // Only fade out poster when video has actually advanced
+          if (!videoPlaying && videoRef.current.currentTime > 0.2) {
               setVideoPlaying(true);
           }
       }
@@ -146,7 +144,7 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
 
   const handleVideoError = () => {
       setIsVideo(false);
-      setVideoPlaying(true);
+      setVideoPlaying(true); // Switch to "playing" state for image fallback
   };
 
   const handleLike = (e?: React.MouseEvent) => {
@@ -242,8 +240,8 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
             <video
                 ref={videoRef}
                 src={data.videoUrl}
-                poster={data.imageUrl}
-                className={`w-full h-full object-cover transition-opacity duration-300 ${videoPlaying ? 'opacity-100' : 'opacity-0'}`}
+                poster={data.imageUrl} // Native poster fallback
+                className={`w-full h-full object-cover transition-opacity duration-500 ${videoPlaying ? 'opacity-100' : 'opacity-0'}`}
                 loop={false}
                 playsInline
                 muted
@@ -255,7 +253,8 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
         </div>
       )}
 
-      {/* Poster Image - High Res, Always Visible until playing */}
+      {/* Poster Image - High Res, Always Visible until video is strictly playing > 0.2s */}
+      {/* This prevents the "Blinking" black screen issue */}
       <div className={`absolute inset-0 z-20 pointer-events-none transition-opacity duration-700 ease-in-out ${videoPlaying ? 'opacity-0' : 'opacity-100'}`}>
          <img 
             src={data.imageUrl} 
@@ -286,8 +285,6 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
 
       <div className={`transition-opacity duration-300 z-40 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <ReelActionBar 
-            likes={isLiked ? (parseInt(data.likes) + 1).toString() : data.likes}
-            comments={data.comments}
             isLiked={isLiked}
             isSaved={isSaved}
             onLike={handleLike}
@@ -321,6 +318,7 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
     </div>
   );
 }, (prev, next) => {
+    // Custom equality check to prevent re-renders when parent state changes but this item doesn't
     return prev.data.id === next.data.id && 
            prev.isActive === next.isActive && 
            prev.isAutoScroll === next.isAutoScroll;

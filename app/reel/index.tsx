@@ -21,35 +21,48 @@ const ReelPage: React.FC = () => {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [hasRestoredPosition, setHasRestoredPosition] = useState(false);
+  
+  // Track IDs to prevent duplicates strictly
+  const loadedIdsRef = useRef<Set<string>>(new Set());
 
   // 1. Fetch Data Based on Language
   useEffect(() => {
       let isMounted = true;
       const loadReels = async () => {
+          loadedIdsRef.current.clear(); // Reset on language change
           const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
           
           const newsItems = await fetchNewsFeed(1, { category: 'All', sort: 'Latest', language: langName });
           
-          const formattedReels = newsItems.map((item: any, index: number) => ({
-              ...item,
-              videoUrl: index % 2 === 0 ? 'https://assets.mixkit.co/videos/preview/mixkit-futuristic-robotic-arm-working-on-a-circuit-board-42996-large.mp4' : undefined,
-              likes: Math.floor(Math.random() * 8000 + 1000).toString(),
-              comments: Math.floor(Math.random() * 500).toString(),
-              tags: [item.category, contentLanguage === 'hi' ? 'ताज़ा खबर' : 'Trending'],
-              aiEnhanced: true,
-              aiSummary: item.description,
-              keyPoints: contentLanguage === 'hi' 
-                ? ['मुख्य बिंदु 1: विस्तृत विश्लेषण', 'बाजार पर प्रभाव', 'विशेषज्ञों की राय']
-                : ['Key Point 1: Detailed analysis', 'Market Impact', 'Expert Opinion'],
-              factCheck: { status: 'Verified', score: 95 + (index % 5) },
-              location: { name: contentLanguage === 'hi' ? 'नई दिल्ली, भारत' : 'New York, USA', lat: 40.7128, lng: -74.0060 },
-              personalizationReason: contentLanguage === 'hi' ? 'आपके लिए अनुशंसित' : 'Recommended for you'
-          }));
+          const formattedReels = newsItems.map((item: any, index: number) => {
+              const uniqueId = `${item.id}-p1-${index}`; // Stable ID
+              return {
+                ...item,
+                id: uniqueId,
+                videoUrl: index % 2 === 0 ? 'https://assets.mixkit.co/videos/preview/mixkit-futuristic-robotic-arm-working-on-a-circuit-board-42996-large.mp4' : undefined,
+                tags: [item.category, contentLanguage === 'hi' ? 'ताज़ा खबर' : 'Trending'],
+                aiEnhanced: true,
+                aiSummary: item.description,
+                keyPoints: contentLanguage === 'hi' 
+                    ? ['मुख्य बिंदु 1: विस्तृत विश्लेषण', 'बाजार पर प्रभाव', 'विशेषज्ञों की राय']
+                    : ['Key Point 1: Detailed analysis', 'Market Impact', 'Expert Opinion'],
+                factCheck: { status: 'Verified', score: 95 + (index % 5) },
+                location: { name: contentLanguage === 'hi' ? 'नई दिल्ली, भारत' : 'New York, USA', lat: 40.7128, lng: -74.0060 },
+                personalizationReason: contentLanguage === 'hi' ? 'आपके लिए अनुशंसित' : 'Recommended for you'
+              };
+          });
 
           if (isMounted) {
-              setReels(formattedReels);
-              if (formattedReels.length > 0) {
-                  setActiveReelId(formattedReels[0].id);
+              // Deduplicate immediately
+              const uniqueReels = formattedReels.filter((r: any) => {
+                  if (loadedIdsRef.current.has(r.id)) return false;
+                  loadedIdsRef.current.add(r.id);
+                  return true;
+              });
+
+              setReels(uniqueReels);
+              if (uniqueReels.length > 0) {
+                  setActiveReelId(uniqueReels[0].id);
               }
               markAsLoaded('reel');
 
@@ -70,11 +83,14 @@ const ReelPage: React.FC = () => {
       if (reels.length > 0 && !hasRestoredPosition) {
           const lastId = sessionStorage.getItem('news-reel-last-id');
           if (lastId) {
-              const element = document.getElementById(`reel-${lastId}`);
-              if (element) {
-                  element.scrollIntoView({ behavior: 'auto' });
-                  setActiveReelId(lastId);
-              }
+              // Ensure element exists before scrolling
+              setTimeout(() => {
+                  const element = document.getElementById(`reel-${lastId}`);
+                  if (element) {
+                      element.scrollIntoView({ behavior: 'auto' });
+                      setActiveReelId(lastId);
+                  }
+              }, 10);
           }
           setHasRestoredPosition(true);
       }
@@ -104,7 +120,7 @@ const ReelPage: React.FC = () => {
 
   // 4. Data Fetching
   const fetchMoreReels = useCallback(async () => {
-      if (isFetchingMore) return; // Prevent double fetch
+      if (isFetchingMore) return; 
       setIsFetchingMore(true);
       
       try {
@@ -112,27 +128,34 @@ const ReelPage: React.FC = () => {
           const nextPage = Math.floor(reels.length / 5) + 1;
           const newItems = await fetchNewsFeed(nextPage, { category: 'All', sort: 'Latest', language: langName });
 
-          const formattedNewReels = newItems.map((item: any, index: number) => ({
-              ...item,
-              // Critical: Ensure unique ID composition to prevent React Key Crash
-              id: `${item.id}-p${nextPage}-${index}-${Date.now()}`, 
-              videoUrl: index % 3 === 0 ? 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-solar-panel-forest-42805-large.mp4' : undefined,
-              likes: Math.floor(Math.random() * 5000).toString(),
-              comments: Math.floor(Math.random() * 200).toString(),
-              tags: [item.category],
-              aiEnhanced: true,
-              aiSummary: item.description,
-              keyPoints: contentLanguage === 'hi' 
-                ? ['अतिरिक्त जानकारी', 'वैश्विक संदर्भ']
-                : ['Additional Context', 'Global Scale'],
-              factCheck: { status: 'Verified', score: 92 },
-              personalizationReason: contentLanguage === 'hi' ? 'लोकप्रिय' : 'Popular Now'
-          }));
+          const formattedNewReels = newItems.map((item: any, index: number) => {
+              // Create a strictly deterministic ID. 
+              // Do NOT use Date.now() here as it causes keys to change on re-renders if logic triggers again.
+              const uniqueId = `${item.id}-p${nextPage}-${index}`; 
+              return {
+                  ...item,
+                  id: uniqueId, 
+                  videoUrl: index % 3 === 0 ? 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-solar-panel-forest-42805-large.mp4' : undefined,
+                  tags: [item.category],
+                  aiEnhanced: true,
+                  aiSummary: item.description,
+                  keyPoints: contentLanguage === 'hi' 
+                    ? ['अतिरिक्त जानकारी', 'वैश्विक संदर्भ']
+                    : ['Additional Context', 'Global Scale'],
+                  factCheck: { status: 'Verified', score: 92 },
+                  personalizationReason: contentLanguage === 'hi' ? 'लोकप्रिय' : 'Popular Now'
+              };
+          });
           
           setReels(prev => {
-              // Deduplication Safety Check
-              const existingIds = new Set(prev.map(r => r.id));
-              const uniqueNew = formattedNewReels.filter((r: any) => !existingIds.has(r.id));
+              // Filter out any IDs that we have already rendered to strictly prevent key collision
+              const uniqueNew = formattedNewReels.filter((r: any) => {
+                  if (loadedIdsRef.current.has(r.id)) return false;
+                  loadedIdsRef.current.add(r.id);
+                  return true;
+              });
+              
+              if (uniqueNew.length === 0) return prev;
               return [...prev, ...uniqueNew];
           });
       } catch (err) {
@@ -160,11 +183,14 @@ const ReelPage: React.FC = () => {
       { threshold: 0.6 } 
     );
 
-    const elements = document.querySelectorAll('.reel-item');
-    elements.forEach((el) => observer.observe(el));
+    // Small delay to ensure DOM is painted
+    setTimeout(() => {
+        const elements = document.querySelectorAll('.reel-item');
+        elements.forEach((el) => observer.observe(el));
+    }, 100);
 
     return () => observer.disconnect();
-  }, [reels]);
+  }, [reels.length]); // Dependency on length so it re-attaches to new items
 
   const handleNext = useCallback(() => {
     const currentIndex = reels.findIndex(r => r.id === activeReelId);
