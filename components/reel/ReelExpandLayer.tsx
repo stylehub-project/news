@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, MapPin, List, ArrowRight, BrainCircuit, Globe, Volume2, Pause, ShieldCheck, ExternalLink, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +8,7 @@ interface ReelExpandLayerProps {
   onClose: () => void;
   data: {
     id: string;
+    articleId: string; // The correct ID for navigation
     title: string;
     description: string;
     source: string;
@@ -61,18 +63,16 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
       window.speechSynthesis.cancel();
       setIsPlayingVoice(false);
     } else {
-      // Prioritize AI summary, fallback to description
       const text = data.aiSummary || data.description;
       if (!text) return;
 
-      // Cancel any ongoing speech first
       window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
       const voice = getBestVoice();
       if (voice) utterance.voice = voice;
       
-      utterance.pitch = 1.1; // Sweet/Cute pitch
+      utterance.pitch = 1.1;
       utterance.rate = 1.0;
       utterance.volume = 1.0;
 
@@ -92,17 +92,14 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
   };
 
   const handleFullArticle = () => {
-      navigate(`/news/${data.id}`);
-  };
-
-  const handleLocationClick = () => {
-      navigate('/map');
+      // Critical Fix: Use articleId instead of the composite Reel ID
+      navigate(`/news/${data.articleId}`);
   };
 
   return (
     <div 
       className={`absolute inset-0 z-50 bg-gray-900/95 backdrop-blur-xl transition-transform duration-500 ease-out flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
-      onClick={(e) => e.stopPropagation()} // Stop click propagation to parent
+      onClick={(e) => e.stopPropagation()} 
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-800 bg-gray-900/50 backdrop-blur-md sticky top-0 z-20 shrink-0">
@@ -115,8 +112,8 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
         </button>
       </div>
 
-      {/* Content - flex-1 and overflow-y-auto ensures scrolling */}
-      <div className="flex-1 overflow-y-auto p-5 pb-24 space-y-6 custom-scrollbar overscroll-contain">
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar overscroll-contain">
         
         {/* Fact Check Badge */}
         {data.factCheck && (
@@ -132,9 +129,8 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
             </div>
         )}
 
-        {/* Summary Card with Voice */}
+        {/* Summary Card */}
         <div className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 p-5 rounded-2xl border border-indigo-500/30 relative overflow-hidden group">
-            {/* Gloss Effect */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
             
             <div className="flex justify-between items-start mb-3 relative z-10">
@@ -149,7 +145,7 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
                     {isPlayingVoice ? <Pause size={16} /> : <Volume2 size={16} />}
                 </button>
             </div>
-            <p className="text-gray-200 text-sm leading-relaxed relative z-10 font-medium whitespace-pre-wrap">
+            <p className="text-gray-200 text-sm leading-relaxed relative z-10 font-medium">
                 {data.aiSummary || data.description}
             </p>
         </div>
@@ -173,14 +169,14 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
 
         {/* Location Insight */}
         {data.location ? (
-            <div onClick={handleLocationClick} className="cursor-pointer group">
-                <h4 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2 group-hover:text-white transition-colors">
+            <div>
+                <h4 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
                     <MapPin size={14} /> Location Context
                 </h4>
-                <div className="h-32 w-full bg-gray-800 rounded-xl overflow-hidden relative border border-gray-700 group-hover:border-emerald-500/50 transition-colors">
+                <div className="h-32 w-full bg-gray-800 rounded-xl overflow-hidden relative border border-gray-700 group">
                     <div className="absolute inset-0 bg-[url('https://upload.wikimedia.org/wikipedia/commons/e/ec/World_map_blank_without_borders.svg')] bg-cover bg-center opacity-40 group-hover:opacity-60 transition-opacity group-hover:scale-105 duration-700"></div>
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="flex items-center gap-2 bg-black/60 px-4 py-2 rounded-full backdrop-blur-md border border-gray-600 shadow-lg group-hover:bg-emerald-900/80 group-hover:border-emerald-500/50 transition-colors">
+                        <div className="flex items-center gap-2 bg-black/60 px-4 py-2 rounded-full backdrop-blur-md border border-gray-600 shadow-lg">
                             <Globe size={14} className="text-emerald-400" />
                             <span className="text-xs font-bold text-white">{data.location.name}</span>
                         </div>
@@ -189,38 +185,11 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
             </div>
         ) : null}
 
-        {/* Related Coverage */}
-        {data.relatedNews && data.relatedNews.length > 0 && (
-            <div>
-                <h4 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <ExternalLink size={14} /> Related Coverage
-                </h4>
-                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-2 px-2">
-                    {data.relatedNews.map((news) => (
-                        <div key={news.id} className="w-40 shrink-0 bg-gray-800 rounded-xl overflow-hidden border border-gray-700 shadow-sm group cursor-pointer hover:border-gray-600 transition-colors">
-                            <div className="h-20 bg-gray-700 relative overflow-hidden">
-                                <img src={news.image} alt={news.title} className="w-full h-full object-cover opacity-80 group-hover:scale-110 transition-transform duration-500" />
-                            </div>
-                            <div className="p-2">
-                                <h5 className="text-xs font-bold text-gray-200 line-clamp-2 mb-1">{news.title}</h5>
-                                <span className="text-[10px] text-gray-500">{news.time}</span>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        )}
-
-        {/* Related Topics Tags */}
-        <div className="flex flex-wrap gap-2 pt-2">
-            {data.tags?.map(tag => (
-                <span key={tag} className="text-xs text-gray-400 bg-gray-800/50 px-3 py-1 rounded-full border border-gray-700 hover:border-gray-500 transition-colors">#{tag}</span>
-            ))}
-        </div>
+        <div className="h-4"></div>
       </div>
 
       {/* Footer CTA */}
-      <div className="p-4 border-t border-gray-800 bg-gray-900/90 backdrop-blur-md sticky bottom-0 z-20 flex gap-3 shrink-0 shadow-[0_-10px_20px_rgba(0,0,0,0.5)]">
+      <div className="p-4 border-t border-gray-800 bg-gray-900/90 backdrop-blur-md sticky bottom-0 z-20 flex gap-3 shrink-0">
           <button 
             onClick={handleChat} 
             className="p-3.5 bg-gray-800 text-indigo-400 rounded-xl hover:bg-gray-700 transition-colors border border-gray-700"

@@ -8,10 +8,12 @@ import ReelOptionsSheet from './ReelOptionsSheet';
 import ReelExpandLayer from './ReelExpandLayer';
 import LikeAnimation from './LikeAnimation';
 import Toast, { ToastType } from '../ui/Toast';
+import { Volume2, VolumeX } from 'lucide-react';
 
 interface ReelItemProps {
   data: {
     id: string;
+    articleId: string; // Original ID for routing
     title: string;
     description: string;
     imageUrl: string;
@@ -36,9 +38,8 @@ interface ReelItemProps {
 const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished }) => {
   const [isVideo, setIsVideo] = useState(!!data.videoUrl);
   const [progress, setProgress] = useState(0);
-  
-  // videoPlaying: Controls poster fade-out.
   const [videoPlaying, setVideoPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -47,12 +48,14 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [showLikeAnimation, setShowLikeAnimation] = useState(false);
+  const [showMuteAnimation, setShowMuteAnimation] = useState(false);
   
   const [toast, setToast] = useState<{ show: boolean; msg: string; type: ToastType }>({ show: false, msg: '', type: 'success' });
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const tapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const REEL_DURATION = 15000; 
   const UPDATE_INTERVAL = 50;
@@ -67,23 +70,21 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
       setIsCommentsOpen(false);
       setIsShareOpen(false);
       setIsOptionsOpen(false);
-      setVideoPlaying(false); // Bring back poster immediately when scrolling away
+      setVideoPlaying(false);
       
       if (video) {
         video.pause();
-        // Do NOT reset currentTime to 0 to avoid black flash if quickly scrolling back
+        video.currentTime = 0;
       }
     } else {
       if (video && isVideo) {
           const playPromise = video.play();
           if (playPromise !== undefined) {
               playPromise.catch(() => {
-                  // Autoplay failed, fallback handled by UI (poster remains)
                   console.log("Autoplay blocked/failed");
               });
           }
       } else if (!isVideo) {
-          // If no video, we set playing to true to start the progress bar for the image
           setVideoPlaying(true); 
       }
     }
@@ -101,7 +102,6 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
               videoRef.current.play().catch(() => {});
           }
       } else {
-          // Image Timer Logic
           progressInterval.current = setInterval(() => {
             setProgress((prev) => {
               if (prev >= 100) {
@@ -125,8 +125,6 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
       if (videoRef.current && videoRef.current.duration > 0) {
           const val = (videoRef.current.currentTime / videoRef.current.duration) * 100;
           if (Math.abs(val - progress) > 0.5) setProgress(val);
-          
-          // Only fade out poster when video has actually advanced
           if (!videoPlaying && videoRef.current.currentTime > 0.2) {
               setVideoPlaying(true);
           }
@@ -144,7 +142,7 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
 
   const handleVideoError = () => {
       setIsVideo(false);
-      setVideoPlaying(true); // Switch to "playing" state for image fallback
+      setVideoPlaying(true);
   };
 
   const handleLike = (e?: React.MouseEvent) => {
@@ -167,7 +165,7 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
           const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
           if (newState) {
               const newBookmark = { 
-                  id: data.id, 
+                  id: data.articleId, // Save original article ID
                   title: data.title, 
                   source: data.source, 
                   category: data.category,
@@ -176,9 +174,9 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
               };
               localStorage.setItem('bookmarks', JSON.stringify([newBookmark, ...bookmarks]));
               setToast({ show: true, msg: 'Saved to Bookmarks', type: 'success' });
-              if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(20);
+              if (navigator.vibrate) navigator.vibrate(20);
           } else {
-              const filtered = bookmarks.filter((b: any) => b.id !== data.id);
+              const filtered = bookmarks.filter((b: any) => b.id !== data.articleId);
               localStorage.setItem('bookmarks', JSON.stringify(filtered));
               setToast({ show: true, msg: 'Removed from Bookmarks', type: 'info' });
           }
@@ -196,6 +194,7 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
       }
   };
 
+  // --- Touch Logic for Tap/Double Tap ---
   const handleTouchStart = (e: React.TouchEvent) => {
     if (isExpanded) return;
     touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, time: Date.now() };
@@ -206,19 +205,49 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
     const diffX = e.changedTouches[0].clientX - touchStartRef.current.x;
     const diffY = e.changedTouches[0].clientY - touchStartRef.current.y;
     const diffTime = Date.now() - touchStartRef.current.time;
+
+    // Detect Tap vs Swipe
     if (diffTime < 250 && Math.abs(diffX) < 10 && Math.abs(diffY) < 10) {
-        setIsExpanded(true);
+        // It's a tap
+        if (tapTimeoutRef.current) {
+            // Double Tap Detected
+            clearTimeout(tapTimeoutRef.current);
+            tapTimeoutRef.current = null;
+            handleLike();
+        } else {
+            // Wait for possible second tap
+            tapTimeoutRef.current = setTimeout(() => {
+                // Single Tap Action: Toggle Mute
+                if (videoRef.current) {
+                    videoRef.current.muted = !videoRef.current.muted;
+                    setIsMuted(videoRef.current.muted);
+                    setShowMuteAnimation(true);
+                    setTimeout(() => setShowMuteAnimation(false), 1000);
+                }
+                tapTimeoutRef.current = null;
+            }, 300);
+        }
+    } else if (Math.abs(diffY) > 50 && diffY < 0 && Math.abs(diffX) < 30) {
+        // Swipe Up (Usually handled by scroll, but could trigger expand if strict)
+        // setIsExpanded(true);
     }
   };
 
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    if (isExpanded) return;
-    e.stopPropagation();
-    if (!isLiked) handleLike();
-    else {
-        setShowLikeAnimation(true);
-        setTimeout(() => setShowLikeAnimation(false), 1000);
-    }
+  // --- Mouse Logic for Desktop ---
+  const handleClick = (e: React.MouseEvent) => {
+      if (isExpanded) return;
+      if (e.detail === 2) {
+          handleLike();
+      } else if (e.detail === 1) {
+          // Delay to check for double click
+          // Desktop specific toggle play/pause or mute
+          if (videoRef.current) {
+              videoRef.current.muted = !videoRef.current.muted;
+              setIsMuted(videoRef.current.muted);
+              setShowMuteAnimation(true);
+              setTimeout(() => setShowMuteAnimation(false), 1000);
+          }
+      }
   };
 
   return (
@@ -226,7 +255,7 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
         className="h-full w-full relative bg-black flex items-center justify-center overflow-hidden select-none touch-pan-y"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        onDoubleClick={handleDoubleClick}
+        onClick={handleClick}
         style={{ transform: 'translateZ(0)' }} 
     >
       {toast.show && (
@@ -240,11 +269,11 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
             <video
                 ref={videoRef}
                 src={data.videoUrl}
-                poster={data.imageUrl} // Native poster fallback
+                poster={data.imageUrl}
                 className={`w-full h-full object-cover transition-opacity duration-500 ${videoPlaying ? 'opacity-100' : 'opacity-0'}`}
-                loop={false}
+                loop
                 playsInline
-                muted
+                muted={isMuted}
                 preload="auto"
                 onTimeUpdate={handleVideoTimeUpdate}
                 onEnded={handleVideoEnded}
@@ -253,8 +282,7 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
         </div>
       )}
 
-      {/* Poster Image - High Res, Always Visible until video is strictly playing > 0.2s */}
-      {/* This prevents the "Blinking" black screen issue */}
+      {/* Poster Image */}
       <div className={`absolute inset-0 z-20 pointer-events-none transition-opacity duration-700 ease-in-out ${videoPlaying ? 'opacity-0' : 'opacity-100'}`}>
          <img 
             src={data.imageUrl} 
@@ -265,9 +293,10 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60"></div>
       </div>
 
-      {/* UI Overlays */}
+      {/* Overlays */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/90 pointer-events-none z-30" />
 
+      {/* Progress Bar */}
       <div className="absolute top-0 left-0 w-full h-1 bg-white/20 z-50">
         <div 
             className="h-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)] transition-all duration-100 ease-linear"
@@ -275,14 +304,25 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
         />
       </div>
 
+      {/* Animations */}
       {showLikeAnimation && <LikeAnimation />}
+      
+      {showMuteAnimation && (
+          <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none">
+              <div className="bg-black/50 p-4 rounded-full backdrop-blur-md animate-in fade-out zoom-in duration-700">
+                  {isMuted ? <VolumeX size={32} className="text-white" /> : <Volume2 size={32} className="text-white" />}
+              </div>
+          </div>
+      )}
 
+      {/* Expand Layer (AI Analysis) */}
       <ReelExpandLayer 
         isOpen={isExpanded} 
         onClose={() => setIsExpanded(false)} 
         data={data}
       />
 
+      {/* Controls */}
       <div className={`transition-opacity duration-300 z-40 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <ReelActionBar 
             isLiked={isLiked}
@@ -318,7 +358,6 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoScroll, onFinished
     </div>
   );
 }, (prev, next) => {
-    // Custom equality check to prevent re-renders when parent state changes but this item doesn't
     return prev.data.id === next.data.id && 
            prev.isActive === next.isActive && 
            prev.isAutoScroll === next.isAutoScroll;

@@ -35,10 +35,11 @@ const ReelPage: React.FC = () => {
           const newsItems = await fetchNewsFeed(1, { category: 'All', sort: 'Latest', language: langName });
           
           const formattedReels = newsItems.map((item: any, index: number) => {
-              const uniqueId = `${item.id}-p1-${index}`; // Stable ID
+              const uniqueId = `${item.id}-p1-${index}`; // Stable ID for React List
               return {
                 ...item,
                 id: uniqueId,
+                articleId: item.id, // ORIGINAL ID FOR NAVIGATION
                 videoUrl: index % 2 === 0 ? 'https://assets.mixkit.co/videos/preview/mixkit-futuristic-robotic-arm-working-on-a-circuit-board-42996-large.mp4' : undefined,
                 tags: [item.category, contentLanguage === 'hi' ? 'ताज़ा खबर' : 'Trending'],
                 aiEnhanced: true,
@@ -83,7 +84,6 @@ const ReelPage: React.FC = () => {
       if (reels.length > 0 && !hasRestoredPosition) {
           const lastId = sessionStorage.getItem('news-reel-last-id');
           if (lastId) {
-              // Ensure element exists before scrolling
               setTimeout(() => {
                   const element = document.getElementById(`reel-${lastId}`);
                   if (element) {
@@ -129,12 +129,11 @@ const ReelPage: React.FC = () => {
           const newItems = await fetchNewsFeed(nextPage, { category: 'All', sort: 'Latest', language: langName });
 
           const formattedNewReels = newItems.map((item: any, index: number) => {
-              // Create a strictly deterministic ID. 
-              // Do NOT use Date.now() here as it causes keys to change on re-renders if logic triggers again.
               const uniqueId = `${item.id}-p${nextPage}-${index}`; 
               return {
                   ...item,
                   id: uniqueId, 
+                  articleId: item.id, // Ensure original ID is passed for navigation
                   videoUrl: index % 3 === 0 ? 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-solar-panel-forest-42805-large.mp4' : undefined,
                   tags: [item.category],
                   aiEnhanced: true,
@@ -148,7 +147,6 @@ const ReelPage: React.FC = () => {
           });
           
           setReels(prev => {
-              // Filter out any IDs that we have already rendered to strictly prevent key collision
               const uniqueNew = formattedNewReels.filter((r: any) => {
                   if (loadedIdsRef.current.has(r.id)) return false;
                   loadedIdsRef.current.add(r.id);
@@ -183,14 +181,13 @@ const ReelPage: React.FC = () => {
       { threshold: 0.6 } 
     );
 
-    // Small delay to ensure DOM is painted
     setTimeout(() => {
         const elements = document.querySelectorAll('.reel-item');
         elements.forEach((el) => observer.observe(el));
     }, 100);
 
     return () => observer.disconnect();
-  }, [reels.length]); // Dependency on length so it re-attaches to new items
+  }, [reels.length]);
 
   const handleNext = useCallback(() => {
     const currentIndex = reels.findIndex(r => r.id === activeReelId);
@@ -236,7 +233,6 @@ const ReelPage: React.FC = () => {
 
       <ReelContainer>
         {reels.length === 0 ? (
-            // Immediate structure feedback
             <div className="h-full w-full snap-start snap-always">
                 <ReelLoader />
             </div>
