@@ -35,11 +35,10 @@ const HighlightReadingMode: React.FC<HighlightReadingModeProps> = ({
   }, []);
 
   const getBestVoice = () => {
-      // Priority list for News Anchor Voice
+      // Consistent News Anchor Selection
       return voices.find(v => v.name === "Google US English") || 
              voices.find(v => v.name === "Microsoft Zira - English (United States)") ||
-             voices.find(v => v.lang === 'en-GB' && v.name.includes("Google")) || 
-             voices.find(v => v.lang === 'en-US') || 
+             voices.find(v => v.lang === 'en-US' && !v.name.includes("Zira")) || 
              voices[0];
   };
 
@@ -56,7 +55,7 @@ const HighlightReadingMode: React.FC<HighlightReadingModeProps> = ({
         } else if (!window.speechSynthesis.speaking) {
             const u = new SpeechSynthesisUtterance(text);
             u.voice = getBestVoice();
-            u.pitch = 1.0; // Professional, neutral pitch
+            u.pitch = 1.0; 
             u.rate = speed; 
             u.volume = 1;
             

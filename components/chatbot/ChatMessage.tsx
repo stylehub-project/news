@@ -65,13 +65,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
 
   // --- Advanced News Report Voice Engine ---
 
-  const getBestVoice = () => {
+  const getNewsAnchorVoice = () => {
       const voices = window.speechSynthesis.getVoices();
-      // Priority: Professional News Broadcasting Voices
+      // Priority: Professional News Broadcasting Voices (One specific voice)
       return voices.find(v => v.name === "Google US English") || 
              voices.find(v => v.name === "Microsoft Zira - English (United States)") ||
-             voices.find(v => v.lang === 'en-GB' && v.name.includes("Google")) || // British News Style
-             voices.find(v => v.lang === 'en-US') || 
+             voices.find(v => v.lang === 'en-US' && !v.name.includes("Zira")) || 
              voices[0];
   };
 
@@ -92,10 +91,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
       setAiState('speaking');
 
       // --- Parsing Content for Tone ---
-      // We break the text into segments.
-      // Headings -> Deeper, Slower, Authoritative (News Anchor Headline style)
-      // Bold -> Emphatic, slightly slower
-      // Normal -> Neutral, professional pace
+      // We use ONE voice but change pitch/rate based on context.
       
       const segments: { text: string; tone: 'normal' | 'bold' | 'heading' }[] = [];
       const lines = message.content.split('\n');
@@ -132,6 +128,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
 
       // --- Sequential Speaking Queue ---
       let currentIndex = 0;
+      const anchorVoice = getNewsAnchorVoice();
 
       const speakNext = () => {
           if (speechStoppedRef.current || currentIndex >= segments.length) {
@@ -142,24 +139,24 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
 
           const segment = segments[currentIndex];
           const u = new SpeechSynthesisUtterance(segment.text);
-          u.voice = getBestVoice();
+          u.voice = anchorVoice; // Consistent Voice
 
-          // Apply News Report Tonal Emotions
+          // Apply Tone Modulation (Same voice, different physics)
           switch (segment.tone) {
               case 'heading':
-                  u.pitch = 0.9;  // Slightly deeper, authoritative
-                  u.rate = 0.85;  // Slower, deliberate headline reading
+                  u.pitch = 0.9;  // Deep, authoritative
+                  u.rate = 0.9;   // Deliberate, headline style
                   u.volume = 1.0;
                   break;
               case 'bold':
-                  u.pitch = 0.95; // Slight emphasis
-                  u.rate = 0.9;   // Clear articulation
+                  u.pitch = 0.95; // Slightly deeper for emphasis
+                  u.rate = 0.95;  // Slight pause/emphasis
                   u.volume = 1.0;
                   break;
               case 'normal':
               default:
-                  u.pitch = 1.0;  // Neutral professional pitch
-                  u.rate = 1.0;   // Standard broadcast speed
+                  u.pitch = 1.0;  // Standard reporting pitch
+                  u.rate = 1.0;   // Efficient reporting speed
                   u.volume = 1.0;
                   break;
           }
