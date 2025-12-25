@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 
 interface HighlightReadingModeProps {
@@ -34,12 +35,12 @@ const HighlightReadingMode: React.FC<HighlightReadingModeProps> = ({
   }, []);
 
   const getBestVoice = () => {
-      // Priority list for "Sweet/Cute" voices
-      return voices.find(v => v.name === "Google US English") || 
-             voices.find(v => v.name === "Microsoft Zira - English (United States)") || 
+      // Priority list for Indian English voice
+      return voices.find(v => (v.lang === 'en-IN' || v.lang.includes('India')) && v.name.includes('Google')) || 
+             voices.find(v => v.name.includes('Heera')) || 
+             voices.find(v => v.lang === 'en-IN' || v.lang.includes('India')) ||
              voices.find(v => v.name.includes("Samantha")) || 
-             voices.find(v => v.name.includes("Female") && v.lang.startsWith("en")) ||
-             voices.find(v => v.lang.startsWith("en")) ||
+             voices.find(v => v.name === "Google US English") ||
              voices[0];
   };
 
@@ -56,7 +57,7 @@ const HighlightReadingMode: React.FC<HighlightReadingModeProps> = ({
         } else if (!window.speechSynthesis.speaking) {
             const u = new SpeechSynthesisUtterance(text);
             u.voice = getBestVoice();
-            u.pitch = 1.1; // Slightly higher pitch for "sweet" tone
+            u.pitch = 1.05; // Slightly higher pitch for softer tone
             u.rate = speed; 
             u.volume = 1;
             
@@ -88,10 +89,8 @@ const HighlightReadingMode: React.FC<HighlightReadingModeProps> = ({
         }
     }
 
-    // Cleanup on unmount or when dependencies change drastically
     return () => {
-        // We do NOT cancel here to allow pause/resume state to persist between renders if needed
-        // But if the component actually unmounts, the cleanup below handles it.
+        // Cleanup handled by parent unmount or explicit stop
     };
   }, [isPlaying, speed, text, voices, words, onComplete]);
 

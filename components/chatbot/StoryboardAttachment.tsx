@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Play, Pause, Share2, Maximize2, X, BarChart3, Clock, Zap, ArrowRight } from 'lucide-react';
 import Modal from '../ui/Modal';
@@ -28,16 +29,16 @@ const StoryboardAttachment: React.FC<StoryboardAttachmentProps> = ({ data }) => 
     } else {
       const utterance = new SpeechSynthesisUtterance(data.summary);
       
-      // Sweet Voice Configuration
+      // Sweet Indian Voice Configuration
       const voices = window.speechSynthesis.getVoices();
-      const sweetVoice = voices.find(v => v.name === "Google US English") || 
-                         voices.find(v => v.name === "Microsoft Zira - English (United States)") || 
+      const sweetVoice = voices.find(v => (v.lang === 'en-IN' || v.lang.includes('India')) && v.name.includes('Google')) || 
+                         voices.find(v => v.name.includes('Heera')) || 
+                         voices.find(v => v.lang === 'en-IN' || v.lang.includes('India')) ||
                          voices.find(v => v.name.includes("Samantha")) || 
-                         voices.find(v => v.name.includes("Female") && v.lang.startsWith("en")) ||
                          voices[0];
       
       if (sweetVoice) utterance.voice = sweetVoice;
-      utterance.pitch = 1.1;
+      utterance.pitch = 1.05;
       utterance.rate = 1.0;
 
       utterance.onend = () => setIsPlaying(false);
