@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Heart, MessageCircle, Share2, Bookmark, Sparkles, MoreHorizontal } from 'lucide-react';
 
@@ -15,8 +16,6 @@ interface ReelActionBarProps {
 }
 
 const ReelActionBar: React.FC<ReelActionBarProps> = ({
-  likes,
-  comments,
   isLiked,
   isSaved,
   onLike,
@@ -42,7 +41,6 @@ const ReelActionBar: React.FC<ReelActionBarProps> = ({
             <Heart size={24} className={`transition-transform duration-200 ${isLiked ? 'fill-current scale-110' : ''}`} />
           </div>
         </button>
-        <span className="text-xs font-bold text-white drop-shadow-md">{likes}</span>
       </div>
 
       {/* Comment */}
@@ -54,7 +52,6 @@ const ReelActionBar: React.FC<ReelActionBarProps> = ({
         >
           <MessageCircle size={24} />
         </button>
-        <span className="text-xs font-bold text-white drop-shadow-md">{comments}</span>
       </div>
 
       {/* AI Explain - Special Treatment (Center of interactions) */}
@@ -69,7 +66,6 @@ const ReelActionBar: React.FC<ReelActionBarProps> = ({
                 <Sparkles size={26} className="text-yellow-200 group-hover:rotate-12 transition-transform" />
             </div>
         </button>
-        <span className="text-[10px] font-bold text-indigo-200 bg-indigo-900/80 px-2 py-0.5 rounded-md backdrop-blur-sm border border-indigo-500/30">AI Info</span>
       </div>
 
       {/* Save */}

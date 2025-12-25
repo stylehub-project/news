@@ -18,7 +18,6 @@ const ReelPage: React.FC = () => {
   const [reels, setReels] = useState<any[]>([]);
   const [activeReelId, setActiveReelId] = useState<string>('');
   const [isAutoScroll, setIsAutoScroll] = useState(false);
-  // Removed isLoading state that blocked rendering
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [hasRestoredPosition, setHasRestoredPosition] = useState(false);
@@ -105,32 +104,43 @@ const ReelPage: React.FC = () => {
 
   // 4. Data Fetching
   const fetchMoreReels = useCallback(async () => {
+      if (isFetchingMore) return; // Prevent double fetch
       setIsFetchingMore(true);
       
-      const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
-      const nextPage = Math.floor(reels.length / 5) + 1;
-      const newItems = await fetchNewsFeed(nextPage, { category: 'All', sort: 'Latest', language: langName });
+      try {
+          const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
+          const nextPage = Math.floor(reels.length / 5) + 1;
+          const newItems = await fetchNewsFeed(nextPage, { category: 'All', sort: 'Latest', language: langName });
 
-      const formattedNewReels = newItems.map((item: any, index: number) => ({
-          ...item,
-          // Use stable ID composition
-          id: `${item.id}-p${nextPage}-${index}`, 
-          videoUrl: index % 3 === 0 ? 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-solar-panel-forest-42805-large.mp4' : undefined,
-          likes: Math.floor(Math.random() * 5000).toString(),
-          comments: Math.floor(Math.random() * 200).toString(),
-          tags: [item.category],
-          aiEnhanced: true,
-          aiSummary: item.description,
-          keyPoints: contentLanguage === 'hi' 
-            ? ['अतिरिक्त जानकारी', 'वैश्विक संदर्भ']
-            : ['Additional Context', 'Global Scale'],
-          factCheck: { status: 'Verified', score: 92 },
-          personalizationReason: contentLanguage === 'hi' ? 'लोकप्रिय' : 'Popular Now'
-      }));
-      
-      setReels(prev => [...prev, ...formattedNewReels]);
-      setIsFetchingMore(false);
-  }, [reels.length, contentLanguage]);
+          const formattedNewReels = newItems.map((item: any, index: number) => ({
+              ...item,
+              // Critical: Ensure unique ID composition to prevent React Key Crash
+              id: `${item.id}-p${nextPage}-${index}-${Date.now()}`, 
+              videoUrl: index % 3 === 0 ? 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-solar-panel-forest-42805-large.mp4' : undefined,
+              likes: Math.floor(Math.random() * 5000).toString(),
+              comments: Math.floor(Math.random() * 200).toString(),
+              tags: [item.category],
+              aiEnhanced: true,
+              aiSummary: item.description,
+              keyPoints: contentLanguage === 'hi' 
+                ? ['अतिरिक्त जानकारी', 'वैश्विक संदर्भ']
+                : ['Additional Context', 'Global Scale'],
+              factCheck: { status: 'Verified', score: 92 },
+              personalizationReason: contentLanguage === 'hi' ? 'लोकप्रिय' : 'Popular Now'
+          }));
+          
+          setReels(prev => {
+              // Deduplication Safety Check
+              const existingIds = new Set(prev.map(r => r.id));
+              const uniqueNew = formattedNewReels.filter((r: any) => !existingIds.has(r.id));
+              return [...prev, ...uniqueNew];
+          });
+      } catch (err) {
+          console.error("Failed to load more reels", err);
+      } finally {
+          setIsFetchingMore(false);
+      }
+  }, [reels.length, contentLanguage, isFetchingMore]);
 
   // 5. Intersection Observer
   useEffect(() => {
