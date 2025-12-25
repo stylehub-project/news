@@ -220,15 +220,7 @@ const ReelPage: React.FC = () => {
              />
           </div>
         ))}
-        
-        <div className="h-48 w-full snap-start flex items-center justify-center bg-black text-white">
-            <div className="text-center p-4">
-                <Loader2 size={32} className="mx-auto mb-2 animate-spin text-blue-500" />
-                <span className="text-xs font-medium text-gray-400">
-                    {contentLanguage === 'hi' ? 'और कहानियां लोड हो रही हैं...' : 'Fetching more stories...'}
-                </span>
-            </div>
-        </div>
+        {/* Removed loading indicator div */}
       </ReelContainer>
     </div>
   );
