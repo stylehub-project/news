@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, ExternalLink, ArrowRight, Flag, Info, CheckCircle2, Wand2, Volume2, StopCircle, Copy, Share2, Check } from 'lucide-react';
 import HighlightReadingMode from '../HighlightReadingMode';
 import StoryboardAttachment, { StoryboardData } from './StoryboardAttachment';
@@ -40,6 +40,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
   // Action States
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  
+  // Ref to track if speech was manually stopped
+  const speechStoppedRef = useRef(false);
 
   // Cleanup speech on unmount
   useEffect(() => {
@@ -60,69 +63,129 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
       setTimeout(() => setAiState('idle'), 1500);
   };
 
-  // --- Feature Implementation ---
+  // --- Advanced Emotional Voice Engine ---
 
-  const getSweetVoice = () => {
+  const getBestVoice = () => {
       const voices = window.speechSynthesis.getVoices();
-      // Prioritize Sweet Indian English Voices
-      return voices.find(v => (v.lang === 'en-IN' || v.lang.includes('India')) && v.name.includes('Google')) || // Google English India
+      // Priority: Indian English Female -> Indian English -> Generic Female -> Generic English
+      return voices.find(v => (v.lang === 'en-IN' || v.lang.includes('India')) && v.name.includes('Google')) || // Google English India (Sweet)
              voices.find(v => v.name.includes('Heera')) || // Microsoft Heera
-             voices.find(v => v.lang === 'en-IN' || v.lang.includes('India')) || // Any Indian
-             voices.find(v => v.name.includes("Samantha")) || // Fallback Sweet
+             voices.find(v => v.lang === 'en-IN') || 
+             voices.find(v => v.name.includes("Samantha")) || 
              voices.find(v => v.name === "Google US English") ||
              voices[0];
   };
 
   const handleReadAloud = (e: React.MouseEvent) => {
       e.stopPropagation();
+      
+      // Toggle Off
       if (isSpeaking) {
+          speechStoppedRef.current = true;
           window.speechSynthesis.cancel();
           setIsSpeaking(false);
           setAiState('idle');
           return;
       }
 
-      // Clean Markdown artifacts so they aren't spoken
-      // Removes **, ##, __, ``, [[ ]]
-      const cleanText = message.content
-          .replace(/\*\*/g, "") 
-          .replace(/##/g, "")
-          .replace(/__/g, "")
-          .replace(/`/g, "")
-          .replace(/\[\[/g, "")
-          .replace(/\]\]/g, "")
-          .replace(/\*/g, ""); // Remove stray asterisks
+      speechStoppedRef.current = false;
+      setIsSpeaking(true);
+      setAiState('speaking');
 
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      const voice = getSweetVoice();
-      if(voice) utterance.voice = voice;
+      // --- Parsing Content for Tone ---
+      // We break the text into segments.
+      // Headings -> Deeper, Slower, Authoritative
+      // Bold -> Deep, Emphatic
+      // Normal -> Higher pitch, Sweet, Faster
       
-      utterance.pitch = 1.05; // Slightly modulated for "sweet" tone
-      utterance.rate = 1.0;
-      utterance.volume = 1.0;
+      const segments: { text: string; tone: 'normal' | 'bold' | 'heading' }[] = [];
+      const lines = message.content.split('\n');
 
-      utterance.onstart = () => {
-          setIsSpeaking(true);
-          setAiState('speaking');
-      };
-      
-      utterance.onend = () => {
-          setIsSpeaking(false);
-          setAiState('idle');
-      };
-      
-      utterance.onerror = () => {
-          setIsSpeaking(false);
-          setAiState('idle');
+      lines.forEach(line => {
+          const trimmed = line.trim();
+          if (!trimmed) return;
+
+          // 1. Headings (Markdown #)
+          if (/^#+\s/.test(trimmed)) {
+              const clean = trimmed.replace(/^#+\s/, '') + '.'; // Add pause
+              segments.push({ text: clean, tone: 'heading' });
+          } 
+          // 2. Normal Lines (Check for Bold inside)
+          else {
+              // Remove list markers for cleaner reading
+              const cleanLine = trimmed.replace(/^(\*|-|\d+\.)\s/, '');
+              
+              // Split by Bold markdown (**text**)
+              const parts = cleanLine.split(/(\*\*.*?\*\*)/g);
+              
+              parts.forEach(part => {
+                  if (part.startsWith('**') && part.endsWith('**')) {
+                      // Bold Text found
+                      const text = part.replace(/\*\*/g, '');
+                      if (text.trim()) segments.push({ text: text, tone: 'bold' });
+                  } else if (part.trim()) {
+                      // Normal Text
+                      segments.push({ text: part, tone: 'normal' });
+                  }
+              });
+          }
+      });
+
+      // --- Sequential Speaking Queue ---
+      let currentIndex = 0;
+
+      const speakNext = () => {
+          if (speechStoppedRef.current || currentIndex >= segments.length) {
+              setIsSpeaking(false);
+              setAiState('idle');
+              return;
+          }
+
+          const segment = segments[currentIndex];
+          const u = new SpeechSynthesisUtterance(segment.text);
+          u.voice = getBestVoice();
+
+          // Apply Tonal Emotions
+          switch (segment.tone) {
+              case 'heading':
+                  u.pitch = 0.8;  // Deep voice
+                  u.rate = 0.9;   // Slower, commanding
+                  u.volume = 1.0;
+                  break;
+              case 'bold':
+                  u.pitch = 0.85; // Slightly deep for emphasis
+                  u.rate = 0.95;  // Deliberate
+                  u.volume = 1.0;
+                  break;
+              case 'normal':
+              default:
+                  u.pitch = 1.1;  // Sweet, soft, higher pitch
+                  u.rate = 1.05;  // Conversational flow
+                  u.volume = 1.0;
+                  break;
+          }
+
+          u.onend = () => {
+              currentIndex++;
+              speakNext();
+          };
+
+          u.onerror = (err) => {
+              console.error("Speech Error", err);
+              setIsSpeaking(false);
+              setAiState('idle');
+          };
+
+          window.speechSynthesis.speak(u);
       };
 
-      window.speechSynthesis.speak(utterance);
+      // Start Queue
+      window.speechSynthesis.cancel(); // Clear anything pending
+      speakNext();
   };
 
   const handleCopy = (e: React.MouseEvent) => {
       e.stopPropagation();
-      // Copy raw text (with markdown) for formatting preservation, or clean text?
-      // Usually users expect the formatted text or raw. Let's copy raw.
       navigator.clipboard.writeText(message.content);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
@@ -137,7 +200,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                   text: message.content,
               });
           } catch (err) {
-              // Share cancelled or failed, fallback to copy
               handleCopy(e);
           }
       } else {
@@ -244,8 +306,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                         <div className="flex items-center gap-2">
                             <button 
                                 onClick={handleReadAloud} 
-                                className={`p-1.5 rounded-full transition-colors flex items-center gap-1 ${isSpeaking ? 'bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400' : 'text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:text-slate-500 dark:hover:text-indigo-300 dark:hover:bg-white/10'}`} 
-                                title={isSpeaking ? "Stop Reading" : "Read Aloud"}
+                                className={`p-1.5 rounded-full transition-colors flex items-center gap-1 ${isSpeaking ? 'bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400 shadow-sm' : 'text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:text-slate-500 dark:hover:text-indigo-300 dark:hover:bg-white/10'}`} 
+                                title={isSpeaking ? "Stop Reading" : "Read with Emotion"}
                             >
                                 {isSpeaking ? <StopCircle size={14} className="animate-pulse" /> : <Volume2 size={14} />}
                                 {isSpeaking && <span className="text-[10px] font-bold">Stop</span>}
