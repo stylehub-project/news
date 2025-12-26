@@ -1,13 +1,14 @@
 
 import React, { useState } from 'react';
-import { Filter, X, ChevronDown } from 'lucide-react';
+import { Filter, X, ChevronDown, Check } from 'lucide-react';
 
 export interface MapFilters {
   category: string;
   time: string;
-  type: string;
-  state: string; // New
-  sentiment: string; // New
+  source: string; // New
+  impact: string; // New
+  state: string;
+  sentiment: string;
 }
 
 interface MapFilterPanelProps {
@@ -20,19 +21,24 @@ const MapFilterPanel: React.FC<MapFilterPanelProps> = ({ filters, onChange }) =>
   
   const FILTER_GROUPS = [
       {
+          key: 'time',
+          label: 'Timeframe',
+          options: ['Now', 'Today', 'This Week']
+      },
+      {
           key: 'category',
           label: 'Topic',
           options: ['All', 'Politics', 'Tech', 'Environment', 'Business']
       },
       {
-          key: 'state',
-          label: 'Region',
-          options: ['All', 'India', 'USA', 'Europe']
+          key: 'impact',
+          label: 'Impact Level',
+          options: ['All', 'High', 'Medium', 'Low']
       },
       {
-          key: 'sentiment',
-          label: 'Vibe',
-          options: ['All', 'Positive', 'Tense', 'Neutral']
+          key: 'source',
+          label: 'Source',
+          options: ['All', 'Verified', 'Major', 'Local']
       }
   ];
 
@@ -41,33 +47,49 @@ const MapFilterPanel: React.FC<MapFilterPanelProps> = ({ filters, onChange }) =>
       
       {/* Dropside Container (Glass Dark Theme) */}
       <div 
-        className={`absolute right-0 top-12 bg-black/80 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-4 w-64 transition-all duration-300 origin-top-right ${
+        className={`absolute right-0 top-14 bg-black/90 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-5 w-72 transition-all duration-300 origin-top-right z-50 ${
             isOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'
         }`}
       >
-        <div className="flex justify-between items-center mb-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Map Filters</h3>
-            <button onClick={() => onChange('category', 'All')} className="text-[10px] text-blue-400 font-bold hover:text-blue-300">Reset</button>
+        <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2">
+                <Filter size={12} /> Map Controls
+            </h3>
+            <button 
+                onClick={() => {
+                    onChange('category', 'All');
+                    onChange('time', 'Today');
+                    onChange('impact', 'All');
+                    onChange('source', 'All');
+                }} 
+                className="text-[10px] text-blue-400 font-bold hover:text-blue-300"
+            >
+                Reset Default
+            </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-5">
             {FILTER_GROUPS.map((group) => (
                 <div key={group.key}>
-                    <label className="text-xs font-semibold text-gray-300 mb-1.5 block">{group.label}</label>
-                    <div className="flex flex-wrap gap-1.5">
-                        {group.options.map(opt => (
-                            <button
-                                key={opt}
-                                onClick={() => onChange(group.key as keyof MapFilters, opt)}
-                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
-                                    filters[group.key as keyof MapFilters] === opt 
-                                    ? 'bg-blue-600 text-white border-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.5)]' 
-                                    : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:text-white'
-                                }`}
-                            >
-                                {opt}
-                            </button>
-                        ))}
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">{group.label}</label>
+                    <div className="flex flex-wrap gap-2">
+                        {group.options.map(opt => {
+                            const isActive = filters[group.key as keyof MapFilters] === opt;
+                            return (
+                                <button
+                                    key={opt}
+                                    onClick={() => onChange(group.key as keyof MapFilters, opt)}
+                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 ${
+                                        isActive
+                                        ? 'bg-blue-600 text-white border-blue-500 shadow-[0_0_10px_rgba(37,99,235,0.4)]' 
+                                        : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:text-white'
+                                    }`}
+                                >
+                                    {isActive && <Check size={10} />}
+                                    {opt}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
             ))}
@@ -77,14 +99,14 @@ const MapFilterPanel: React.FC<MapFilterPanelProps> = ({ filters, onChange }) =>
       {/* Main Toggle Button (Glass Dark Theme) */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-md border ${
+        className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-lg border ${
             isOpen 
-            ? 'bg-blue-600 text-white border-blue-500' 
+            ? 'bg-blue-600 text-white border-blue-500 shadow-blue-500/30' 
             : 'bg-black/40 backdrop-blur-md text-white border-white/10 hover:bg-black/60'
         }`}
-        title="Toggle Filters"
+        title="Map Filters"
       >
-        <Filter size={18} />
+        <Filter size={18} className={isOpen ? 'fill-current' : ''} />
       </button>
 
     </div>

@@ -13,7 +13,7 @@ import { TrendingUp, AlertTriangle } from 'lucide-react';
 import Toast from '../ui/Toast';
 
 // Mock Data distributed across Indian States and Global hubs
-const MARKERS = [
+export const MARKERS = [
   // India States Data Points
   { id: 'in1', x: 68.5, y: 41, type: 'breaking', title: 'Delhi: Air Quality Crisis', source: 'NDTV', time: '10m ago', timestamp: 0.1, imageUrl: 'https://picsum.photos/200/150?random=101', category: 'Environment', locationName: 'New Delhi', impactRadius: 9, momentum: 'High', sentiment: 'Tense' },
   { id: 'in2', x: 67.2, y: 46, type: 'trending', title: 'Mumbai: Tech Summit', source: 'TechCrunch', time: '1h ago', timestamp: 0.2, imageUrl: 'https://picsum.photos/200/150?random=102', category: 'Tech', locationName: 'Maharashtra', impactRadius: 8, momentum: 'High', sentiment: 'Positive' },
@@ -37,12 +37,14 @@ interface WorldMapProps {
     filters: MapFilters;
     onResetFilters: () => void;
     showHeatmap?: boolean;
+    flyToLocation?: { x: number, y: number, k: number } | null;
 }
 
-const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatmap = true }) => {
+const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatmap = true, flyToLocation }) => {
   // View State
   const [transform, setTransform] = useState({ x: -180, y: -120, k: 3.5 });
   const [isDragging, setIsDragging] = useState(false);
+  const [isFlying, setIsFlying] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const [isMapReady, setIsMapReady] = useState(false);
   const [toast, setToast] = useState<{message: string, type: 'error' | 'info'} | null>(null);
@@ -68,6 +70,25 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
       return () => clearTimeout(timer);
   }, []);
 
+  // Handle Fly To Prop Change
+  useEffect(() => {
+      if (flyToLocation) {
+          setIsFlying(true);
+          // Calculate centered position
+          // If marker is at x%, y%, we need to translate the map so that point is in center.
+          // Container center is roughly width/2, height/2.
+          // Formula simplified for demo:
+          setTransform(prev => ({
+              ...prev,
+              x: flyToLocation.x,
+              y: flyToLocation.y,
+              k: flyToLocation.k
+          }));
+          
+          setTimeout(() => setIsFlying(false), 1200); // Reset flying status after transition
+      }
+  }, [flyToLocation]);
+
   useEffect(() => {
       let interval: ReturnType<typeof setInterval>;
       if (isPlayingHistory) {
@@ -87,6 +108,14 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
   const filteredMarkers = useMemo(() => {
       return MARKERS.filter(m => {
           if (filters.category !== 'All' && m.category !== filters.category) return false;
+          // Filter by Impact
+          if (filters.impact !== 'All' && m.momentum !== filters.impact) return false;
+          // Filter by Source (Mock logic)
+          if (filters.source !== 'All') {
+              // Assume 'Major' means not local sources for demo
+              if (filters.source === 'Major' && !['BBC', 'CNN', 'Reuters', 'Bloomberg'].includes(m.source)) return false;
+          }
+
           if (filters.state !== 'All') {
               if (filters.state === 'India' && !['India', 'Maharashtra', 'Karnataka', 'New Delhi', 'West Bengal', 'Rajasthan', 'Tamil Nadu', 'Punjab', 'Telangana', 'Gujarat', 'Assam'].includes(m.locationName)) return false;
               if (filters.state !== 'India' && !m.locationName.includes(filters.state)) return false;
@@ -115,6 +144,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
   };
   
   const handleRecenter = () => {
+    setIsFlying(true);
     setTransform({ x: -180, y: -120, k: 3.5 }); // Reset to India
     setActiveMarkerId(null);
     setActiveZone(null);
@@ -122,15 +152,18 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
     setIsCompareMode(false);
     setCompareSelection([]);
     setShowTimeline(true);
+    setTimeout(() => setIsFlying(false), 1200);
   };
 
   const handleLocateMe = () => {
       if ("geolocation" in navigator) {
           setToast({ message: "Aligning satellite to your location...", type: 'info' });
           setTimeout(() => {
+              setIsFlying(true);
               setTransform({ x: -180, y: -120, k: 5 }); 
+              setTimeout(() => setIsFlying(false), 1200);
               setToast(null);
-          }, 1500);
+          }, 1000);
       }
   };
 
@@ -197,7 +230,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
        {(showAIAnalysis || activeZone) && (
            <MapAIOverlay 
               region={activeZone?.region || "Global View"}
-              summary={activeZone?.summary || "Significant activity detected in this sector."}
+              summary={activeZone?.summary || "Significant activity detected in this sector. Conflict probability low, trade volume high."}
               momentum={activeZone?.momentum || "Medium"}
               sentiment={activeZone?.sentiment || "Neutral"}
               stats={activeZone?.stats || [{ label: 'Trending', value: 'Technology', icon: TrendingUp }, { label: 'Impact', value: 'High', icon: AlertTriangle }]}
@@ -226,7 +259,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
         }}
       >
         <div 
-            className="relative w-full max-w-[1400px] aspect-[2/1] transition-transform duration-100 ease-out origin-center will-change-transform"
+            className={`relative w-full max-w-[1400px] aspect-[2/1] ease-out origin-center will-change-transform ${isFlying ? 'transition-transform duration-1000' : 'transition-transform duration-75'}`}
             style={{ 
                 transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.k})`,
                 transformStyle: 'preserve-3d'
