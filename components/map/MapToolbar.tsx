@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Plus, Minus, Navigation, Crosshair, GitCompare, ChevronUp, Layers, Box } from 'lucide-react';
+import { Plus, Minus, Navigation, Crosshair, GitCompare, ChevronUp, Layers, Box, Eye } from 'lucide-react';
 
 interface MapToolbarProps {
   onZoomIn: () => void;
@@ -13,6 +13,8 @@ interface MapToolbarProps {
   onToggleView?: () => void;
   mapLayer?: 'satellite' | 'schematic';
   onToggleLayer?: () => void;
+  onSwitchPerspective?: () => void;
+  currentPerspective?: string;
 }
 
 const MapToolbar: React.FC<MapToolbarProps> = ({
@@ -25,7 +27,9 @@ const MapToolbar: React.FC<MapToolbarProps> = ({
   viewMode,
   onToggleView,
   mapLayer,
-  onToggleLayer
+  onToggleLayer,
+  onSwitchPerspective,
+  currentPerspective
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -43,38 +47,51 @@ const MapToolbar: React.FC<MapToolbarProps> = ({
 
       {/* Expanded Tools Menu (Expands UPWARDS) */}
       {isOpen && (
-        <div className="flex flex-col gap-3 animate-in slide-in-from-bottom-4 duration-300">
+        <div className="flex flex-col gap-3 animate-in slide-in-from-bottom-4 duration-300 items-end">
             <button onClick={onRecenter} className="p-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700" title="Recenter">
                 <Navigation size={20} />
             </button>
 
             <button 
-                onClick={onToggleView}
-                className={`p-3 rounded-full shadow-lg transition-all ${viewMode === '3d' ? 'bg-indigo-600 text-white' : 'bg-black/60 backdrop-blur-md text-white border border-white/20'}`}
-                title="Toggle 2D/3D"
+                onClick={onSwitchPerspective}
+                className={`flex items-center gap-2 px-3 py-2 rounded-full shadow-lg transition-all bg-black/60 backdrop-blur-md text-white border border-white/20`}
+                title="Switch Perspective"
             >
-                <Box size={20} />
+                <Eye size={18} />
+                <span className="text-[10px] font-bold uppercase">{currentPerspective || 'View'}</span>
             </button>
 
-            <button 
-                onClick={onToggleLayer}
-                className={`p-3 rounded-full shadow-lg transition-all ${mapLayer === 'satellite' ? 'bg-emerald-600 text-white' : 'bg-black/60 backdrop-blur-md text-white border border-white/20'}`}
-                title="Toggle Layer"
-            >
-                <Layers size={20} />
-            </button>
+            <div className="flex gap-3">
+                <button 
+                    onClick={onToggleView}
+                    className={`p-3 rounded-full shadow-lg transition-all ${viewMode === '3d' ? 'bg-indigo-600 text-white' : 'bg-black/60 backdrop-blur-md text-white border border-white/20'}`}
+                    title="Toggle 2D/3D"
+                >
+                    <Box size={20} />
+                </button>
 
-            <button 
-                onClick={onToggleCompare}
-                className={`p-3 rounded-full shadow-lg transition-all ${isCompareMode ? 'bg-purple-600 text-white' : 'bg-black/60 backdrop-blur-md text-white border border-white/20'}`}
-                title="Compare"
-            >
-                <GitCompare size={20} />
-            </button>
+                <button 
+                    onClick={onToggleLayer}
+                    className={`p-3 rounded-full shadow-lg transition-all ${mapLayer === 'satellite' ? 'bg-emerald-600 text-white' : 'bg-black/60 backdrop-blur-md text-white border border-white/20'}`}
+                    title="Toggle Layer"
+                >
+                    <Layers size={20} />
+                </button>
+            </div>
 
-            <button onClick={onLocateMe} className="p-3 bg-black/60 backdrop-blur-md text-white rounded-full shadow-lg border border-white/20" title="Locate Me">
-                <Crosshair size={20} />
-            </button>
+            <div className="flex gap-3">
+                <button 
+                    onClick={onToggleCompare}
+                    className={`p-3 rounded-full shadow-lg transition-all ${isCompareMode ? 'bg-purple-600 text-white' : 'bg-black/60 backdrop-blur-md text-white border border-white/20'}`}
+                    title="Compare"
+                >
+                    <GitCompare size={20} />
+                </button>
+
+                <button onClick={onLocateMe} className="p-3 bg-black/60 backdrop-blur-md text-white rounded-full shadow-lg border border-white/20" title="Locate Me">
+                    <Crosshair size={20} />
+                </button>
+            </div>
 
             <div className="flex flex-col bg-black/60 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 overflow-hidden">
                 <button onClick={onZoomIn} className="p-3 hover:bg-white/10 border-b border-white/10 text-white" title="Zoom In"><Plus size={20} /></button>

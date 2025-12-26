@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import LocationMarker, { MarkerType } from './LocationMarker';
+import LocationMarker, { MarkerType, MapPerspective } from './LocationMarker';
 import MapNewsSheet from './MapNewsSheet';
 import MapToolbar from './MapToolbar';
 import { MapFilters } from './MapFilterPanel';
@@ -9,10 +9,10 @@ import HeatmapLayer from './HeatmapLayer';
 import TimeScrubber from './TimeScrubber';
 import MapComparisonOverlay from './MapComparisonOverlay';
 import MapSmartInsights from './MapSmartInsights';
-import { TrendingUp, AlertTriangle } from 'lucide-react';
+import MapAudioPlayer from './MapAudioPlayer';
+import { TrendingUp, AlertTriangle, Globe, WifiOff } from 'lucide-react';
 import Toast from '../ui/Toast';
 
-// Mock Data distributed across Indian States and Global hubs
 export const MARKERS = [
   // India States Data Points
   { id: 'in1', x: 68.5, y: 41, type: 'breaking', title: 'Delhi: Air Quality Crisis', source: 'NDTV', time: '10m ago', timestamp: 0.1, imageUrl: 'https://picsum.photos/200/150?random=101', category: 'Environment', locationName: 'New Delhi', impactRadius: 9, momentum: 'High', sentiment: 'Tense' },
@@ -26,7 +26,7 @@ export const MARKERS = [
   { id: 'in9', x: 65, y: 44, type: 'general', title: 'Ahmedabad: Trade Fair', source: 'GujSamachar', time: '4h ago', timestamp: 0.4, imageUrl: 'https://picsum.photos/200/150?random=109', category: 'Business', locationName: 'Gujarat', impactRadius: 6, momentum: 'Medium', sentiment: 'Positive' },
   { id: 'in10', x: 74, y: 38, type: 'breaking', title: 'Guwahati: Flood Warning', source: 'NE News', time: '15m ago', timestamp: 0.15, imageUrl: 'https://picsum.photos/200/150?random=110', category: 'Environment', locationName: 'Assam', impactRadius: 8, momentum: 'High', sentiment: 'Tense' },
 
-  // Global Context (Scaled relatively)
+  // Global Context
   { id: '1', x: 22, y: 38, type: 'breaking', title: 'New York: Market High', source: 'Bloomberg', time: '10m ago', timestamp: 0.1, imageUrl: 'https://picsum.photos/200/150?random=1', category: 'Business', locationName: 'USA', impactRadius: 9, momentum: 'High', sentiment: 'Positive' },
   { id: '2', x: 48, y: 28, type: 'trending', title: 'Brussels: AI Act', source: 'BBC', time: '1h ago', timestamp: 0.3, imageUrl: 'https://picsum.photos/200/150?random=2', category: 'Politics', locationName: 'Europe', impactRadius: 6, momentum: 'Medium', sentiment: 'Neutral' },
   { id: '3', x: 80, y: 40, type: 'top', title: 'Tokyo: Robotics Expo', source: 'Nikkei', time: '3h ago', timestamp: 0.5, imageUrl: 'https://picsum.photos/200/150?random=3', category: 'Tech', locationName: 'Japan', impactRadius: 8, momentum: 'High', sentiment: 'Positive' },
@@ -38,9 +38,10 @@ interface WorldMapProps {
     onResetFilters: () => void;
     showHeatmap?: boolean;
     flyToLocation?: { x: number, y: number, k: number } | null;
+    isAudioMode?: boolean;
 }
 
-const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatmap = true, flyToLocation }) => {
+const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatmap = true, flyToLocation, isAudioMode = false }) => {
   // View State
   const [transform, setTransform] = useState({ x: -180, y: -120, k: 3.5 });
   const [isDragging, setIsDragging] = useState(false);
@@ -48,10 +49,12 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const [isMapReady, setIsMapReady] = useState(false);
   const [toast, setToast] = useState<{message: string, type: 'error' | 'info'} | null>(null);
+  const [mapError, setMapError] = useState(false); // 10.12 Fallback handling
   
   // Modes
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('3d');
   const [mapLayer, setMapLayer] = useState<'satellite' | 'schematic'>('satellite');
+  const [perspective, setPerspective] = useState<MapPerspective>('Standard'); // 10.13 Differentiation
   
   // Interaction State
   const [timeValue, setTimeValue] = useState(0); 
@@ -65,27 +68,73 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [compareSelection, setCompareSelection] = useState<string[]>([]);
 
+  // 10.9 Audio State
+  const [audioSpeed, setAudioSpeed] = useState(1.0);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [audioRegion, setAudioRegion] = useState("Global System");
+  const [audioSummary, setAudioSummary] = useState("Monitoring feed...");
+  const audioIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
       const timer = setTimeout(() => setIsMapReady(true), 100);
       return () => clearTimeout(timer);
   }, []);
 
+  // Update Visible Bounds & Audio Trigger
+  useEffect(() => {
+      const calculateBounds = () => {
+          // If audio mode is active, simulate scanning when idle
+          if (isAudioMode && !isDragging && !isFlying) {
+              if (audioIdleTimer.current) clearTimeout(audioIdleTimer.current);
+              audioIdleTimer.current = setTimeout(triggerAudioUpdate, 1500); // 1.5s idle
+          }
+      };
+      
+      calculateBounds();
+      return () => { if (audioIdleTimer.current) clearTimeout(audioIdleTimer.current); };
+  }, [transform, isDragging, isFlying, isAudioMode]);
+
+  const triggerAudioUpdate = () => {
+      if (!isAudioMode) return;
+
+      const randomActive = filteredMarkers[Math.floor(Math.random() * filteredMarkers.length)];
+      if (randomActive) {
+          setAudioRegion(randomActive.locationName);
+          setAudioSummary(`Activity detected: ${randomActive.title}. Impact level ${randomActive.momentum}.`);
+          setIsAudioPlaying(true);
+          speak(randomActive.title + ". " + randomActive.title); 
+      }
+  };
+
+  const speak = (text: string) => {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = audioSpeed;
+      u.onend = () => setIsAudioPlaying(false);
+      window.speechSynthesis.speak(u);
+  };
+
+  const handleAudioToggle = () => {
+      if (isAudioPlaying) {
+          window.speechSynthesis.cancel();
+          setIsAudioPlaying(false);
+      } else {
+          speak(audioSummary);
+          setIsAudioPlaying(true);
+      }
+  };
+
   // Handle Fly To Prop Change
   useEffect(() => {
       if (flyToLocation) {
           setIsFlying(true);
-          // Calculate centered position
-          // If marker is at x%, y%, we need to translate the map so that point is in center.
-          // Container center is roughly width/2, height/2.
-          // Formula simplified for demo:
           setTransform(prev => ({
               ...prev,
               x: flyToLocation.x,
               y: flyToLocation.y,
               k: flyToLocation.k
           }));
-          
-          setTimeout(() => setIsFlying(false), 1200); // Reset flying status after transition
+          setTimeout(() => setIsFlying(false), 1200); 
       }
   }, [flyToLocation]);
 
@@ -107,12 +156,14 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
 
   const filteredMarkers = useMemo(() => {
       return MARKERS.filter(m => {
+          // Perspective Filtering (10.13 Differentiation)
+          if (perspective === 'Economic' && !['Business', 'Tech'].includes(m.category)) return false;
+          if (perspective === 'Political' && !['Politics', 'World'].includes(m.category)) return false;
+          if (perspective === 'Human' && !['Environment', 'Health', 'Entertainment'].includes(m.category)) return false;
+
           if (filters.category !== 'All' && m.category !== filters.category) return false;
-          // Filter by Impact
           if (filters.impact !== 'All' && m.momentum !== filters.impact) return false;
-          // Filter by Source (Mock logic)
           if (filters.source !== 'All') {
-              // Assume 'Major' means not local sources for demo
               if (filters.source === 'Major' && !['BBC', 'CNN', 'Reuters', 'Bloomberg'].includes(m.source)) return false;
           }
 
@@ -126,7 +177,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
           if (m.timestamp > timeValue + 0.5) return false;
           return true;
       });
-  }, [filters, transform.k, activeMarkerId, timeValue, compareSelection]);
+  }, [filters, transform.k, activeMarkerId, timeValue, compareSelection, perspective]);
 
   const handleZoomIn = () => setTransform(prev => ({ ...prev, k: Math.min(prev.k * 1.5, 12) }));
   const handleZoomOut = () => setTransform(prev => {
@@ -145,7 +196,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
   
   const handleRecenter = () => {
     setIsFlying(true);
-    setTransform({ x: -180, y: -120, k: 3.5 }); // Reset to India
+    setTransform({ x: -180, y: -120, k: 3.5 }); 
     setActiveMarkerId(null);
     setActiveZone(null);
     setShowAIAnalysis(false);
@@ -191,6 +242,15 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
           }
       } else {
           setActiveMarkerId(id);
+          if (isAudioMode) {
+              const m = MARKERS.find(marker => marker.id === id);
+              if (m) {
+                  setAudioRegion(m.locationName);
+                  setAudioSummary(m.title);
+                  setIsAudioPlaying(true);
+                  speak(m.title + ". " + m.category + " update.");
+              }
+          }
       }
   };
 
@@ -202,19 +262,38 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
       return { id: m.id, name: m.locationName, sentiment: m.sentiment, volume: m.impactRadius * 1240, momentum: m.momentum };
   };
 
+  const handlePerspectiveChange = () => {
+      const options: MapPerspective[] = ['Standard', 'Economic', 'Human', 'Political'];
+      const currentIdx = options.indexOf(perspective);
+      setPerspective(options[(currentIdx + 1) % options.length]);
+      setToast({ message: `Switched to ${options[(currentIdx + 1) % options.length]} View`, type: 'info' });
+  };
+
   return (
     <div 
         className="relative w-full h-full bg-[#050505] overflow-hidden group select-none outline-none"
         onWheel={handleWheel}
         style={{ perspective: '1000px' }}
     >
-       {/* Background Atmosphere */}
-       <div className="absolute inset-0 bg-radial-gradient from-indigo-900/10 via-black to-black pointer-events-none z-0"></div>
+       {/* 10.13 Earth Pulse Background (Subtle animated glow) */}
+       <div className="absolute inset-0 bg-radial-gradient from-indigo-900/10 via-black to-black pointer-events-none z-0 animate-[pulse_8s_infinite] opacity-50"></div>
        
        {toast && (
            <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 w-full max-w-xs px-4">
                <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />
            </div>
+       )}
+
+       {/* Audio Player Overlay */}
+       {isAudioMode && (
+           <MapAudioPlayer 
+               region={audioRegion}
+               summary={audioSummary}
+               isPlaying={isAudioPlaying}
+               onTogglePlay={handleAudioToggle}
+               speed={audioSpeed}
+               onSpeedChange={() => setAudioSpeed(prev => prev === 1 ? 1.5 : 1)}
+           />
        )}
 
        <MapSmartInsights />
@@ -262,20 +341,24 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
             className={`relative w-full max-w-[1400px] aspect-[2/1] ease-out origin-center will-change-transform ${isFlying ? 'transition-transform duration-1000' : 'transition-transform duration-75'}`}
             style={{ 
                 transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.k})`,
-                transformStyle: 'preserve-3d'
+                transformStyle: 'preserve-3d',
+                willChange: isDragging ? 'transform' : 'auto' 
             }}
         >
-           {/* Map Layer */}
-           {mapLayer === 'satellite' ? (
+           {/* Map Layer with Fallback (10.12) */}
+           {mapLayer === 'satellite' && !mapError ? (
                 <div className="absolute inset-0 rounded-lg overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] bg-[#0a0a0a]">
-                    {/* Dark Satellite Texture */}
                     <img 
                         src="https://upload.wikimedia.org/wikipedia/commons/c/cd/Land_ocean_ice_2048.jpg" 
                         className="w-full h-full object-cover opacity-80 filter contrast-125 brightness-75 grayscale-[30%]"
                         alt="Satellite Map"
                         draggable={false}
+                        loading="lazy"
+                        onError={() => {
+                            setMapError(true);
+                            setToast({ message: "Satellite Link Failed. Switching to Schematic.", type: 'warning' });
+                        }}
                     />
-                    {/* Digital Grid Overlay */}
                     <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
                     <div className="absolute inset-0 bg-radial-gradient from-transparent to-black opacity-60"></div>
                 </div>
@@ -286,17 +369,26 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
                 </div>
            )}
            
-           {/* Heatmap (Flat on map surface) */}
            <div style={{ transform: 'translateZ(1px)' }}>
                 <HeatmapLayer 
                     markers={filteredMarkers} 
                     visible={showHeatmap} 
-                    mode='intensity'
+                    mode={perspective === 'Human' ? 'sentiment' : 'intensity'}
                     onZoneClick={setActiveZone}
                 />
            </div>
 
-           {/* Markers (Floating above surface) */}
+           {/* Empty State (10.12) */}
+           {isMapReady && filteredMarkers.length === 0 && (
+               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center z-20 pointer-events-none">
+                   <div className="bg-black/60 backdrop-blur-md p-4 rounded-2xl border border-white/10">
+                       <WifiOff size={24} className="text-gray-500 mx-auto mb-2" />
+                       <p className="text-xs text-gray-400 font-medium">No activity detected in this sector.</p>
+                       <p className="text-[10px] text-gray-600 mt-1">Try adjusting filters or perspective.</p>
+                   </div>
+               </div>
+           )}
+
            {isMapReady && filteredMarkers.map((marker, index) => (
              <LocationMarker
                key={marker.id}
@@ -312,6 +404,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
                onClick={() => handleMarkerClick(marker.id)}
                delay={index * 50}
                viewMode={viewMode}
+               perspective={perspective}
              />
            ))}
         </div>
@@ -349,6 +442,8 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
         onToggleView={() => setViewMode(prev => prev === '2d' ? '3d' : '2d')}
         mapLayer={mapLayer}
         onToggleLayer={() => setMapLayer(prev => prev === 'satellite' ? 'schematic' : 'satellite')}
+        onSwitchPerspective={handlePerspectiveChange}
+        currentPerspective={perspective}
       />
     </div>
   );

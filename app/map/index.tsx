@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, Flame, ArrowLeft } from 'lucide-react';
+import { Search, Flame, ArrowLeft, Volume2, VolumeX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import WorldMap, { MARKERS } from '../../components/map/WorldMap';
 import MapTicker from '../../components/map/MapTicker';
@@ -16,6 +16,9 @@ const MapPage: React.FC = () => {
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Audio Mode State
+  const [isAudioMode, setIsAudioMode] = useState(false);
   
   // State to trigger map movement
   const [flyToLocation, setFlyToLocation] = useState<{ x: number, y: number, k: number } | null>(null);
@@ -46,7 +49,6 @@ const MapPage: React.FC = () => {
 
       const term = searchQuery.toLowerCase();
       
-      // Simple Search Logic within known markers
       const found = MARKERS.find(m => 
           m.locationName.toLowerCase().includes(term) || 
           m.title.toLowerCase().includes(term) ||
@@ -54,37 +56,12 @@ const MapPage: React.FC = () => {
       );
 
       if (found) {
-          // Calculate pan to center the point.
-          // Center is approx (0,0) offset? 
-          // WorldMap logic uses translate(x, y). 
-          // Center is 50%, 50%.
-          // We need to invert logic slightly or just pass target props.
-          // Since WorldMap implementation logic is opaque, we pass relative coordinates if possible or
-          // better, pass parameters that WorldMap understands directly. 
-          // Here we guess a 'flyTo' coordinate based on map's implementation details.
-          // In real app, we'd use lat/lng. Here markers use % (x=0..100, y=0..100).
-          // To center 50,50 with zoom 5, we shift transform.
-          
-          // Let's assume a simplified target prop passed to WorldMap for demonstration.
-          // We'll calculate a generic shift:
-          // Center is screen width/2.
-          
-          // Let's just pass the Marker data coordinates and let WorldMap handle the math.
-          // Or simplified: Just zoom deep into that location.
-          
-          // Current logic: transform(x, y). 
-          // We need to make the marker's x%, y% appear in center.
-          // With zoom K.
-          // transform-origin is center.
-          // Let's just create a strong offset.
           const k = 6;
-          const targetX = -found.x * 10 + 200; // Approximation for demo visual
+          const targetX = -found.x * 10 + 200; 
           const targetY = -found.y * 5 + 100;
           
           setFlyToLocation({ x: targetX, y: targetY, k });
           setIsSearchOpen(false);
-      } else {
-          // Maybe show toast "Location not found in active zones"
       }
   };
 
@@ -112,16 +89,25 @@ const MapPage: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {/* Audio Mode Toggle (New 10.9) */}
+                    <button 
+                        onClick={() => setIsAudioMode(!isAudioMode)}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md border transition-all active:scale-95 ${isAudioMode ? 'bg-indigo-600 text-white border-indigo-500 shadow-[0_0_15px_rgba(79,70,229,0.5)]' : 'bg-black/40 text-gray-400 border-white/10 hover:bg-black/60'}`}
+                        title="Map Audio Mode"
+                    >
+                        {isAudioMode ? <Volume2 size={18} className="animate-pulse" /> : <VolumeX size={18} />}
+                    </button>
+
                     {/* Expanding Search */}
                     <form 
                         onSubmit={handleSearchSubmit}
-                        className={`flex items-center bg-black/40 backdrop-blur-md rounded-full border border-white/10 transition-all duration-300 ease-out ${isSearchOpen ? 'w-48 px-3' : 'w-10 h-10 justify-center'}`}
+                        className={`flex items-center bg-black/40 backdrop-blur-md rounded-full border border-white/10 transition-all duration-300 ease-out ${isSearchOpen ? 'w-40 md:w-48 px-3' : 'w-10 h-10 justify-center'}`}
                     >
                         {isSearchOpen ? (
                             <>
                                 <input 
                                     type="text" 
-                                    placeholder="Search region..." 
+                                    placeholder="Search..." 
                                     className="bg-transparent border-none outline-none text-white text-xs w-full placeholder:text-gray-400 font-medium"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -159,6 +145,7 @@ const MapPage: React.FC = () => {
                 onResetFilters={() => setFilters({ category: 'All', time: 'Today', type: 'All', state: 'India', sentiment: 'All', source: 'All', impact: 'All' })}
                 showHeatmap={showHeatmap}
                 flyToLocation={flyToLocation}
+                isAudioMode={isAudioMode}
             />
             <MapTicker />
         </div>
