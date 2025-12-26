@@ -22,10 +22,12 @@ export const MARKERS = [
   { id: 'g_usa', x: 22, y: 38, type: 'breaking', title: 'North America: Market Alert', category: 'Business', locationName: 'North America', minZoom: 1, maxZoom: 3.5, impactRadius: 14, momentum: 'High', sentiment: 'Tense', detailLevel: 'cluster' },
 
   // --- LEVEL 2: REGIONAL/STATE (Zoom 3.5 - 6) ---
-  // India Region
+  // India Regions
   { id: 'r_in_north', x: 68.5, y: 38, type: 'breaking', title: 'North India: Climate Emergency', category: 'Environment', locationName: 'North India', minZoom: 3.5, maxZoom: 6, impactRadius: 10, momentum: 'High', sentiment: 'Tense', detailLevel: 'region' },
   { id: 'r_in_west', x: 67, y: 46, type: 'trending', title: 'Maharashtra: Investment Hub', category: 'Business', locationName: 'Maharashtra', minZoom: 3.5, maxZoom: 6, impactRadius: 9, momentum: 'High', sentiment: 'Positive', detailLevel: 'region' },
   { id: 'r_in_south', x: 70, y: 50, type: 'general', title: 'Karnataka: Startups', category: 'Tech', locationName: 'Karnataka', minZoom: 3.5, maxZoom: 6, impactRadius: 8, momentum: 'Medium', sentiment: 'Positive', detailLevel: 'region' },
+  { id: 'r_in_south_east', x: 71, y: 48, type: 'general', title: 'Tamil Nadu: Manufacturing', category: 'Business', locationName: 'Tamil Nadu', minZoom: 3.5, maxZoom: 6, impactRadius: 8, momentum: 'Medium', sentiment: 'Positive', detailLevel: 'region' },
+  { id: 'r_in_east', x: 73, y: 42, type: 'breaking', title: 'Bengal: Cultural Fest', category: 'Entertainment', locationName: 'West Bengal', minZoom: 3.5, maxZoom: 6, impactRadius: 7, momentum: 'High', sentiment: 'Positive', detailLevel: 'region' },
   
   // Global Regions
   { id: 'r_us_east', x: 24, y: 39, type: 'breaking', title: 'US East Coast: Finance', category: 'Business', locationName: 'East Coast', minZoom: 3.5, maxZoom: 6, impactRadius: 8, momentum: 'High', sentiment: 'Tense', detailLevel: 'region' },
@@ -35,12 +37,19 @@ export const MARKERS = [
   { id: 'c_delhi', x: 68.5, y: 41, type: 'breaking', title: 'New Delhi: Air Quality Index hits 450', source: 'NDTV', time: '10m ago', timestamp: 0.1, category: 'Environment', locationName: 'New Delhi', minZoom: 6, maxZoom: 9, impactRadius: 6, momentum: 'High', sentiment: 'Negative', detailLevel: 'city' },
   { id: 'c_mumbai', x: 67.2, y: 46, type: 'trending', title: 'Mumbai: Sensex Crosses 75k', source: 'Mint', time: '1h ago', timestamp: 0.2, category: 'Business', locationName: 'Mumbai', minZoom: 6, maxZoom: 9, impactRadius: 7, momentum: 'High', sentiment: 'Positive', detailLevel: 'city' },
   { id: 'c_blr', x: 69.5, y: 49, type: 'general', title: 'Bengaluru: AI Summit 2025', source: 'TechCrunch', time: '3h ago', timestamp: 0.3, category: 'Tech', locationName: 'Bengaluru', minZoom: 6, maxZoom: 9, impactRadius: 5, momentum: 'Medium', sentiment: 'Positive', detailLevel: 'city' },
+  { id: 'c_hyd', x: 69.8, y: 47, type: 'trending', title: 'Hyderabad: BioAsia Summit', source: 'TelanganaToday', time: '2h ago', timestamp: 0.15, category: 'Science', locationName: 'Hyderabad', minZoom: 6, maxZoom: 9, impactRadius: 6, momentum: 'High', sentiment: 'Positive', detailLevel: 'city' },
+  { id: 'c_chennai', x: 70.5, y: 49.5, type: 'general', title: 'Chennai: Chess Olympiad', source: 'TheHindu', time: '5h ago', timestamp: 0.25, category: 'Sports', locationName: 'Chennai', minZoom: 6, maxZoom: 9, impactRadius: 5, momentum: 'Medium', sentiment: 'Neutral', detailLevel: 'city' },
+  { id: 'c_kolkata', x: 73.2, y: 43.5, type: 'general', title: 'Kolkata: Metro Expansion', source: 'Telegraph', time: '12h ago', timestamp: 0.4, category: 'Business', locationName: 'Kolkata', minZoom: 6, maxZoom: 9, impactRadius: 6, momentum: 'Medium', sentiment: 'Positive', detailLevel: 'city' },
+  { id: 'c_pune', x: 67.5, y: 46.5, type: 'trending', title: 'Pune: EV Startups Rise', source: 'PuneMirror', time: '1h ago', timestamp: 0.1, category: 'Tech', locationName: 'Pune', minZoom: 6, maxZoom: 9, impactRadius: 5, momentum: 'High', sentiment: 'Positive', detailLevel: 'city' },
+  
   { id: 'c_nyc', x: 22, y: 38, type: 'breaking', title: 'NYC: UN General Assembly', source: 'Reuters', time: '10m ago', timestamp: 0.1, category: 'Politics', locationName: 'New York', minZoom: 6, maxZoom: 9, impactRadius: 8, momentum: 'High', sentiment: 'Neutral', detailLevel: 'city' },
 
   // --- LEVEL 4: STREET/LOCAL (Zoom 9+) ---
   // Using slightly offset coordinates to simulate "drilling down" into the city
   { id: 's_del_cp', x: 68.52, y: 41.02, type: 'breaking', title: 'Connaught Place: Traffic Advisory due to Protest', subtitle: 'Heavy congestion reported near inner circle. Police advising alternate routes.', source: 'TrafficAlert', time: '5m ago', timestamp: 0.05, category: 'Politics', locationName: 'Connaught Place', minZoom: 9, maxZoom: 20, impactRadius: 3, momentum: 'High', sentiment: 'Negative', detailLevel: 'street' },
   { id: 's_mum_bkc', x: 67.22, y: 46.02, type: 'trending', title: 'BKC: Apple Store Opening Queue', subtitle: 'Thousands gathered overnight for the new flagship store launch. Tim Cook expected to visit.', source: 'LocalNews', time: '30m ago', timestamp: 0.1, category: 'Tech', locationName: 'Bandra Kurla Complex', minZoom: 9, maxZoom: 20, impactRadius: 4, momentum: 'High', sentiment: 'Positive', detailLevel: 'street' },
+  { id: 's_hyd_hitech', x: 69.82, y: 47.02, type: 'trending', title: 'Hitech City: 5G Lab Launch', subtitle: 'New innovation center opens.', source: 'TechNews', time: '30m ago', timestamp: 0.1, category: 'Tech', locationName: 'Hitech City', minZoom: 9, maxZoom: 20, impactRadius: 4, momentum: 'High', sentiment: 'Positive', detailLevel: 'street' },
+  { id: 's_blr_koramangala', x: 69.52, y: 49.02, type: 'breaking', title: 'Koramangala: Food Fest', subtitle: 'Huge crowds expected.', source: 'WhatsUpBlr', time: '10m ago', timestamp: 0.05, category: 'Entertainment', locationName: 'Koramangala', minZoom: 9, maxZoom: 20, impactRadius: 3, momentum: 'Medium', sentiment: 'Positive', detailLevel: 'street' },
   { id: 's_nyc_wall', x: 22.02, y: 38.02, type: 'general', title: 'Wall St: Opening Bell Ceremony', subtitle: 'Tech sector leads early gains as trading begins.', source: 'Bloomberg', time: '15m ago', timestamp: 0.1, category: 'Business', locationName: 'Wall Street', minZoom: 9, maxZoom: 20, impactRadius: 4, momentum: 'Medium', sentiment: 'Positive', detailLevel: 'street' },
 ];
 
@@ -53,8 +62,8 @@ interface WorldMapProps {
 }
 
 const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatmap = true, flyToLocation, isAudioMode = false }) => {
-  // View State
-  const [transform, setTransform] = useState({ x: -180, y: -120, k: 2.5 }); // Start slightly zoomed out
+  // View State - Initialized to focus on India
+  const [transform, setTransform] = useState({ x: -550, y: 80, k: 5.5 }); 
   const [isDragging, setIsDragging] = useState(false);
   const [isFlying, setIsFlying] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
