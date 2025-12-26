@@ -63,14 +63,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
       setTimeout(() => setAiState('idle'), 1500);
   };
 
-  // --- Advanced News Report Voice Engine ---
+  // --- Reporting & Explaining Voice Engine ---
 
-  const getNewsAnchorVoice = () => {
+  const getReporterVoice = () => {
       const voices = window.speechSynthesis.getVoices();
-      // Priority: Professional News Broadcasting Voices (One specific voice)
+      // Priority: Professional News Broadcasting Voices
       return voices.find(v => v.name === "Google US English") || 
              voices.find(v => v.name === "Microsoft Zira - English (United States)") ||
-             voices.find(v => v.lang === 'en-US' && !v.name.includes("Zira")) || 
+             voices.find(v => v.name.includes("Samantha")) ||
+             voices.find(v => v.lang === 'en-US') || 
              voices[0];
   };
 
@@ -91,7 +92,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
       setAiState('speaking');
 
       // --- Parsing Content for Tone ---
-      // We use ONE voice but change pitch/rate based on context.
+      // We break the text into segments to apply different tones.
+      // Headline: Authoritative, slightly slower.
+      // Body: Explanatory, clear, measured pace.
+      // Bold: Emphatic.
       
       const segments: { text: string; tone: 'normal' | 'bold' | 'heading' }[] = [];
       const lines = message.content.split('\n');
@@ -128,7 +132,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
 
       // --- Sequential Speaking Queue ---
       let currentIndex = 0;
-      const anchorVoice = getNewsAnchorVoice();
+      const reporterVoice = getReporterVoice();
 
       const speakNext = () => {
           if (speechStoppedRef.current || currentIndex >= segments.length) {
@@ -139,27 +143,25 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
 
           const segment = segments[currentIndex];
           const u = new SpeechSynthesisUtterance(segment.text);
-          u.voice = anchorVoice; // Consistent Voice
+          u.voice = reporterVoice;
 
-          // Apply Tone Modulation (Same voice, different physics)
+          // Apply Tonal Emotions for "Reporting & Explaining"
           switch (segment.tone) {
               case 'heading':
-                  u.pitch = 0.9;  // Deep, authoritative
-                  u.rate = 0.9;   // Deliberate, headline style
-                  u.volume = 1.0;
+                  u.pitch = 0.95; // Slightly lower, authoritative
+                  u.rate = 0.9;   // Slower, deliberate headline reading
                   break;
               case 'bold':
-                  u.pitch = 0.95; // Slightly deeper for emphasis
-                  u.rate = 0.95;  // Slight pause/emphasis
-                  u.volume = 1.0;
+                  u.pitch = 1.05; // Slightly higher for emphasis
+                  u.rate = 0.9;   // Slow down for key terms
                   break;
               case 'normal':
               default:
-                  u.pitch = 1.0;  // Standard reporting pitch
-                  u.rate = 1.0;   // Efficient reporting speed
-                  u.volume = 1.0;
+                  u.pitch = 1.0;  // Neutral
+                  u.rate = 0.95;  // Measured pace (Explaining style)
                   break;
           }
+          u.volume = 1.0;
 
           u.onend = () => {
               currentIndex++;

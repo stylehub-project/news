@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import LocationMarker, { MarkerType } from './LocationMarker';
 import MapNewsSheet from './MapNewsSheet';
@@ -35,16 +36,22 @@ const MARKERS = [
 interface WorldMapProps {
     filters: MapFilters;
     onResetFilters: () => void;
+    showHeatmap?: boolean;
 }
 
-const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
-  // Default Zoom to India (Centered roughly on India coordinates in our SVG map space)
+const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatmap = true }) => {
+  // View State
   const [transform, setTransform] = useState({ x: -180, y: -120, k: 3.5 });
   const [isDragging, setIsDragging] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const [isMapReady, setIsMapReady] = useState(false);
   const [toast, setToast] = useState<{message: string, type: 'error' | 'info'} | null>(null);
   
+  // Modes
+  const [viewMode, setViewMode] = useState<'2d' | '3d'>('3d');
+  const [mapLayer, setMapLayer] = useState<'satellite' | 'schematic'>('satellite');
+  
+  // Interaction State
   const [timeValue, setTimeValue] = useState(0); 
   const [isPlayingHistory, setIsPlayingHistory] = useState(false);
   const [showTimeline, setShowTimeline] = useState(true);
@@ -80,7 +87,6 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
   const filteredMarkers = useMemo(() => {
       return MARKERS.filter(m => {
           if (filters.category !== 'All' && m.category !== filters.category) return false;
-          // Improved State Filter Logic - Broad check
           if (filters.state !== 'All') {
               if (filters.state === 'India' && !['India', 'Maharashtra', 'Karnataka', 'New Delhi', 'West Bengal', 'Rajasthan', 'Tamil Nadu', 'Punjab', 'Telangana', 'Gujarat', 'Assam'].includes(m.locationName)) return false;
               if (filters.state !== 'India' && !m.locationName.includes(filters.state)) return false;
@@ -120,11 +126,11 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
 
   const handleLocateMe = () => {
       if ("geolocation" in navigator) {
-          setToast({ message: "Locating news near you...", type: 'info' });
+          setToast({ message: "Aligning satellite to your location...", type: 'info' });
           setTimeout(() => {
-              setTransform({ x: -180, y: -120, k: 5 }); // Zoom deeper into India
+              setTransform({ x: -180, y: -120, k: 5 }); 
               setToast(null);
-          }, 1200);
+          }, 1500);
       }
   };
 
@@ -165,11 +171,15 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
 
   return (
     <div 
-        className="relative w-full h-full bg-[#1a1d21] overflow-hidden group select-none outline-none"
+        className="relative w-full h-full bg-[#050505] overflow-hidden group select-none outline-none"
         onWheel={handleWheel}
+        style={{ perspective: '1000px' }}
     >
+       {/* Background Atmosphere */}
+       <div className="absolute inset-0 bg-radial-gradient from-indigo-900/10 via-black to-black pointer-events-none z-0"></div>
+       
        {toast && (
-           <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-xs px-4">
+           <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 w-full max-w-xs px-4">
                <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />
            </div>
        )}
@@ -204,27 +214,56 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
         onMouseLeave={handleMouseUp}
         onClick={() => { 
             if (!isDragging) {
-                // Keep marker active if clicking it, otherwise clear. Handled by propagation stop in Marker.
-                // But clicking empty map clears:
                 setActiveMarkerId(null); 
                 setShowAIAnalysis(false); 
                 setActiveZone(null); 
             }
         }}
+        style={{
+            transformStyle: 'preserve-3d',
+            transform: viewMode === '3d' ? 'rotateX(30deg) scale(1.1)' : 'rotateX(0deg)',
+            transition: 'transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1)'
+        }}
       >
         <div 
-            className="relative w-full max-w-[1200px] aspect-[16/9] transition-transform duration-200 ease-out origin-center will-change-transform"
-            style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.k})` }}
+            className="relative w-full max-w-[1400px] aspect-[2/1] transition-transform duration-100 ease-out origin-center will-change-transform"
+            style={{ 
+                transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.k})`,
+                transformStyle: 'preserve-3d'
+            }}
         >
-           <div className="absolute inset-0 opacity-40 bg-[url('https://upload.wikimedia.org/wikipedia/commons/e/ec/World_map_blank_without_borders.svg')] bg-contain bg-no-repeat bg-center pointer-events-none filter invert contrast-125"></div>
+           {/* Map Layer */}
+           {mapLayer === 'satellite' ? (
+                <div className="absolute inset-0 rounded-lg overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] bg-[#0a0a0a]">
+                    {/* Dark Satellite Texture */}
+                    <img 
+                        src="https://upload.wikimedia.org/wikipedia/commons/c/cd/Land_ocean_ice_2048.jpg" 
+                        className="w-full h-full object-cover opacity-80 filter contrast-125 brightness-75 grayscale-[30%]"
+                        alt="Satellite Map"
+                        draggable={false}
+                    />
+                    {/* Digital Grid Overlay */}
+                    <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
+                    <div className="absolute inset-0 bg-radial-gradient from-transparent to-black opacity-60"></div>
+                </div>
+           ) : (
+                <div className="absolute inset-0 bg-[#111] border border-gray-800 rounded-lg">
+                    <div className="absolute inset-0 opacity-20 bg-[url('https://upload.wikimedia.org/wikipedia/commons/e/ec/World_map_blank_without_borders.svg')] bg-cover bg-center invert filter"></div>
+                    <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:20px_20px]"></div>
+                </div>
+           )}
            
-           <HeatmapLayer 
-                markers={filteredMarkers} 
-                visible={true} 
-                mode='intensity'
-                onZoneClick={setActiveZone}
-           />
+           {/* Heatmap (Flat on map surface) */}
+           <div style={{ transform: 'translateZ(1px)' }}>
+                <HeatmapLayer 
+                    markers={filteredMarkers} 
+                    visible={showHeatmap} 
+                    mode='intensity'
+                    onZoneClick={setActiveZone}
+                />
+           </div>
 
+           {/* Markers (Floating above surface) */}
            {isMapReady && filteredMarkers.map((marker, index) => (
              <LocationMarker
                key={marker.id}
@@ -239,6 +278,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
                zoomLevel={transform.k}
                onClick={() => handleMarkerClick(marker.id)}
                delay={index * 50}
+               viewMode={viewMode}
              />
            ))}
         </div>
@@ -272,6 +312,10 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters }) => {
         onLocateMe={handleLocateMe}
         onToggleCompare={() => { if (isCompareMode) setCompareSelection([]); setIsCompareMode(!isCompareMode); }}
         isCompareMode={isCompareMode}
+        viewMode={viewMode}
+        onToggleView={() => setViewMode(prev => prev === '2d' ? '3d' : '2d')}
+        mapLayer={mapLayer}
+        onToggleLayer={() => setMapLayer(prev => prev === 'satellite' ? 'schematic' : 'satellite')}
       />
     </div>
   );

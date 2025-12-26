@@ -29,16 +29,17 @@ const StoryboardAttachment: React.FC<StoryboardAttachmentProps> = ({ data }) => 
     } else {
       const utterance = new SpeechSynthesisUtterance(data.summary);
       
-      // Professional News Voice Configuration (Same as ChatMessage)
+      // Professional News Voice Configuration
       const voices = window.speechSynthesis.getVoices();
       const newsVoice = voices.find(v => v.name === "Google US English") || 
                         voices.find(v => v.name === "Microsoft Zira - English (United States)") ||
-                        voices.find(v => v.lang === 'en-US' && !v.name.includes("Zira")) || 
+                        voices.find(v => v.name.includes("Samantha")) ||
+                        voices.find(v => v.lang === 'en-US') || 
                         voices[0];
       
       if (newsVoice) utterance.voice = newsVoice;
       utterance.pitch = 1.0; 
-      utterance.rate = 1.0; 
+      utterance.rate = 0.95; // Slightly slower for explaining/reporting
 
       utterance.onend = () => setIsPlaying(false);
       window.speechSynthesis.speak(utterance);

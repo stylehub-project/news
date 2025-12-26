@@ -34,10 +34,11 @@ const HighlightReadingMode: React.FC<HighlightReadingModeProps> = ({
     return () => { window.speechSynthesis.onvoiceschanged = null; };
   }, []);
 
-  const getBestVoice = () => {
+  const getReporterVoice = () => {
       // Consistent News Anchor Selection
       return voices.find(v => v.name === "Google US English") || 
              voices.find(v => v.name === "Microsoft Zira - English (United States)") ||
+             voices.find(v => v.name.includes("Samantha")) ||
              voices.find(v => v.lang === 'en-US' && !v.name.includes("Zira")) || 
              voices[0];
   };
@@ -54,9 +55,9 @@ const HighlightReadingMode: React.FC<HighlightReadingModeProps> = ({
             window.speechSynthesis.resume();
         } else if (!window.speechSynthesis.speaking) {
             const u = new SpeechSynthesisUtterance(text);
-            u.voice = getBestVoice();
+            u.voice = getReporterVoice();
             u.pitch = 1.0; 
-            u.rate = speed; 
+            u.rate = speed * 0.95; // Default slightly measured for explanatory feel, multiplied by user speed
             u.volume = 1;
             
             u.onboundary = (event) => {

@@ -116,12 +116,16 @@ const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoRead }) => {
     if (isActive && !isMorphing) {
         const text = `${data.title}. ${displayedSummary}`;
         const u = new SpeechSynthesisUtterance(text);
-        u.rate = 1.0; 
+        u.rate = 0.95; // Measured, explanatory pace
         u.pitch = 1.0;
         u.volume = 1.0;
 
         const voices = window.speechSynthesis.getVoices();
-        const preferredVoice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) || voices[0];
+        const preferredVoice = voices.find(v => v.name === "Google US English") || 
+                               voices.find(v => v.name === "Microsoft Zira - English (United States)") ||
+                               voices.find(v => v.name.includes("Samantha")) ||
+                               voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) || 
+                               voices[0];
         if (preferredVoice) u.voice = preferredVoice;
 
         u.onboundary = (event) => {

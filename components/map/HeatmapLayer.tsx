@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Flame, ArrowUp, Smile, Frown, Meh } from 'lucide-react';
 
@@ -58,30 +59,35 @@ const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ markers, visible, mode, onZ
       return zones;
   }, [markers]);
 
-  const getSentimentColor = (totalScore: number, count: number) => {
-      const avg = totalScore / count;
-      if (avg > 0.3) return 'bg-green-500'; // Positive
-      if (avg < -0.3) return 'bg-red-600'; // Negative/Tense
-      return 'bg-yellow-400'; // Neutral
-  };
-
   return (
     <div className="absolute inset-0 z-0 overflow-hidden animate-in fade-in duration-1000 pointer-events-none">
-      {clusters.map((zone) => {
+      {clusters.map((zone, idx) => {
         const isHot = zone.intensity > 10;
         const avgSentiment = zone.totalSentiment / zone.count;
         
-        let sizeClass = isHot ? 'w-48 h-48' : 'w-32 h-32';
-        let colorClass = 'bg-orange-400';
-        let opacityClass = isHot ? 'opacity-30' : 'opacity-20';
+        let colorClass = 'from-orange-500/40 via-red-500/20 to-transparent';
+        let sentimentIcon = null;
+        let labelText = '';
 
-        // 8.13.6 Sentiment Map Logic
         if (mode === 'sentiment') {
-            colorClass = getSentimentColor(zone.totalSentiment, zone.count);
-            opacityClass = 'opacity-40'; // Slightly more opaque for color visibility
+            if (avgSentiment > 0.3) {
+                colorClass = 'from-green-500/40 via-emerald-500/20 to-transparent';
+                sentimentIcon = <Smile size={16} className="text-green-200" />;
+                labelText = 'Positive Outlook';
+            } else if (avgSentiment < -0.3) {
+                colorClass = 'from-red-600/50 via-orange-600/30 to-transparent';
+                sentimentIcon = <Frown size={16} className="text-red-200" />;
+                labelText = 'High Tension';
+            } else {
+                colorClass = 'from-yellow-400/40 via-amber-500/20 to-transparent';
+                sentimentIcon = <Meh size={16} className="text-yellow-200" />;
+                labelText = 'Neutral';
+            }
         } else {
             // Intensity Mode
-            colorClass = isHot ? 'bg-red-500' : 'bg-orange-400';
+            colorClass = isHot ? 'from-red-500/50 via-orange-500/30 to-transparent' : 'from-blue-500/40 via-cyan-500/20 to-transparent';
+            sentimentIcon = <Flame size={16} className="fill-red-400 text-red-400" />;
+            labelText = 'High Activity';
         }
 
         return (
@@ -94,41 +100,35 @@ const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ markers, visible, mode, onZ
                     transform: 'translate(-50%, -50%)',
                 }}
             >
-                {/* Visual Blob */}
+                {/* 1. Core Cloud (Static Blur) */}
                 <div 
-                    className={`absolute rounded-full blur-[50px] mix-blend-screen transition-all duration-1000 ease-in-out ${colorClass} ${opacityClass} ${sizeClass}`}
+                    className={`absolute w-32 h-32 md:w-48 md:h-48 rounded-full bg-radial-gradient ${colorClass} blur-[40px] mix-blend-screen opacity-60`}
                     style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
                 />
 
-                {/* Interactive Trigger & Icon */}
-                {isHot && (
+                {/* 2. Pulsing Flow Ring (Animated) */}
+                <div 
+                    className={`absolute w-40 h-40 md:w-64 md:h-64 rounded-full border-[20px] border-transparent bg-radial-gradient ${colorClass} opacity-30 blur-[30px] animate-[ping_4s_cubic-bezier(0,0,0.2,1)_infinite]`}
+                    style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)', animationDelay: `${idx * 0.5}s` }}
+                />
+
+                {/* 3. Interactive Center (Only if significant) */}
+                {(isHot || Math.abs(avgSentiment) > 0.3) && (
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
                             onZoneClick(zone);
                         }}
-                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center animate-in zoom-in duration-500 cursor-pointer group"
+                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center group cursor-pointer"
                     >
-                        {mode === 'intensity' ? (
-                            <>
-                                <div className="bg-red-600 text-white p-2 rounded-full shadow-lg shadow-red-500/50 animate-bounce group-hover:scale-110 transition-transform">
-                                    <Flame size={16} className="fill-white" />
-                                </div>
-                                <div className="mt-1 bg-black/70 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                                    <ArrowUp size={8} className="text-green-400" />
-                                    Fast Rising
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <div className={`p-2 rounded-full shadow-lg transition-transform hover:scale-110 ${avgSentiment > 0.3 ? 'bg-green-600' : avgSentiment < -0.3 ? 'bg-red-600' : 'bg-yellow-500'}`}>
-                                    {avgSentiment > 0.3 ? <Smile size={16} className="text-white"/> : avgSentiment < -0.3 ? <Frown size={16} className="text-white"/> : <Meh size={16} className="text-white"/>}
-                                </div>
-                                <div className="mt-1 bg-black/70 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                                    {avgSentiment > 0.3 ? 'Positive Outlook' : avgSentiment < -0.3 ? 'High Tension' : 'Neutral'}
-                                </div>
-                            </>
-                        )}
+                        <div className="bg-black/40 backdrop-blur-md p-2 rounded-full border border-white/10 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                            {sentimentIcon}
+                        </div>
+                        
+                        {/* Hover Label */}
+                        <div className="absolute top-full mt-2 bg-black/80 backdrop-blur-md text-white text-[9px] font-bold px-2 py-1 rounded-lg border border-white/20 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-[-5px] group-hover:translate-y-0 whitespace-nowrap">
+                            {labelText}
+                        </div>
                     </button>
                 )}
             </div>

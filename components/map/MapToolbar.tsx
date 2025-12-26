@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Plus, Minus, Navigation, Crosshair, GitCompare, ChevronUp } from 'lucide-react';
+import { Plus, Minus, Navigation, Crosshair, GitCompare, ChevronUp, Layers, Box } from 'lucide-react';
 
 interface MapToolbarProps {
   onZoomIn: () => void;
@@ -8,6 +9,10 @@ interface MapToolbarProps {
   onLocateMe?: () => void;
   onToggleCompare?: () => void;
   isCompareMode?: boolean;
+  viewMode?: '2d' | '3d';
+  onToggleView?: () => void;
+  mapLayer?: 'satellite' | 'schematic';
+  onToggleLayer?: () => void;
 }
 
 const MapToolbar: React.FC<MapToolbarProps> = ({
@@ -16,7 +21,11 @@ const MapToolbar: React.FC<MapToolbarProps> = ({
   onRecenter,
   onLocateMe,
   onToggleCompare,
-  isCompareMode
+  isCompareMode,
+  viewMode,
+  onToggleView,
+  mapLayer,
+  onToggleLayer
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -26,7 +35,7 @@ const MapToolbar: React.FC<MapToolbarProps> = ({
       {/* Main FAB Toggle */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className={`p-3.5 rounded-full shadow-2xl transition-all active:scale-95 flex items-center justify-center ${isOpen ? 'bg-gray-900 text-white rotate-180' : 'bg-white/90 backdrop-blur-md text-gray-700 hover:bg-white border border-white/20'}`}
+        className={`p-3.5 rounded-full shadow-2xl transition-all active:scale-95 flex items-center justify-center ${isOpen ? 'bg-gray-900 text-white rotate-180 border-gray-700' : 'bg-black/60 backdrop-blur-md text-white border border-white/20 hover:bg-black/80'}`}
         title="Map Controls"
       >
         <ChevronUp size={24} />
@@ -40,20 +49,36 @@ const MapToolbar: React.FC<MapToolbarProps> = ({
             </button>
 
             <button 
+                onClick={onToggleView}
+                className={`p-3 rounded-full shadow-lg transition-all ${viewMode === '3d' ? 'bg-indigo-600 text-white' : 'bg-black/60 backdrop-blur-md text-white border border-white/20'}`}
+                title="Toggle 2D/3D"
+            >
+                <Box size={20} />
+            </button>
+
+            <button 
+                onClick={onToggleLayer}
+                className={`p-3 rounded-full shadow-lg transition-all ${mapLayer === 'satellite' ? 'bg-emerald-600 text-white' : 'bg-black/60 backdrop-blur-md text-white border border-white/20'}`}
+                title="Toggle Layer"
+            >
+                <Layers size={20} />
+            </button>
+
+            <button 
                 onClick={onToggleCompare}
-                className={`p-3 rounded-full shadow-lg transition-all ${isCompareMode ? 'bg-indigo-600 text-white' : 'bg-white/90 text-gray-700 border border-white/20'}`}
+                className={`p-3 rounded-full shadow-lg transition-all ${isCompareMode ? 'bg-purple-600 text-white' : 'bg-black/60 backdrop-blur-md text-white border border-white/20'}`}
                 title="Compare"
             >
                 <GitCompare size={20} />
             </button>
 
-            <button onClick={onLocateMe} className="p-3 bg-white/90 text-gray-700 rounded-full shadow-lg border border-white/20" title="Locate Me">
+            <button onClick={onLocateMe} className="p-3 bg-black/60 backdrop-blur-md text-white rounded-full shadow-lg border border-white/20" title="Locate Me">
                 <Crosshair size={20} />
             </button>
 
-            <div className="flex flex-col bg-white/90 rounded-2xl shadow-lg border border-white/20 overflow-hidden">
-                <button onClick={onZoomIn} className="p-3 hover:bg-gray-100 border-b border-gray-100 text-gray-700" title="Zoom In"><Plus size={20} /></button>
-                <button onClick={onZoomOut} className="p-3 hover:bg-gray-100 text-gray-700" title="Zoom Out"><Minus size={20} /></button>
+            <div className="flex flex-col bg-black/60 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 overflow-hidden">
+                <button onClick={onZoomIn} className="p-3 hover:bg-white/10 border-b border-white/10 text-white" title="Zoom In"><Plus size={20} /></button>
+                <button onClick={onZoomOut} className="p-3 hover:bg-white/10 text-white" title="Zoom Out"><Minus size={20} /></button>
             </div>
         </div>
       )}
