@@ -1,16 +1,20 @@
 
 import React, { useMemo } from 'react';
-import { Flame, ArrowUp, Smile, Frown, Meh } from 'lucide-react';
+import { Flame, Smile, Frown, Meh } from 'lucide-react';
 
 interface HeatmapLayerProps {
   markers: any[];
   visible: boolean;
   mode: 'intensity' | 'sentiment';
   onZoneClick: (zoneData: any) => void;
+  zoomLevel?: number;
 }
 
-const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ markers, visible, mode, onZoneClick }) => {
+const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ markers, visible, mode, onZoneClick, zoomLevel = 1 }) => {
   if (!visible) return null;
+
+  // Optimized scaling to match markers (1.05 exponent for slight shrinkage at high zoom)
+  const labelScale = 1 / Math.pow(Math.max(1, zoomLevel), 1.05);
 
   // Advanced Clustering with Sentiment Calculation
   const clusters = useMemo(() => {
@@ -97,7 +101,7 @@ const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ markers, visible, mode, onZ
                 style={{
                     left: `${zone.x}%`,
                     top: `${zone.y}%`,
-                    transform: 'translate(-50%, -50%)',
+                    transform: 'translate3d(-50%, -50%, 0)', // Force GPU
                 }}
             >
                 {/* 1. Core Cloud (Static Blur) */}
@@ -112,14 +116,15 @@ const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ markers, visible, mode, onZ
                     style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)', animationDelay: `${idx * 0.5}s` }}
                 />
 
-                {/* 3. Interactive Center (Only if significant) */}
+                {/* 3. Interactive Center - COUNTER SCALED (Constant Screen Size) */}
                 {(isHot || Math.abs(avgSentiment) > 0.3) && (
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
                             onZoneClick(zone);
                         }}
-                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center group cursor-pointer"
+                        className="absolute top-1/2 left-1/2 z-20 flex flex-col items-center group cursor-pointer"
+                        style={{ transform: `translate(-50%, -50%) scale(${labelScale})` }}
                     >
                         <div className="bg-black/40 backdrop-blur-md p-2 rounded-full border border-white/10 shadow-lg group-hover:scale-110 transition-transform duration-300">
                             {sentimentIcon}

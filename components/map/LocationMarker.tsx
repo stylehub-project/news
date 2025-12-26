@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { Zap, TrendingUp, Star, Circle, Check, DollarSign, Users, Landmark, MapPin, ArrowRight } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Zap, TrendingUp, Circle, Check, DollarSign, Users, Landmark, MapPin, ArrowRight } from 'lucide-react';
 
 export type MarkerType = 'breaking' | 'trending' | 'top' | 'general';
 export type MapPerspective = 'Standard' | 'Economic' | 'Human' | 'Political';
@@ -11,14 +11,14 @@ interface LocationMarkerProps {
   y: number; 
   type?: MarkerType;
   title?: string;
-  subtitle?: string; // Summary or extra info
+  subtitle?: string; 
   source?: string;
   onClick: () => void;
   isActive?: boolean;
   isCompareSelected?: boolean; 
   isCompareMode?: boolean; 
   zoomLevel: number;
-  detailLevel?: DetailLevel; // New prop for hierarchical rendering
+  detailLevel?: DetailLevel; 
   delay?: number;
   viewMode?: '2d' | '3d';
   perspective?: MapPerspective;
@@ -41,117 +41,158 @@ const LocationMarker: React.FC<LocationMarkerProps> = ({
   viewMode = '3d',
   perspective = 'Standard'
 }) => {
-  const showLabel = isActive || detailLevel !== 'cluster';
-  
-  // Dynamic scale calculation
-  const baseScale = detailLevel === 'cluster' ? 1.2 : detailLevel === 'street' ? 0.8 : 1;
-  const dynamicScale = Math.max(0.3, (baseScale * 0.8) / Math.sqrt(Math.max(1, zoomLevel * 0.1)));
+  // --- 1. Efficient Scaling & Declutter Logic ---
+  // Memoize calculations to avoid layout trashing during rapid zoom
+  const { finalScale, dynamicStyles } = useMemo(() => {
+      // Base scales for hierarchy
+      const levelBaseScale = {
+          cluster: 3.2, 
+          region: 2.0,
+          city: 1.2,
+          street: 0.5
+      };
+
+      // Exponent determines visual size behavior vs Zoom:
+      // < 1.0: Marker grows visually as you zoom in (emphasize)
+      // = 1.0: Marker stays constant screen size
+      // > 1.0: Marker shrinks visually as you zoom in (declutter/reveal map)
+      const scaleExponent = detailLevel === 'street' || detailLevel === 'city' ? 1.05 : 0.85;
+      
+      const counterScale = levelBaseScale[detailLevel] / Math.pow(Math.max(1, zoomLevel), scaleExponent);
+      
+      // Clamp values for safety
+      const scale = Math.max(0.05, Math.min(counterScale, 5));
+
+      // Visual Style Guardrails
+      const styles = {
+          opacity: zoomLevel > 10 ? 'opacity-90' : 'opacity-100',
+          fontWeight: zoomLevel > 8 ? 'font-medium' : 'font-black',
+          tracking: zoomLevel > 8 ? 'tracking-tight' : 'tracking-widest',
+          textShadow: zoomLevel < 5 ? 'drop-shadow-md' : 'drop-shadow-none' // Remove shadow at high zoom for crispness
+      };
+
+      return { finalScale: scale, dynamicStyles: styles };
+  }, [zoomLevel, detailLevel]);
 
   // --- Perspective Styling Logic ---
-  const getPerspectiveStyles = () => {
-      const base = { bg: 'bg-emerald-500', border: 'border-emerald-300', glow: 'shadow-[0_0_15px_rgba(16,185,129,0.8)]', icon: <Circle size={6} className="text-white fill-white" /> };
+  const currentStyle = useMemo(() => {
+      const base = { bg: 'bg-emerald-500', border: 'border-emerald-300', text: 'text-emerald-100', glow: 'shadow-[0_0_15px_rgba(16,185,129,0.5)]', icon: <Circle size={6} className="text-white fill-white" /> };
       
       switch (perspective) {
           case 'Economic':
               return { 
                   bg: 'bg-amber-500', 
                   border: 'border-amber-300', 
-                  glow: 'shadow-[0_0_15px_rgba(245,158,11,0.8)]', 
+                  text: 'text-amber-100',
+                  glow: 'shadow-[0_0_15px_rgba(245,158,11,0.5)]', 
                   icon: <DollarSign size={10} className="text-white" /> 
               };
           case 'Political':
               return { 
                   bg: 'bg-indigo-600', 
-                  border: 'border-indigo-400', 
-                  glow: 'shadow-[0_0_15px_rgba(79,70,229,0.8)]', 
+                  border: 'border-indigo-400',
+                  text: 'text-indigo-100', 
+                  glow: 'shadow-[0_0_15px_rgba(79,70,229,0.5)]', 
                   icon: <Landmark size={10} className="text-white" /> 
               };
           case 'Human':
               return { 
                   bg: 'bg-rose-500', 
                   border: 'border-rose-300', 
-                  glow: 'shadow-[0_0_15px_rgba(244,63,94,0.8)]', 
+                  text: 'text-rose-100',
+                  glow: 'shadow-[0_0_15px_rgba(244,63,94,0.5)]', 
                   icon: <Users size={10} className="text-white" /> 
               };
           default:
-              // Standard Logic
-              if (type === 'breaking') return { bg: 'bg-red-600', border: 'border-red-400', glow: 'shadow-[0_0_20px_rgba(239,68,68,0.8)]', icon: <Zap size={10} className="text-white fill-white" /> };
-              if (type === 'trending') return { bg: 'bg-yellow-500', border: 'border-yellow-300', glow: 'shadow-[0_0_20px_rgba(234,179,8,0.8)]', icon: <TrendingUp size={10} className="text-white" /> };
-              if (type === 'top') return { bg: 'bg-blue-600', border: 'border-blue-400', glow: 'shadow-[0_0_20px_rgba(59,130,246,0.8)]', icon: <Star size={10} className="text-white fill-white" /> };
+              if (type === 'breaking') return { bg: 'bg-red-600', border: 'border-red-400', text: 'text-red-100', glow: 'shadow-[0_0_20px_rgba(239,68,68,0.6)]', icon: <Zap size={10} className="text-white fill-white" /> };
+              if (type === 'trending') return { bg: 'bg-yellow-500', border: 'border-yellow-300', text: 'text-yellow-100', glow: 'shadow-[0_0_20px_rgba(234,179,8,0.6)]', icon: <TrendingUp size={10} className="text-white" /> };
               return base;
       }
-  };
+  }, [perspective, type]);
 
-  const currentStyle = getPerspectiveStyles();
+  // GPU Accelerated Transforms
+  const transformStyle = useMemo(() => {
+      const activeScale = isActive ? finalScale * 1.5 : finalScale;
+      const zOffset = isActive && viewMode === '3d' ? 50 : (viewMode === '3d' && detailLevel !== 'street' ? 10 : 0);
+      
+      return {
+          transform: `translate3d(-50%, -50%, ${zOffset}px) scale(${activeScale})`,
+          transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+      };
+  }, [isActive, viewMode, finalScale, detailLevel]);
 
-  // 3D Billboard Transform logic
-  const activeTransform = isActive 
-    ? `translate(-50%, -50%) scale(${dynamicScale * 1.5}) translateZ(100px) rotateX(-20deg)` 
-    : '';
-    
-  const inactiveTransform = viewMode === '3d' 
-    ? `translate(-50%, -50%) scale(${dynamicScale}) translateZ(${detailLevel === 'street' ? 5 : 20}px) rotateX(-30deg)` 
-    : `translate(-50%, -50%) scale(${dynamicScale}) translateZ(10px)`;
-
-  const transformStyle = isActive && viewMode === '3d' ? activeTransform : inactiveTransform;
-
-  // Determine Content Layout based on Detail Level
+  // --- Render Content Based on Hierarchy ---
   const renderContent = () => {
-      // 1. Cluster View (Global)
+      // 1. Cluster View (Orbit) - Massive Labels
       if (detailLevel === 'cluster') {
           return (
-              <div className={`relative flex items-center justify-center w-12 h-12 rounded-full border-4 shadow-2xl ${currentStyle.bg} ${currentStyle.border} ${currentStyle.glow}`}>
-                  <span className="text-[10px] font-black text-white">{title?.split(':')[0] || 'Region'}</span>
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border-2 ${currentStyle.bg} ${currentStyle.border} ${currentStyle.glow} bg-opacity-90 backdrop-blur-md backface-hidden`}>
+                  <span className={`text-[8px] text-white uppercase leading-none whitespace-nowrap ${dynamicStyles.fontWeight} ${dynamicStyles.tracking} ${dynamicStyles.textShadow}`}>
+                      {title}
+                  </span>
+                  {isActive && <ArrowRight size={8} className="text-white animate-pulse" />}
               </div>
           );
       }
 
-      // 2. Region View (State)
+      // 2. Region View (State) - Bubbles
       if (detailLevel === 'region') {
           return (
-              <div className="flex flex-col items-center">
-                  <div className={`w-6 h-6 rounded-full border-2 ${currentStyle.bg} ${currentStyle.border} shadow-lg mb-1`} />
-                  <span className="text-[8px] font-bold text-white bg-black/50 px-2 py-0.5 rounded-full backdrop-blur-sm whitespace-nowrap border border-white/10">
+              <div className="flex flex-col items-center backface-hidden">
+                  <div className={`w-4 h-4 rounded-full border-2 ${currentStyle.bg} ${currentStyle.border} shadow-lg mb-1 flex items-center justify-center`}>
+                      <div className="w-1 h-1 bg-white rounded-full"></div>
+                  </div>
+                  <span className={`text-[6px] text-white bg-black/60 px-1.5 py-0.5 rounded backdrop-blur-sm whitespace-nowrap border border-white/10 shadow-sm uppercase ${dynamicStyles.fontWeight} ${dynamicStyles.tracking}`}>
                       {title}
                   </span>
               </div>
           );
       }
 
-      // 3. City/Street View (Detailed)
+      // 3. Street View (Tactical) - Minimalist Pins
+      if (detailLevel === 'street') {
+          return (
+              <div className="flex flex-col items-center group backface-hidden">
+                  <div className={`relative flex items-center justify-center w-6 h-6 ${dynamicStyles.opacity}`}>
+                      <MapPin size={24} className={`${currentStyle.text} drop-shadow-md`} fill="currentColor" />
+                  </div>
+                  
+                  {/* Street Label - Always visible but tiny, expands on hover */}
+                  <div className={`mt-0.5 bg-white/90 text-black px-1.5 py-0.5 rounded shadow-sm border border-gray-200 transition-all duration-300 origin-top ${isActive ? 'scale-150 z-50' : 'scale-100'}`}>
+                      <p className="text-[3px] font-bold uppercase leading-none whitespace-nowrap">{title}</p>
+                  </div>
+
+                  {isActive && subtitle && (
+                      <div 
+                        className="absolute top-full mt-2 bg-black/90 backdrop-blur-xl rounded-lg p-2 w-32 border border-white/20 text-left pointer-events-none z-50 origin-top animate-in zoom-in-95 duration-200"
+                        style={{ transform: 'scale(0.5)' }} // Counter-scale further for readability popup
+                      >
+                          <p className="text-[4px] text-gray-300 leading-tight line-clamp-3">{subtitle}</p>
+                      </div>
+                  )}
+              </div>
+          );
+      }
+
+      // 4. City View (Default) - Standard Markers
       return (
-          <div className="flex flex-col items-center group">
+          <div className="flex flex-col items-center group backface-hidden">
               {/* Pulse Ring */}
               {(type === 'breaking' || isActive) && (
-                  <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-full h-full rounded-full border-4 ${type === 'breaking' ? 'border-red-500' : 'border-white'} opacity-0 animate-[ping_2s_infinite]`} style={{ transform: 'scale(1.5)' }} />
+                  <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-full h-full rounded-full border-2 ${type === 'breaking' ? 'border-red-500' : 'border-white'} opacity-0 animate-[ping_2s_infinite]`} style={{ transform: 'scale(1.8)' }} />
               )}
               
-              {/* Marker Orb */}
-              <div className={`relative flex items-center justify-center w-8 h-8 rounded-full border-2 shadow-2xl transition-all duration-300 ${currentStyle.bg} ${currentStyle.border} ${currentStyle.glow} ${isActive ? 'ring-4 ring-white scale-125 bg-opacity-100 border-white' : 'group-hover:scale-110'}`}>
+              <div className={`relative flex items-center justify-center w-8 h-8 rounded-full border-2 shadow-xl transition-all duration-300 ${currentStyle.bg} ${currentStyle.border} ${currentStyle.glow} ${isActive ? 'ring-2 ring-white scale-110 bg-opacity-100 border-white' : 'group-hover:scale-105'} ${dynamicStyles.opacity}`}>
                   {isCompareSelected ? <Check size={12} className="text-white" /> : currentStyle.icon}
               </div>
 
-              {/* Label Card */}
-              {(isActive || detailLevel === 'street') && (
-                  <div 
-                    className={`absolute top-full mt-2 bg-black/80 backdrop-blur-md rounded-xl shadow-2xl border border-white/20 p-3 w-48 text-left pointer-events-none origin-top transition-all duration-300 ${isActive ? 'scale-100 opacity-100 z-50' : 'scale-95 opacity-90'}`}
-                    style={{ transform: 'translateZ(30px)' }}
-                  >
-                     {source && <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">{source}</span>}
-                     <p className="text-[10px] font-bold text-white leading-tight uppercase tracking-wide mb-1">{title}</p>
-                     
-                     {/* Expanded Summary for Street Level */}
-                     {detailLevel === 'street' && subtitle && (
-                         <p className="text-[9px] text-gray-300 leading-snug font-medium border-t border-white/10 pt-1 mt-1 line-clamp-3">
-                             {subtitle}
-                         </p>
-                     )}
-                     
-                     {isActive && (
-                         <div className="flex items-center gap-1 mt-2 text-[8px] text-cyan-400 font-bold uppercase animate-pulse">
-                             <span>Analyzing Sector</span> <ArrowRight size={8} />
-                         </div>
-                     )}
+              {/* Label */}
+              {(zoomLevel > 3 || isActive) && (
+                  <div className={`absolute top-full mt-1.5 transition-all duration-300 ${isActive ? 'scale-110 z-50' : 'scale-100'}`}>
+                      <div className="bg-black/70 backdrop-blur-md px-2 py-1 rounded border border-white/10 shadow-lg text-center min-w-[60px]">
+                          <p className={`text-[5px] text-white uppercase leading-none whitespace-nowrap ${dynamicStyles.fontWeight} ${dynamicStyles.tracking}`}>{title}</p>
+                          {isActive && <p className="text-[4px] text-cyan-400 font-bold mt-0.5 animate-pulse">Live Update</p>}
+                      </div>
                   </div>
               )}
           </div>
@@ -160,26 +201,27 @@ const LocationMarker: React.FC<LocationMarkerProps> = ({
 
   return (
     <button 
-      className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer group z-10 ${isActive ? 'z-50' : ''} animate-in zoom-in-50 fade-in outline-none focus:scale-125 transition-transform`}
+      className={`absolute cursor-pointer group z-10 ${isActive ? 'z-50' : ''} outline-none`}
       style={{ 
         left: `${x}%`, 
         top: `${y}%`, 
-        transform: transformStyle,
+        ...transformStyle,
         transformStyle: 'preserve-3d',
-        animationDelay: `${delay}ms`,
-        transition: 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+        animation: `fade-in 0.5s ease-out ${delay}ms forwards`,
+        opacity: 0, // Handled by animation
+        willChange: 'transform' // Performance optimization hint
       }}
       onClick={(e) => { e.stopPropagation(); onClick(); }}
       aria-label={`View news for ${title}`}
       aria-expanded={isActive}
     >
-      {/* Accessibility hit area */}
-      <div className="absolute inset-0 -m-6 bg-transparent rounded-full" />
+      {/* Hit Area */}
+      <div className="absolute inset-0 -m-4 bg-transparent rounded-full" />
 
-      {/* 3D Stem */}
-      {viewMode === '3d' && (
+      {/* 3D Stem/Line for Floating Effect */}
+      {viewMode === '3d' && detailLevel !== 'street' && (
           <div 
-            className={`absolute top-1/2 left-1/2 w-[1px] -translate-x-1/2 bg-gradient-to-b ${isActive ? 'from-cyan-400 h-[100px]' : 'from-white/50 h-[30px]'} to-transparent origin-top`} 
+            className={`absolute top-1/2 left-1/2 w-[0.5px] -translate-x-1/2 bg-gradient-to-b ${isActive ? 'from-cyan-400 h-[60px]' : 'from-white/30 h-[20px]'} to-transparent origin-top`} 
             style={{ transform: 'rotateX(90deg) translateY(50%)' }}
           ></div>
       )}

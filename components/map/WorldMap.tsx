@@ -419,6 +419,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
                     visible={showHeatmap} 
                     mode={perspective === 'Human' ? 'sentiment' : 'intensity'}
                     onZoneClick={setActiveZone}
+                    zoomLevel={transform.k}
                 />
            </div>
 
