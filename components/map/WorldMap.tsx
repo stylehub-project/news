@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import LocationMarker, { MarkerType, MapPerspective } from './LocationMarker';
+import LocationMarker, { MarkerType, MapPerspective, DetailLevel } from './LocationMarker';
 import MapNewsSheet from './MapNewsSheet';
 import MapToolbar from './MapToolbar';
 import { MapFilters } from './MapFilterPanel';
@@ -10,27 +10,38 @@ import TimeScrubber from './TimeScrubber';
 import MapComparisonOverlay from './MapComparisonOverlay';
 import MapSmartInsights from './MapSmartInsights';
 import MapAudioPlayer from './MapAudioPlayer';
-import { TrendingUp, AlertTriangle, Globe, WifiOff } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Globe, WifiOff, Maximize, ZoomIn } from 'lucide-react';
 import Toast from '../ui/Toast';
 
+// 10.14 Hierarchical Data Structure
+// Coordinates (x,y) are relative % on the map image
 export const MARKERS = [
-  // India States Data Points
-  { id: 'in1', x: 68.5, y: 41, type: 'breaking', title: 'Delhi: Air Quality Crisis', source: 'NDTV', time: '10m ago', timestamp: 0.1, imageUrl: 'https://picsum.photos/200/150?random=101', category: 'Environment', locationName: 'New Delhi', impactRadius: 9, momentum: 'High', sentiment: 'Tense' },
-  { id: 'in2', x: 67.2, y: 46, type: 'trending', title: 'Mumbai: Tech Summit', source: 'TechCrunch', time: '1h ago', timestamp: 0.2, imageUrl: 'https://picsum.photos/200/150?random=102', category: 'Tech', locationName: 'Maharashtra', impactRadius: 8, momentum: 'High', sentiment: 'Positive' },
-  { id: 'in3', x: 69.5, y: 49, type: 'general', title: 'Bangalore: Startup Boom', source: 'Economic Times', time: '3h ago', timestamp: 0.3, imageUrl: 'https://picsum.photos/200/150?random=103', category: 'Business', locationName: 'Karnataka', impactRadius: 7, momentum: 'Medium', sentiment: 'Positive' },
-  { id: 'in4', x: 73, y: 44, type: 'general', title: 'Kolkata: Cultural Fest', source: 'The Hindu', time: '5h ago', timestamp: 0.4, imageUrl: 'https://picsum.photos/200/150?random=104', category: 'Entertainment', locationName: 'West Bengal', impactRadius: 5, momentum: 'Low', sentiment: 'Positive' },
-  { id: 'in5', x: 66, y: 40, type: 'top', title: 'Jaipur: Tourism Surge', source: 'Travel Daily', time: '1d ago', timestamp: 0.5, imageUrl: 'https://picsum.photos/200/150?random=105', category: 'Business', locationName: 'Rajasthan', impactRadius: 6, momentum: 'Medium', sentiment: 'Positive' },
-  { id: 'in6', x: 70, y: 51, type: 'general', title: 'Chennai: Cyclone Alert', source: 'Weather.com', time: '20m ago', timestamp: 0.1, imageUrl: 'https://picsum.photos/200/150?random=106', category: 'Environment', locationName: 'Tamil Nadu', impactRadius: 8, momentum: 'High', sentiment: 'Tense' },
-  { id: 'in7', x: 67, y: 37, type: 'general', title: 'Punjab: Agri-Tech Expo', source: 'AgriNews', time: '6h ago', timestamp: 0.6, imageUrl: 'https://picsum.photos/200/150?random=107', category: 'Science', locationName: 'Punjab', impactRadius: 4, momentum: 'Low', sentiment: 'Positive' },
-  { id: 'in8', x: 70.5, y: 46, type: 'trending', title: 'Hyderabad: Pharma Hub', source: 'BioWorld', time: '2h ago', timestamp: 0.25, imageUrl: 'https://picsum.photos/200/150?random=108', category: 'Science', locationName: 'Telangana', impactRadius: 7, momentum: 'Medium', sentiment: 'Positive' },
-  { id: 'in9', x: 65, y: 44, type: 'general', title: 'Ahmedabad: Trade Fair', source: 'GujSamachar', time: '4h ago', timestamp: 0.4, imageUrl: 'https://picsum.photos/200/150?random=109', category: 'Business', locationName: 'Gujarat', impactRadius: 6, momentum: 'Medium', sentiment: 'Positive' },
-  { id: 'in10', x: 74, y: 38, type: 'breaking', title: 'Guwahati: Flood Warning', source: 'NE News', time: '15m ago', timestamp: 0.15, imageUrl: 'https://picsum.photos/200/150?random=110', category: 'Environment', locationName: 'Assam', impactRadius: 8, momentum: 'High', sentiment: 'Tense' },
+  // --- LEVEL 1: GLOBAL CLUSTERS (Zoom 1 - 3.5) ---
+  { id: 'g_asia', x: 70, y: 45, type: 'trending', title: 'Asia: Tech Surge', category: 'Tech', locationName: 'Asia', minZoom: 1, maxZoom: 3.5, impactRadius: 15, momentum: 'High', sentiment: 'Positive', detailLevel: 'cluster' },
+  { id: 'g_eu', x: 48, y: 28, type: 'general', title: 'Europe: Policy Shift', category: 'Politics', locationName: 'Europe', minZoom: 1, maxZoom: 3.5, impactRadius: 12, momentum: 'Medium', sentiment: 'Neutral', detailLevel: 'cluster' },
+  { id: 'g_usa', x: 22, y: 38, type: 'breaking', title: 'North America: Market Alert', category: 'Business', locationName: 'North America', minZoom: 1, maxZoom: 3.5, impactRadius: 14, momentum: 'High', sentiment: 'Tense', detailLevel: 'cluster' },
 
-  // Global Context
-  { id: '1', x: 22, y: 38, type: 'breaking', title: 'New York: Market High', source: 'Bloomberg', time: '10m ago', timestamp: 0.1, imageUrl: 'https://picsum.photos/200/150?random=1', category: 'Business', locationName: 'USA', impactRadius: 9, momentum: 'High', sentiment: 'Positive' },
-  { id: '2', x: 48, y: 28, type: 'trending', title: 'Brussels: AI Act', source: 'BBC', time: '1h ago', timestamp: 0.3, imageUrl: 'https://picsum.photos/200/150?random=2', category: 'Politics', locationName: 'Europe', impactRadius: 6, momentum: 'Medium', sentiment: 'Neutral' },
-  { id: '3', x: 80, y: 40, type: 'top', title: 'Tokyo: Robotics Expo', source: 'Nikkei', time: '3h ago', timestamp: 0.5, imageUrl: 'https://picsum.photos/200/150?random=3', category: 'Tech', locationName: 'Japan', impactRadius: 8, momentum: 'High', sentiment: 'Positive' },
-  { id: '5', x: 85, y: 75, type: 'breaking', title: 'Sydney: Wildfire', source: 'ABC News', time: '5m ago', timestamp: 0.05, imageUrl: 'https://picsum.photos/200/150?random=5', category: 'Environment', locationName: 'Australia', impactRadius: 7, momentum: 'High', sentiment: 'Tense' },
+  // --- LEVEL 2: REGIONAL/STATE (Zoom 3.5 - 6) ---
+  // India Region
+  { id: 'r_in_north', x: 68.5, y: 38, type: 'breaking', title: 'North India: Climate Emergency', category: 'Environment', locationName: 'North India', minZoom: 3.5, maxZoom: 6, impactRadius: 10, momentum: 'High', sentiment: 'Tense', detailLevel: 'region' },
+  { id: 'r_in_west', x: 67, y: 46, type: 'trending', title: 'Maharashtra: Investment Hub', category: 'Business', locationName: 'Maharashtra', minZoom: 3.5, maxZoom: 6, impactRadius: 9, momentum: 'High', sentiment: 'Positive', detailLevel: 'region' },
+  { id: 'r_in_south', x: 70, y: 50, type: 'general', title: 'Karnataka: Startups', category: 'Tech', locationName: 'Karnataka', minZoom: 3.5, maxZoom: 6, impactRadius: 8, momentum: 'Medium', sentiment: 'Positive', detailLevel: 'region' },
+  
+  // Global Regions
+  { id: 'r_us_east', x: 24, y: 39, type: 'breaking', title: 'US East Coast: Finance', category: 'Business', locationName: 'East Coast', minZoom: 3.5, maxZoom: 6, impactRadius: 8, momentum: 'High', sentiment: 'Tense', detailLevel: 'region' },
+  { id: 'r_jp_kanto', x: 80, y: 40, type: 'trending', title: 'Kanto Region: Robotics', category: 'Tech', locationName: 'Japan', minZoom: 3.5, maxZoom: 6, impactRadius: 7, momentum: 'Medium', sentiment: 'Positive', detailLevel: 'region' },
+
+  // --- LEVEL 3: CITY (Zoom 6 - 9) ---
+  { id: 'c_delhi', x: 68.5, y: 41, type: 'breaking', title: 'New Delhi: Air Quality Index hits 450', source: 'NDTV', time: '10m ago', timestamp: 0.1, category: 'Environment', locationName: 'New Delhi', minZoom: 6, maxZoom: 9, impactRadius: 6, momentum: 'High', sentiment: 'Negative', detailLevel: 'city' },
+  { id: 'c_mumbai', x: 67.2, y: 46, type: 'trending', title: 'Mumbai: Sensex Crosses 75k', source: 'Mint', time: '1h ago', timestamp: 0.2, category: 'Business', locationName: 'Mumbai', minZoom: 6, maxZoom: 9, impactRadius: 7, momentum: 'High', sentiment: 'Positive', detailLevel: 'city' },
+  { id: 'c_blr', x: 69.5, y: 49, type: 'general', title: 'Bengaluru: AI Summit 2025', source: 'TechCrunch', time: '3h ago', timestamp: 0.3, category: 'Tech', locationName: 'Bengaluru', minZoom: 6, maxZoom: 9, impactRadius: 5, momentum: 'Medium', sentiment: 'Positive', detailLevel: 'city' },
+  { id: 'c_nyc', x: 22, y: 38, type: 'breaking', title: 'NYC: UN General Assembly', source: 'Reuters', time: '10m ago', timestamp: 0.1, category: 'Politics', locationName: 'New York', minZoom: 6, maxZoom: 9, impactRadius: 8, momentum: 'High', sentiment: 'Neutral', detailLevel: 'city' },
+
+  // --- LEVEL 4: STREET/LOCAL (Zoom 9+) ---
+  // Using slightly offset coordinates to simulate "drilling down" into the city
+  { id: 's_del_cp', x: 68.52, y: 41.02, type: 'breaking', title: 'Connaught Place: Traffic Advisory due to Protest', subtitle: 'Heavy congestion reported near inner circle. Police advising alternate routes.', source: 'TrafficAlert', time: '5m ago', timestamp: 0.05, category: 'Politics', locationName: 'Connaught Place', minZoom: 9, maxZoom: 20, impactRadius: 3, momentum: 'High', sentiment: 'Negative', detailLevel: 'street' },
+  { id: 's_mum_bkc', x: 67.22, y: 46.02, type: 'trending', title: 'BKC: Apple Store Opening Queue', subtitle: 'Thousands gathered overnight for the new flagship store launch. Tim Cook expected to visit.', source: 'LocalNews', time: '30m ago', timestamp: 0.1, category: 'Tech', locationName: 'Bandra Kurla Complex', minZoom: 9, maxZoom: 20, impactRadius: 4, momentum: 'High', sentiment: 'Positive', detailLevel: 'street' },
+  { id: 's_nyc_wall', x: 22.02, y: 38.02, type: 'general', title: 'Wall St: Opening Bell Ceremony', subtitle: 'Tech sector leads early gains as trading begins.', source: 'Bloomberg', time: '15m ago', timestamp: 0.1, category: 'Business', locationName: 'Wall Street', minZoom: 9, maxZoom: 20, impactRadius: 4, momentum: 'Medium', sentiment: 'Positive', detailLevel: 'street' },
 ];
 
 interface WorldMapProps {
@@ -43,18 +54,18 @@ interface WorldMapProps {
 
 const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatmap = true, flyToLocation, isAudioMode = false }) => {
   // View State
-  const [transform, setTransform] = useState({ x: -180, y: -120, k: 3.5 });
+  const [transform, setTransform] = useState({ x: -180, y: -120, k: 2.5 }); // Start slightly zoomed out
   const [isDragging, setIsDragging] = useState(false);
   const [isFlying, setIsFlying] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const [isMapReady, setIsMapReady] = useState(false);
   const [toast, setToast] = useState<{message: string, type: 'error' | 'info'} | null>(null);
-  const [mapError, setMapError] = useState(false); // 10.12 Fallback handling
+  const [mapError, setMapError] = useState(false);
   
   // Modes
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('3d');
   const [mapLayer, setMapLayer] = useState<'satellite' | 'schematic'>('satellite');
-  const [perspective, setPerspective] = useState<MapPerspective>('Standard'); // 10.13 Differentiation
+  const [perspective, setPerspective] = useState<MapPerspective>('Standard');
   
   // Interaction State
   const [timeValue, setTimeValue] = useState(0); 
@@ -68,12 +79,20 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [compareSelection, setCompareSelection] = useState<string[]>([]);
 
-  // 10.9 Audio State
+  // Audio State
   const [audioSpeed, setAudioSpeed] = useState(1.0);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [audioRegion, setAudioRegion] = useState("Global System");
   const [audioSummary, setAudioSummary] = useState("Monitoring feed...");
   const audioIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Zoom Level Label for UI
+  const currentLevelLabel = useMemo(() => {
+      if (transform.k < 3.5) return "Orbit View (Global)";
+      if (transform.k < 6) return "Regional View";
+      if (transform.k < 9) return "City View";
+      return "Tactical View (Street)";
+  }, [transform.k]);
 
   useEffect(() => {
       const timer = setTimeout(() => setIsMapReady(true), 100);
@@ -83,10 +102,9 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
   // Update Visible Bounds & Audio Trigger
   useEffect(() => {
       const calculateBounds = () => {
-          // If audio mode is active, simulate scanning when idle
           if (isAudioMode && !isDragging && !isFlying) {
               if (audioIdleTimer.current) clearTimeout(audioIdleTimer.current);
-              audioIdleTimer.current = setTimeout(triggerAudioUpdate, 1500); // 1.5s idle
+              audioIdleTimer.current = setTimeout(triggerAudioUpdate, 1500); 
           }
       };
       
@@ -96,13 +114,12 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
 
   const triggerAudioUpdate = () => {
       if (!isAudioMode) return;
-
       const randomActive = filteredMarkers[Math.floor(Math.random() * filteredMarkers.length)];
       if (randomActive) {
           setAudioRegion(randomActive.locationName);
-          setAudioSummary(`Activity detected: ${randomActive.title}. Impact level ${randomActive.momentum}.`);
+          setAudioSummary(`Activity detected: ${randomActive.title}. Level: ${currentLevelLabel}.`);
           setIsAudioPlaying(true);
-          speak(randomActive.title + ". " + randomActive.title); 
+          speak(randomActive.title); 
       }
   };
 
@@ -156,30 +173,35 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
 
   const filteredMarkers = useMemo(() => {
       return MARKERS.filter(m => {
-          // Perspective Filtering (10.13 Differentiation)
+          // 1. Zoom Level Filtering (Hierarchical Data)
+          if (transform.k < m.minZoom || transform.k >= m.maxZoom) return false;
+
+          // 2. Perspective Filtering
           if (perspective === 'Economic' && !['Business', 'Tech'].includes(m.category)) return false;
           if (perspective === 'Political' && !['Politics', 'World'].includes(m.category)) return false;
           if (perspective === 'Human' && !['Environment', 'Health', 'Entertainment'].includes(m.category)) return false;
 
+          // 3. User Filters
           if (filters.category !== 'All' && m.category !== filters.category) return false;
           if (filters.impact !== 'All' && m.momentum !== filters.impact) return false;
-          if (filters.source !== 'All') {
-              if (filters.source === 'Major' && !['BBC', 'CNN', 'Reuters', 'Bloomberg'].includes(m.source)) return false;
+          
+          // State Filter Logic (Simplified for Hierarchy)
+          // If zoomed out, we might show clusters regardless of exact state match to guide user
+          if (filters.state !== 'All' && m.detailLevel !== 'cluster') {
+              // Basic fuzzy match
+              if (!m.locationName.includes(filters.state) && filters.state !== 'India') return false; 
           }
 
-          if (filters.state !== 'All') {
-              if (filters.state === 'India' && !['India', 'Maharashtra', 'Karnataka', 'New Delhi', 'West Bengal', 'Rajasthan', 'Tamil Nadu', 'Punjab', 'Telangana', 'Gujarat', 'Assam'].includes(m.locationName)) return false;
-              if (filters.state !== 'India' && !m.locationName.includes(filters.state)) return false;
-          }
           if (filters.sentiment !== 'All' && m.sentiment !== filters.sentiment) return false;
           
-          if (timeValue < 0.2 && m.timestamp > 0.2) return false;
-          if (m.timestamp > timeValue + 0.5) return false;
+          // Time Scrubber Logic (Mock timestamp)
+          if (m.timestamp && (timeValue < 0.2 && m.timestamp > 0.2)) return false;
+          
           return true;
       });
   }, [filters, transform.k, activeMarkerId, timeValue, compareSelection, perspective]);
 
-  const handleZoomIn = () => setTransform(prev => ({ ...prev, k: Math.min(prev.k * 1.5, 12) }));
+  const handleZoomIn = () => setTransform(prev => ({ ...prev, k: Math.min(prev.k * 1.5, 20) }));
   const handleZoomOut = () => setTransform(prev => {
       const newK = Math.max(prev.k / 1.5, 1);
       return { ...prev, k: newK, x: newK <= 1.2 ? 0 : prev.x, y: newK <= 1.2 ? 0 : prev.y };
@@ -190,13 +212,13 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
     e.preventDefault();
     const scaleFactor = 0.001;
     const delta = -e.deltaY * scaleFactor;
-    const newK = Math.min(Math.max(1, transform.k + delta), 12);
+    const newK = Math.min(Math.max(1, transform.k + delta), 20); // Max Zoom 20
     setTransform(prev => ({ ...prev, k: newK }));
   };
   
   const handleRecenter = () => {
     setIsFlying(true);
-    setTransform({ x: -180, y: -120, k: 3.5 }); 
+    setTransform({ x: -180, y: -120, k: 2.5 }); 
     setActiveMarkerId(null);
     setActiveZone(null);
     setShowAIAnalysis(false);
@@ -211,7 +233,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
           setToast({ message: "Aligning satellite to your location...", type: 'info' });
           setTimeout(() => {
               setIsFlying(true);
-              setTransform({ x: -180, y: -120, k: 5 }); 
+              setTransform({ x: -180, y: -120, k: 9 }); // Zoom straight to street level
               setTimeout(() => setIsFlying(false), 1200);
               setToast(null);
           }, 1000);
@@ -233,23 +255,36 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
 
   const handleMouseUp = () => setIsDragging(false);
   
-  const handleMarkerClick = (id: string) => {
+  const handleMarkerClick = (marker: any) => {
+      // If clicking a cluster/region, zoom in automatically
+      if (marker.detailLevel === 'cluster' || marker.detailLevel === 'region') {
+          setIsFlying(true);
+          // Center on marker
+          // Note: Logic implies we need to calculate new translation based on marker position and new scale
+          // Simplified "Fly To" for demo
+          const newK = marker.detailLevel === 'cluster' ? 5 : 9;
+          
+          // Crude centering calculation logic would go here.
+          // For demo, we just zoom in.
+          setTransform(prev => ({ ...prev, k: newK })); 
+          setTimeout(() => setIsFlying(false), 800);
+          return;
+      }
+
+      // City/Street Logic
       if (isCompareMode) {
-          if (compareSelection.includes(id)) {
-              setCompareSelection(prev => prev.filter(mid => mid !== id));
+          if (compareSelection.includes(marker.id)) {
+              setCompareSelection(prev => prev.filter(mid => mid !== marker.id));
           } else if (compareSelection.length < 2) {
-              setCompareSelection(prev => [...prev, id]);
+              setCompareSelection(prev => [...prev, marker.id]);
           }
       } else {
-          setActiveMarkerId(id);
+          setActiveMarkerId(marker.id);
           if (isAudioMode) {
-              const m = MARKERS.find(marker => marker.id === id);
-              if (m) {
-                  setAudioRegion(m.locationName);
-                  setAudioSummary(m.title);
-                  setIsAudioPlaying(true);
-                  speak(m.title + ". " + m.category + " update.");
-              }
+              setAudioRegion(marker.locationName);
+              setAudioSummary(marker.title);
+              setIsAudioPlaying(true);
+              speak(marker.title + ". " + (marker.subtitle || marker.category + " update."));
           }
       }
   };
@@ -278,6 +313,15 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
        {/* 10.13 Earth Pulse Background (Subtle animated glow) */}
        <div className="absolute inset-0 bg-radial-gradient from-indigo-900/10 via-black to-black pointer-events-none z-0 animate-[pulse_8s_infinite] opacity-50"></div>
        
+       {/* Current Zoom Level Indicator (HUD) */}
+       <div className="absolute top-20 left-4 z-20 pointer-events-none">
+           <div className="bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1 rounded-full text-[10px] font-mono text-cyan-400 flex items-center gap-2">
+               <ZoomIn size={12} />
+               <span>ZOOM: {transform.k.toFixed(1)}x</span>
+               <span className="text-white font-bold uppercase">[{currentLevelLabel}]</span>
+           </div>
+       </div>
+
        {toast && (
            <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 w-full max-w-xs px-4">
                <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />
@@ -383,8 +427,8 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center z-20 pointer-events-none">
                    <div className="bg-black/60 backdrop-blur-md p-4 rounded-2xl border border-white/10">
                        <WifiOff size={24} className="text-gray-500 mx-auto mb-2" />
-                       <p className="text-xs text-gray-400 font-medium">No activity detected in this sector.</p>
-                       <p className="text-[10px] text-gray-600 mt-1">Try adjusting filters or perspective.</p>
+                       <p className="text-xs text-gray-400 font-medium">No activity detected at this zoom level.</p>
+                       <p className="text-[10px] text-gray-600 mt-1">Try zooming out or changing filters.</p>
                    </div>
                </div>
            )}
@@ -396,12 +440,14 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
                y={marker.y}
                type={marker.type as MarkerType}
                title={marker.title}
+               subtitle={marker.subtitle}
                source={marker.source}
                isActive={activeMarkerId === marker.id}
                isCompareSelected={compareSelection.includes(marker.id)}
                isCompareMode={isCompareMode}
                zoomLevel={transform.k}
-               onClick={() => handleMarkerClick(marker.id)}
+               detailLevel={marker.detailLevel as DetailLevel}
+               onClick={() => handleMarkerClick(marker)}
                delay={index * 50}
                viewMode={viewMode}
                perspective={perspective}
@@ -426,7 +472,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
         onClose={() => setActiveMarkerId(null)}
         data={activeMarkerData ? { 
             ...activeMarkerData, 
-            description: activeMarkerData.title + ". Deep analysis available via AI Explain.",
+            description: activeMarkerData.subtitle || activeMarkerData.title + ". Deep analysis available via AI Explain.",
             type: activeMarkerData.type
         } : null}
       />

@@ -1,21 +1,24 @@
 
 import React from 'react';
-import { Zap, TrendingUp, Star, Circle, Check, DollarSign, Users, Landmark } from 'lucide-react';
+import { Zap, TrendingUp, Star, Circle, Check, DollarSign, Users, Landmark, MapPin, ArrowRight } from 'lucide-react';
 
 export type MarkerType = 'breaking' | 'trending' | 'top' | 'general';
 export type MapPerspective = 'Standard' | 'Economic' | 'Human' | 'Political';
+export type DetailLevel = 'cluster' | 'region' | 'city' | 'street';
 
 interface LocationMarkerProps {
   x: number; 
   y: number; 
   type?: MarkerType;
   title?: string;
+  subtitle?: string; // Summary or extra info
   source?: string;
   onClick: () => void;
   isActive?: boolean;
   isCompareSelected?: boolean; 
   isCompareMode?: boolean; 
   zoomLevel: number;
+  detailLevel?: DetailLevel; // New prop for hierarchical rendering
   delay?: number;
   viewMode?: '2d' | '3d';
   perspective?: MapPerspective;
@@ -26,21 +29,23 @@ const LocationMarker: React.FC<LocationMarkerProps> = ({
   y,
   type = 'general',
   title,
+  subtitle,
   source,
   onClick,
   isActive,
   isCompareSelected,
   isCompareMode,
   zoomLevel,
+  detailLevel = 'city',
   delay = 0,
   viewMode = '3d',
   perspective = 'Standard'
 }) => {
-  const showLabel = zoomLevel > 4.5 || isActive;
-  const showIcon = zoomLevel > 2;
+  const showLabel = isActive || detailLevel !== 'cluster';
   
-  // Dynamic scale - shrinks as you zoom in to reveal precision
-  const dynamicScale = Math.max(0.3, 0.8 / Math.sqrt(zoomLevel));
+  // Dynamic scale calculation
+  const baseScale = detailLevel === 'cluster' ? 1.2 : detailLevel === 'street' ? 0.8 : 1;
+  const dynamicScale = Math.max(0.3, (baseScale * 0.8) / Math.sqrt(Math.max(1, zoomLevel * 0.1)));
 
   // --- Perspective Styling Logic ---
   const getPerspectiveStyles = () => {
@@ -79,13 +84,79 @@ const LocationMarker: React.FC<LocationMarkerProps> = ({
 
   const currentStyle = getPerspectiveStyles();
 
-  // 3D Billboard Transform logic with expansion on active
-  const activeTransform = isActive ? `translate(-50%, -50%) scale(${dynamicScale * 1.5}) translateZ(50px) rotateX(-30deg)` : '';
+  // 3D Billboard Transform logic
+  const activeTransform = isActive 
+    ? `translate(-50%, -50%) scale(${dynamicScale * 1.5}) translateZ(100px) rotateX(-20deg)` 
+    : '';
+    
   const inactiveTransform = viewMode === '3d' 
-    ? `translate(-50%, -50%) scale(${dynamicScale}) translateZ(20px) rotateX(-30deg)` 
+    ? `translate(-50%, -50%) scale(${dynamicScale}) translateZ(${detailLevel === 'street' ? 5 : 20}px) rotateX(-30deg)` 
     : `translate(-50%, -50%) scale(${dynamicScale}) translateZ(10px)`;
 
   const transformStyle = isActive && viewMode === '3d' ? activeTransform : inactiveTransform;
+
+  // Determine Content Layout based on Detail Level
+  const renderContent = () => {
+      // 1. Cluster View (Global)
+      if (detailLevel === 'cluster') {
+          return (
+              <div className={`relative flex items-center justify-center w-12 h-12 rounded-full border-4 shadow-2xl ${currentStyle.bg} ${currentStyle.border} ${currentStyle.glow}`}>
+                  <span className="text-[10px] font-black text-white">{title?.split(':')[0] || 'Region'}</span>
+              </div>
+          );
+      }
+
+      // 2. Region View (State)
+      if (detailLevel === 'region') {
+          return (
+              <div className="flex flex-col items-center">
+                  <div className={`w-6 h-6 rounded-full border-2 ${currentStyle.bg} ${currentStyle.border} shadow-lg mb-1`} />
+                  <span className="text-[8px] font-bold text-white bg-black/50 px-2 py-0.5 rounded-full backdrop-blur-sm whitespace-nowrap border border-white/10">
+                      {title}
+                  </span>
+              </div>
+          );
+      }
+
+      // 3. City/Street View (Detailed)
+      return (
+          <div className="flex flex-col items-center group">
+              {/* Pulse Ring */}
+              {(type === 'breaking' || isActive) && (
+                  <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-full h-full rounded-full border-4 ${type === 'breaking' ? 'border-red-500' : 'border-white'} opacity-0 animate-[ping_2s_infinite]`} style={{ transform: 'scale(1.5)' }} />
+              )}
+              
+              {/* Marker Orb */}
+              <div className={`relative flex items-center justify-center w-8 h-8 rounded-full border-2 shadow-2xl transition-all duration-300 ${currentStyle.bg} ${currentStyle.border} ${currentStyle.glow} ${isActive ? 'ring-4 ring-white scale-125 bg-opacity-100 border-white' : 'group-hover:scale-110'}`}>
+                  {isCompareSelected ? <Check size={12} className="text-white" /> : currentStyle.icon}
+              </div>
+
+              {/* Label Card */}
+              {(isActive || detailLevel === 'street') && (
+                  <div 
+                    className={`absolute top-full mt-2 bg-black/80 backdrop-blur-md rounded-xl shadow-2xl border border-white/20 p-3 w-48 text-left pointer-events-none origin-top transition-all duration-300 ${isActive ? 'scale-100 opacity-100 z-50' : 'scale-95 opacity-90'}`}
+                    style={{ transform: 'translateZ(30px)' }}
+                  >
+                     {source && <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">{source}</span>}
+                     <p className="text-[10px] font-bold text-white leading-tight uppercase tracking-wide mb-1">{title}</p>
+                     
+                     {/* Expanded Summary for Street Level */}
+                     {detailLevel === 'street' && subtitle && (
+                         <p className="text-[9px] text-gray-300 leading-snug font-medium border-t border-white/10 pt-1 mt-1 line-clamp-3">
+                             {subtitle}
+                         </p>
+                     )}
+                     
+                     {isActive && (
+                         <div className="flex items-center gap-1 mt-2 text-[8px] text-cyan-400 font-bold uppercase animate-pulse">
+                             <span>Analyzing Sector</span> <ArrowRight size={8} />
+                         </div>
+                     )}
+                  </div>
+              )}
+          </div>
+      );
+  };
 
   return (
     <button 
@@ -96,52 +167,24 @@ const LocationMarker: React.FC<LocationMarkerProps> = ({
         transform: transformStyle,
         transformStyle: 'preserve-3d',
         animationDelay: `${delay}ms`,
-        transition: 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)' // Bouncy transition
+        transition: 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
       }}
       onClick={(e) => { e.stopPropagation(); onClick(); }}
       aria-label={`View news for ${title}`}
       aria-expanded={isActive}
     >
-      {/* 10.11 Accessibility: Large invisible hit area */}
-      <div className="absolute inset-0 -m-4 bg-transparent rounded-full" />
+      {/* Accessibility hit area */}
+      <div className="absolute inset-0 -m-6 bg-transparent rounded-full" />
 
-      <div className="relative flex flex-col items-center">
-        
-        {/* Pulse Ring for active/breaking (Earth Pulse feature 10.13) */}
-        {(type === 'breaking' || isActive) && !isCompareMode && (
-             <div className={`absolute inset-0 rounded-full border-4 ${type === 'breaking' ? 'border-red-500' : 'border-white'} opacity-0 animate-[ping_2s_infinite]`} style={{ transform: 'scale(2.0)' }} />
-        )}
-
-        {/* 3D Connector (Stem) - Hidden when active (lift off) */}
-        {viewMode === '3d' && !isActive && (
-            <div className={`absolute top-full left-1/2 w-[2px] h-[30px] -translate-x-1/2 bg-gradient-to-b from-white/80 to-transparent origin-top`} style={{ transform: 'rotateX(30deg)' }}></div>
-        )}
-        {viewMode === '3d' && isActive && (
-            <div className={`absolute top-full left-1/2 w-[1px] h-[60px] -translate-x-1/2 bg-gradient-to-b from-cyan-400 to-transparent origin-top`} style={{ transform: 'rotateX(30deg)' }}></div>
-        )}
-
-        {/* Main Marker Orb */}
-        <div className={`relative flex items-center justify-center w-8 h-8 rounded-full border-2 shadow-2xl transition-all duration-300 ${currentStyle.bg} ${currentStyle.border} ${currentStyle.glow} ${isActive ? 'ring-4 ring-white scale-125 bg-opacity-100 border-white' : 'hover:scale-110'}`}>
-          {isCompareSelected ? <Check size={12} className="text-white" /> : (showIcon ? currentStyle.icon : null)}
-        </div>
-
-        {/* Labels with Zoom-Based Visibility */}
-        {(showLabel || isActive) && title && !isCompareMode && (
+      {/* 3D Stem */}
+      {viewMode === '3d' && (
           <div 
-            className={`absolute top-full mt-3 bg-black/80 backdrop-blur-md rounded-lg shadow-2xl border border-white/20 px-3 py-2 w-32 text-center pointer-events-none origin-top transition-all duration-300 ${isActive ? 'scale-110 bg-black/90 border-cyan-500/50' : 'scale-100'}`}
-            style={{ transform: 'translateZ(30px)' }}
-          >
-             <div className="flex flex-col gap-1">
-                 {/* Source Badge */}
-                 {source && zoomLevel > 6 && (
-                     <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">{source}</span>
-                 )}
-                 <p className="text-[9px] font-bold text-white leading-tight line-clamp-2 uppercase tracking-wide drop-shadow-md">{title}</p>
-                 {isActive && <p className="text-[8px] text-cyan-400 font-bold uppercase mt-1 animate-pulse">Tap for Intel</p>}
-             </div>
-          </div>
-        )}
-      </div>
+            className={`absolute top-1/2 left-1/2 w-[1px] -translate-x-1/2 bg-gradient-to-b ${isActive ? 'from-cyan-400 h-[100px]' : 'from-white/50 h-[30px]'} to-transparent origin-top`} 
+            style={{ transform: 'rotateX(90deg) translateY(50%)' }}
+          ></div>
+      )}
+
+      {renderContent()}
     </button>
   );
 };
