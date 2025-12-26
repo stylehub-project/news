@@ -62,6 +62,9 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
   const [toast, setToast] = useState<{message: string, type: 'error' | 'info'} | null>(null);
   const [mapError, setMapError] = useState(false);
   
+  // Touch State
+  const lastTouchRef = useRef<{ dist: number; center: { x: number; y: number } } | null>(null);
+  
   // Modes
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('3d');
   const [mapLayer, setMapLayer] = useState<'satellite' | 'schematic'>('satellite');
@@ -86,7 +89,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
   const [audioSummary, setAudioSummary] = useState("Monitoring feed...");
   const audioIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Zoom Level Label for UI
+  // Zoom Level Label for UI logic (Internal use only, display removed)
   const currentLevelLabel = useMemo(() => {
       if (transform.k < 3.5) return "Orbit View (Global)";
       if (transform.k < 6) return "Regional View";
@@ -254,18 +257,61 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
   };
 
   const handleMouseUp = () => setIsDragging(false);
+
+  // --- Touch Logic ---
+  const getTouchDistance = (t1: React.Touch, t2: React.Touch) => {
+      const dx = t1.clientX - t2.clientX;
+      const dy = t1.clientY - t2.clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+      if ((e.target as HTMLElement).closest('button')) return;
+
+      if (e.touches.length === 1) {
+          setIsDragging(true);
+          const t = e.touches[0];
+          setStartPan({ x: t.clientX - transform.x, y: t.clientY - transform.y });
+      } else if (e.touches.length === 2) {
+          setIsDragging(false); // Switch to pinch
+          const dist = getTouchDistance(e.touches[0], e.touches[1]);
+          lastTouchRef.current = { dist, center: { x: 0, y: 0 } };
+      }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+      if (e.touches.length === 1 && isDragging) {
+          const t = e.touches[0];
+          setTransform(prev => ({
+              ...prev,
+              x: t.clientX - startPan.x,
+              y: t.clientY - startPan.y
+          }));
+      } else if (e.touches.length === 2 && lastTouchRef.current) {
+          const dist = getTouchDistance(e.touches[0], e.touches[1]);
+          const scaleFactor = dist / lastTouchRef.current.dist;
+          
+          const newK = Math.min(Math.max(1, transform.k * scaleFactor), 20);
+          
+          setTransform(prev => ({ ...prev, k: newK }));
+          
+          lastTouchRef.current = { 
+              dist, 
+              center: { x: 0, y: 0 } 
+          };
+      }
+  };
+
+  const handleTouchEnd = () => {
+      setIsDragging(false);
+      lastTouchRef.current = null;
+  };
   
   const handleMarkerClick = (marker: any) => {
       // If clicking a cluster/region, zoom in automatically
       if (marker.detailLevel === 'cluster' || marker.detailLevel === 'region') {
           setIsFlying(true);
-          // Center on marker
-          // Note: Logic implies we need to calculate new translation based on marker position and new scale
-          // Simplified "Fly To" for demo
           const newK = marker.detailLevel === 'cluster' ? 5 : 9;
-          
-          // Crude centering calculation logic would go here.
-          // For demo, we just zoom in.
           setTransform(prev => ({ ...prev, k: newK })); 
           setTimeout(() => setIsFlying(false), 800);
           return;
@@ -306,22 +352,16 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
 
   return (
     <div 
-        className="relative w-full h-full bg-[#050505] overflow-hidden group select-none outline-none"
+        className="relative w-full h-full bg-[#050505] overflow-hidden group select-none outline-none touch-none"
         onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         style={{ perspective: '1000px' }}
     >
        {/* 10.13 Earth Pulse Background (Subtle animated glow) */}
        <div className="absolute inset-0 bg-radial-gradient from-indigo-900/10 via-black to-black pointer-events-none z-0 animate-[pulse_8s_infinite] opacity-50"></div>
        
-       {/* Current Zoom Level Indicator (HUD) */}
-       <div className="absolute top-20 left-4 z-20 pointer-events-none">
-           <div className="bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1 rounded-full text-[10px] font-mono text-cyan-400 flex items-center gap-2">
-               <ZoomIn size={12} />
-               <span>ZOOM: {transform.k.toFixed(1)}x</span>
-               <span className="text-white font-bold uppercase">[{currentLevelLabel}]</span>
-           </div>
-       </div>
-
        {toast && (
            <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 w-full max-w-xs px-4">
                <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />
@@ -391,20 +431,31 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
         >
            {/* Map Layer with Fallback (10.12) */}
            {mapLayer === 'satellite' && !mapError ? (
-                <div className="absolute inset-0 rounded-lg overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] bg-[#0a0a0a]">
+                <div className="absolute inset-0 rounded-lg overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] bg-[#050505]">
+                    {/* Base Satellite Texture */}
                     <img 
                         src="https://upload.wikimedia.org/wikipedia/commons/c/cd/Land_ocean_ice_2048.jpg" 
-                        className="w-full h-full object-cover opacity-80 filter contrast-125 brightness-75 grayscale-[30%]"
+                        className="w-full h-full object-cover opacity-60 filter contrast-125 brightness-75 grayscale-[40%]"
                         alt="Satellite Map"
                         draggable={false}
                         loading="lazy"
-                        onError={() => {
-                            setMapError(true);
-                            setToast({ message: "Satellite Link Failed. Switching to Schematic.", type: 'warning' });
-                        }}
+                        onError={() => setMapError(true)}
                     />
-                    <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
-                    <div className="absolute inset-0 bg-radial-gradient from-transparent to-black opacity-60"></div>
+                    
+                    {/* Vector Overlay for Sharp Borders at High Zoom */}
+                    <div className="absolute inset-0 opacity-30 pointer-events-none mix-blend-overlay">
+                         <img 
+                            src="https://upload.wikimedia.org/wikipedia/commons/0/03/BlankMap-World6.svg"
+                            className="w-full h-full object-cover filter invert drop-shadow-[0_0_2px_rgba(255,255,255,0.5)]"
+                            draggable={false}
+                         />
+                    </div>
+
+                    {/* Tech Grid Overlay */}
+                    <div className="absolute inset-0 bg-[linear-gradient(rgba(56,189,248,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.03)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
+                    
+                    {/* Atmosphere Glow */}
+                    <div className="absolute inset-0 bg-radial-gradient from-transparent via-transparent to-black/80"></div>
                 </div>
            ) : (
                 <div className="absolute inset-0 bg-[#111] border border-gray-800 rounded-lg">

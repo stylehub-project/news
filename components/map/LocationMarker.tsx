@@ -65,7 +65,7 @@ const LocationMarker: React.FC<LocationMarkerProps> = ({
 
       // Visual Style Guardrails
       const styles = {
-          opacity: zoomLevel > 10 ? 'opacity-90' : 'opacity-100',
+          opacity: zoomLevel > 12 ? 'opacity-90' : 'opacity-100', // Fade slightly at max zoom
           fontWeight: zoomLevel > 8 ? 'font-medium' : 'font-black',
           tracking: zoomLevel > 8 ? 'tracking-tight' : 'tracking-widest',
           textShadow: zoomLevel < 5 ? 'drop-shadow-md' : 'drop-shadow-none' // Remove shadow at high zoom for crispness
