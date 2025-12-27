@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Sparkles, Bookmark, Share2, ArrowRight, Repeat } from 'lucide-react';
+import { Sparkles, Bookmark, Share2, ArrowRight } from 'lucide-react';
 
 interface ReelActionToolbarProps {
   onExplain: () => void;

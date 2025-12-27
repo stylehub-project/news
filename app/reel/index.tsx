@@ -57,7 +57,7 @@ const ReelPage: React.FC = () => {
       return () => { isMounted = false; };
   }, [contentLanguage, markAsLoaded]);
 
-  // 2. Intersection Observer for Active Reel & Infinite Scroll
+  // 2. Virtualization & Active Item Logic
   useEffect(() => {
     if (reels.length === 0) return;
 
@@ -67,18 +67,19 @@ const ReelPage: React.FC = () => {
           if (entry.isIntersecting) {
             const id = entry.target.getAttribute('data-id');
             if (id) {
-                setTimeout(() => setActiveReelId(id), 100);
+                // Short delay to allow snap to settle
+                setTimeout(() => setActiveReelId(id), 150);
                 
-                // Check if last element (No-Wait Loading Trigger)
+                // Infinite Scroll Trigger (Load 1, Preload 1 strategy)
                 const index = reels.findIndex(r => r.id === id);
-                if (index === reels.length - 1 && !isLoadingMore) {
+                if (index >= reels.length - 2 && !isLoadingMore) {
                     handleLoadMore();
                 }
             }
           }
         });
       },
-      { threshold: 0.6 } 
+      { threshold: 0.6 } // High threshold ensures we only activate when mostly visible
     );
 
     const elements = document.querySelectorAll('.reel-item');
@@ -89,13 +90,13 @@ const ReelPage: React.FC = () => {
 
   const handleLoadMore = async () => {
       setIsLoadingMore(true);
-      // Simulate "No-Wait" - Preload next batch
+      // Simulate network request for next batch
       const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
       const moreNews = await fetchNewsFeed(2, { category: 'All', sort: 'Trending', language: langName });
       
       const newReels = moreNews.map((item: any, index: number) => ({
           ...item,
-          id: `${item.id}-p2-${index}`,
+          id: `${item.id}-p${Date.now()}-${index}`,
           articleId: item.id,
           summary: item.description,
           tags: [item.category, 'Viral'],
@@ -104,11 +105,9 @@ const ReelPage: React.FC = () => {
           location: { name: 'Global' }
       }));
 
-      // Small delay to let user see the "Did you know?" loader for effect, or instant append
-      setTimeout(() => {
-          setReels(prev => [...prev, ...newReels]);
-          setIsLoadingMore(false);
-      }, 1500); 
+      // No-Wait Logic: Append immediately, React renders LoadingState at end if needed
+      setReels(prev => [...prev, ...newReels]);
+      setIsLoadingMore(false);
   };
 
   return (
@@ -133,12 +132,13 @@ const ReelPage: React.FC = () => {
             }`}
          >
             {isAutoRead ? <Volume2 size={16} /> : <VolumeX size={16} />}
-            {isAutoRead ? 'Briefing On' : 'Silent'}
+            {isAutoRead ? 'Spoken Brief' : 'Silent'}
          </button>
       </div>
 
       <ReelContainer>
         {reels.length === 0 ? (
+            // Initial Full Screen Loader
             <div className="h-full w-full snap-start snap-always">
                 <ReelLoadingState />
             </div>
@@ -159,7 +159,7 @@ const ReelPage: React.FC = () => {
                   </div>
                 ))}
                 
-                {/* No-Wait Loading Slot at the end */}
+                {/* No-Wait Loading Slot at the end of list */}
                 <div className="reel-item h-full w-full snap-start snap-always transform-gpu">
                     <ReelLoadingState />
                 </div>

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Globe, TrendingUp, BrainCircuit } from 'lucide-react';
+import { BrainCircuit } from 'lucide-react';
 
 const FACTS = [
     "Did you know? The first printed newspaper appeared in 1605.",
@@ -49,8 +49,8 @@ const ReelLoadingState: React.FC = () => {
                 {KEYWORDS.map((k, i) => (
                     <span 
                         key={i} 
-                        className="text-[10px] bg-white/5 border border-white/10 px-2 py-1 rounded-full text-gray-400"
-                        style={{ animationDelay: `${i * 100}ms` }}
+                        className="text-[10px] bg-white/5 border border-white/10 px-2 py-1 rounded-full text-gray-400 animate-pulse"
+                        style={{ animationDelay: `${i * 200}ms` }}
                     >
                         #{k}
                     </span>
