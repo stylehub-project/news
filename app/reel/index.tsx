@@ -1,10 +1,10 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, Headphones, Volume2, VolumeX } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronLeft, Volume2, VolumeX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ReelContainer from '../../components/reel/ReelContainer';
 import ReelItem from '../../components/reel/ReelItem';
-import ReelLoader from '../../components/loaders/ReelLoader';
+import ReelLoadingState from '../../components/reel/ReelLoadingState';
 import { useLoading } from '../../context/LoadingContext';
 import { fetchNewsFeed } from '../../utils/aiService';
 import { useLanguage } from '../../context/LanguageContext';
@@ -16,10 +16,8 @@ const ReelPage: React.FC = () => {
   
   const [reels, setReels] = useState<any[]>([]);
   const [activeReelId, setActiveReelId] = useState<string>('');
-  const [isAutoRead, setIsAutoRead] = useState(true); // Default to auto-read
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-  
-  // Track IDs to prevent duplicate rendering keys
+  const [isAutoRead, setIsAutoRead] = useState(true); 
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const loadedIdsRef = useRef<Set<string>>(new Set());
 
   // 1. Initial Data Fetch
@@ -29,20 +27,18 @@ const ReelPage: React.FC = () => {
           loadedIdsRef.current.clear();
           const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
           
-          // Fetch initial batch
           const newsItems = await fetchNewsFeed(1, { category: 'All', sort: 'Latest', language: langName });
           
           const formattedReels = newsItems.map((item: any, index: number) => {
               const uniqueKey = `${item.id}-p1-${index}`; 
               return {
                 ...item,
-                id: uniqueKey,       // React Key
-                articleId: item.id,  // Actual Content ID for navigation
-                summary: item.description, // Using description as the "Brief"
-                tags: [item.category, contentLanguage === 'hi' ? 'ताज़ा खबर' : 'Trending'],
+                id: uniqueKey,       
+                articleId: item.id,  
+                summary: item.description, 
+                tags: [item.category, 'Trending'],
                 aiEnhanced: true,
-                readingTime: '1 min',
-                trustScore: 98,
+                trustScore: 95 + Math.floor(Math.random() * 5),
                 location: { name: 'Global' }
               };
           });
@@ -61,7 +57,7 @@ const ReelPage: React.FC = () => {
       return () => { isMounted = false; };
   }, [contentLanguage, markAsLoaded]);
 
-  // 2. Intersection Observer for Active Reel
+  // 2. Intersection Observer for Active Reel & Infinite Scroll
   useEffect(() => {
     if (reels.length === 0) return;
 
@@ -70,18 +66,50 @@ const ReelPage: React.FC = () => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             const id = entry.target.getAttribute('data-id');
-            if (id) setActiveReelId(id);
+            if (id) {
+                setTimeout(() => setActiveReelId(id), 100);
+                
+                // Check if last element (No-Wait Loading Trigger)
+                const index = reels.findIndex(r => r.id === id);
+                if (index === reels.length - 1 && !isLoadingMore) {
+                    handleLoadMore();
+                }
+            }
           }
         });
       },
-      { threshold: 0.6 } // 60% visibility required to be "active"
+      { threshold: 0.6 } 
     );
 
     const elements = document.querySelectorAll('.reel-item');
     elements.forEach((el) => observer.observe(el));
 
     return () => observer.disconnect();
-  }, [reels.length]);
+  }, [reels.length, isLoadingMore]);
+
+  const handleLoadMore = async () => {
+      setIsLoadingMore(true);
+      // Simulate "No-Wait" - Preload next batch
+      const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
+      const moreNews = await fetchNewsFeed(2, { category: 'All', sort: 'Trending', language: langName });
+      
+      const newReels = moreNews.map((item: any, index: number) => ({
+          ...item,
+          id: `${item.id}-p2-${index}`,
+          articleId: item.id,
+          summary: item.description,
+          tags: [item.category, 'Viral'],
+          aiEnhanced: true,
+          trustScore: 90 + Math.floor(Math.random() * 8),
+          location: { name: 'Global' }
+      }));
+
+      // Small delay to let user see the "Did you know?" loader for effect, or instant append
+      setTimeout(() => {
+          setReels(prev => [...prev, ...newReels]);
+          setIsLoadingMore(false);
+      }, 1500); 
+  };
 
   return (
     <div className="h-full w-full bg-black relative font-sans">
@@ -96,7 +124,6 @@ const ReelPage: React.FC = () => {
             <ChevronLeft size={24} />
          </button>
 
-         {/* Global Audio Toggle */}
          <button 
             onClick={() => setIsAutoRead(!isAutoRead)}
             className={`flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-md text-xs font-bold transition-all pointer-events-auto border ${
@@ -106,30 +133,37 @@ const ReelPage: React.FC = () => {
             }`}
          >
             {isAutoRead ? <Volume2 size={16} /> : <VolumeX size={16} />}
-            {isAutoRead ? 'Auto-Read On' : 'Silent Mode'}
+            {isAutoRead ? 'Briefing On' : 'Silent'}
          </button>
       </div>
 
       <ReelContainer>
         {reels.length === 0 ? (
             <div className="h-full w-full snap-start snap-always">
-                <ReelLoader />
+                <ReelLoadingState />
             </div>
         ) : (
-            reels.map((reel) => (
-              <div 
-                key={reel.id} 
-                id={`reel-${reel.id}`} 
-                data-id={reel.id} 
-                className="reel-item h-full w-full snap-start snap-always transform-gpu"
-              >
-                 <ReelItem 
-                    data={reel} 
-                    isActive={activeReelId === reel.id} 
-                    isAutoRead={isAutoRead}
-                 />
-              </div>
-            ))
+            <>
+                {reels.map((reel) => (
+                  <div 
+                    key={reel.id} 
+                    id={`reel-${reel.id}`} 
+                    data-id={reel.id} 
+                    className="reel-item h-full w-full snap-start snap-always transform-gpu"
+                  >
+                     <ReelItem 
+                        data={reel} 
+                        isActive={activeReelId === reel.id} 
+                        isAutoRead={isAutoRead}
+                     />
+                  </div>
+                ))}
+                
+                {/* No-Wait Loading Slot at the end */}
+                <div className="reel-item h-full w-full snap-start snap-always transform-gpu">
+                    <ReelLoadingState />
+                </div>
+            </>
         )}
       </ReelContainer>
     </div>

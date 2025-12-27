@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Clock, ArrowRight, TrendingUp, Sparkles, Star, PenTool } from 'lucide-react';
 import NewspaperSection from './NewspaperSection';
@@ -232,7 +233,7 @@ const NewspaperTemplate: React.FC<NewspaperTemplateProps> = ({
                     <div className="p-4 bg-black/5 rounded-lg text-center text-xs font-mono opacity-70">
                         [Graphic Visualization Generated]
                     </div>
-                    {shouldAnimate && <span className="hidden" ref={() => setTimeout(handleSectionComplete, 1000)}></span>}
+                    {shouldAnimate && <span className="hidden" ref={(el) => { if(el) setTimeout(handleSectionComplete, 1000); }}></span>}
                 </div>
             )}
         </div>

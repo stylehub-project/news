@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import PageHeader from '../../components/PageHeader';
 import NewspaperTemplate, { NewspaperStyle, NewspaperData, NewspaperSettings } from '../../components/newspaper/NewspaperTemplate';
@@ -41,7 +42,7 @@ const NewspaperPage: React.FC = () => {
     
     // 2. Fetch Data (Async)
     const generatedData = await fetchNewspaperContent(title, config);
-    setData(generatedData);
+    setData(generatedData as any);
 
     // 3. Start Live Writing
     setTimeout(() => {

@@ -12,8 +12,8 @@ interface MapNewsSheetProps {
     id: string;
     title: string;
     description?: string;
-    source: string;
-    time: string;
+    source?: string;
+    time?: string;
     imageUrl?: string;
     type: string;
     locationName?: string;
@@ -103,9 +103,9 @@ const MapNewsSheet: React.FC<MapNewsSheetProps> = ({ isOpen, onClose, data }) =>
                 </div>
 
                 <div className="flex items-center gap-2 mb-2 text-gray-500 dark:text-gray-400 text-xs">
-                    <span className="font-bold text-gray-800 dark:text-gray-200">{data.source}</span>
+                    <span className="font-bold text-gray-800 dark:text-gray-200">{data.source || 'News Club'}</span>
                     <span>•</span>
-                    <span className="flex items-center gap-1"><Clock size={12} /> {data.time}</span>
+                    <span className="flex items-center gap-1"><Clock size={12} /> {data.time || 'Just now'}</span>
                 </div>
                 
                 <h2 className="text-xl font-black text-gray-900 dark:text-white leading-tight mb-3">

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Globe, Check } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
@@ -10,7 +11,7 @@ const LANGUAGES = [
 ];
 
 const LanguageSwitcher: React.FC = () => {
-  const { language, setLanguage } = useLanguage();
+  const { appLanguage, setAppLanguage } = useLanguage();
   const [isOpen, setIsOpen] = React.useState(false);
 
   return (
@@ -21,7 +22,7 @@ const LanguageSwitcher: React.FC = () => {
       >
         <div className="flex items-center gap-2">
             <Globe size={18} className="text-gray-500" />
-            <span className="text-sm font-medium">{LANGUAGES.find(l => l.code === language)?.label}</span>
+            <span className="text-sm font-medium">{LANGUAGES.find(l => l.code === appLanguage)?.label}</span>
         </div>
       </button>
 
@@ -31,13 +32,13 @@ const LanguageSwitcher: React.FC = () => {
                 <button
                     key={lang.code}
                     onClick={() => {
-                        setLanguage(lang.code as any);
+                        setAppLanguage(lang.code as any);
                         setIsOpen(false);
                     }}
                     className="flex items-center justify-between w-full px-4 py-3 text-sm hover:bg-gray-50 text-left"
                 >
                     <span>{lang.label}</span>
-                    {language === lang.code && <Check size={14} className="text-blue-600" />}
+                    {appLanguage === lang.code && <Check size={14} className="text-blue-600" />}
                 </button>
             ))}
         </div>

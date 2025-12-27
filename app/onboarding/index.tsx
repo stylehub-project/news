@@ -30,7 +30,7 @@ const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const { setTheme } = useTheme();
-  const { setLanguage } = useLanguage();
+  const { setAppLanguage, setContentLanguage } = useLanguage();
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -133,7 +133,10 @@ const OnboardingPage: React.FC = () => {
                     {LANGUAGES.map((lang) => (
                         <button
                             key={lang.code}
-                            onClick={() => setLanguage(lang.code as any)}
+                            onClick={() => {
+                                setAppLanguage(lang.code as any);
+                                setContentLanguage(lang.code as any);
+                            }}
                             className="flex items-center justify-between p-4 rounded-xl border-2 border-transparent bg-gray-50 dark:bg-gray-800 hover:bg-white dark:hover:bg-gray-700 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-md transition-all group focus:outline-none focus:border-blue-500"
                         >
                             <div className="flex items-center gap-4">

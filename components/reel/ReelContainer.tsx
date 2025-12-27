@@ -1,20 +1,23 @@
 
-import React, { useRef } from 'react';
+import React from 'react';
 
 interface ReelContainerProps {
   children: React.ReactNode;
 }
 
 const ReelContainer: React.FC<ReelContainerProps> = ({ children }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
   return (
-    <div 
-      ref={containerRef}
-      className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide bg-black relative overscroll-y-contain"
-      style={{ scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch' }}
-    >
+    <div className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth bg-black relative scrollbar-hide overscroll-y-contain">
       {children}
+      <style>{`
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+      `}</style>
     </div>
   );
 };

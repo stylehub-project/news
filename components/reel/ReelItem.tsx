@@ -1,338 +1,352 @@
 
-import React, { useState, useEffect, useRef, memo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Play, Pause, Zap, Eye, Mic, BrainCircuit, ChevronDown, Check, Volume2, VolumeX, Sparkles, BookOpen } from 'lucide-react';
+import ReelContextStrip from './ReelContextStrip';
+import ReelActionToolbar from './ReelActionToolbar';
+import BlurImageLoader from '../loaders/BlurImageLoader';
 import { useNavigate } from 'react-router-dom';
-import SmartReadCanvas from './SmartReadCanvas';
-import AudioPlayerStrip from './AudioPlayerStrip';
-import ReelActionBar from './ReelActionBar';
-import ReelExpandLayer from './ReelExpandLayer';
-import { ShieldCheck, MapPin, Clock, Minimize2, RefreshCw } from 'lucide-react';
 import { modifyText } from '../../utils/aiService';
 
 interface ReelItemProps {
-  data: {
-    id: string;
-    articleId: string;
-    title: string;
-    summary: string;
-    imageUrl: string;
-    source: string;
-    category: string;
-    timeAgo: string;
-    trustScore?: number;
-    location?: { name: string };
-    tags?: string[];
-    aiSummary?: string;
-    keyPoints?: string[];
-    factCheck?: { status: string; score: number };
-    relatedNews?: Array<any>;
-  };
+  data: any;
   isActive: boolean;
   isAutoRead: boolean;
 }
 
-const PERSPECTIVES = ['Neutral', 'Economic', 'Human Impact', 'Future Outlook'];
+type Perspective = 'Neutral' | 'Public' | 'Economic' | 'Human';
 
-const ReelItem = memo<ReelItemProps>(({ data, isActive, isAutoRead }) => {
+const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoRead }) => {
   const navigate = useNavigate();
   
-  // Interaction State
+  // --- Core State ---
   const [isPlaying, setIsPlaying] = useState(false);
-  const [audioProgress, setAudioProgress] = useState(0);
-  const [currentWordIndex, setCurrentWordIndex] = useState(-1);
-  const [showExpand, setShowExpand] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
+  const [progress, setProgress] = useState(0);
   const [isFocusMode, setIsFocusMode] = useState(false);
+  const [perspective, setPerspective] = useState<Perspective>('Neutral');
+  const [displayedContent, setDisplayedContent] = useState<string[]>([]);
+  const [showWhyItMatters, setShowWhyItMatters] = useState(false);
   
-  // Content State (For Multi-Angle Switch)
-  const [currentPerspective, setCurrentPerspective] = useState('Neutral');
-  const [displayedSummary, setDisplayedSummary] = useState(data.summary);
-  const [isMorphing, setIsMorphing] = useState(false);
-  const [readingProgress, setReadingProgress] = useState(0);
-
+  // --- Animation State ---
+  const [revealedParagraphs, setRevealedParagraphs] = useState<number[]>([]);
+  
+  // --- Refs ---
+  const synthRef = useRef<SpeechSynthesis | null>(window.speechSynthesis);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const clickPreventRef = useRef(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Calculate Title Offset for Highlighting
-  const titleWordCount = data.title.split(/\s+/).length;
+  // Content splitting for Smart Reveal
+  const paragraphs = useMemo(() => {
+      // Use summary or description, ensuring it's an array or split string
+      const text = data.summary || data.description || "";
+      return text.split(/(?:\r\n|\r|\n)/g).filter((p: string) => p.trim().length > 0);
+  }, [data]);
 
-  // --- Scroll & Reading Progress ---
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-      const target = e.currentTarget;
-      const scrollHeight = target.scrollHeight - target.clientHeight;
-      const scrollTop = target.scrollTop;
-      
-      if (scrollHeight > 0) {
-          const progress = (scrollTop / scrollHeight) * 100;
-          setReadingProgress(progress);
-      }
-  };
-
-  // --- Perspective Switching ---
-  const cyclePerspective = async (e?: React.MouseEvent) => {
-      e?.stopPropagation();
-      setIsMorphing(true);
-      
-      const currentIndex = PERSPECTIVES.indexOf(currentPerspective);
-      const nextIndex = (currentIndex + 1) % PERSPECTIVES.length;
-      const nextPerspective = PERSPECTIVES[nextIndex];
-      
-      setCurrentPerspective(nextPerspective);
-
-      // Reset Audio
-      window.speechSynthesis.cancel();
-      setIsPlaying(false);
-
-      try {
-          if (nextPerspective === 'Neutral') {
-              setDisplayedSummary(data.summary);
-          } else {
-              // Call AI Service
-              const newText = await modifyText(
-                  data.summary, 
-                  `Rewrite this news summary from a ${nextPerspective} perspective. Focus on ${nextPerspective === 'Economic' ? 'financial implications' : nextPerspective === 'Human Impact' ? 'people and society' : 'long-term consequences'}. Keep it concise.`
-              );
-              setDisplayedSummary(newText);
-          }
-      } catch (err) {
-          console.error("Failed to switch perspective", err);
-          // Fallback
-          setDisplayedSummary(data.summary);
-      } finally {
-          setIsMorphing(false);
-          setReadingProgress(0);
-          if (scrollRef.current) scrollRef.current.scrollTop = 0;
-      }
-  };
-
-  // --- Audio Logic ---
-  
+  // Initial Content Load
   useEffect(() => {
-    window.speechSynthesis.cancel();
-    setIsPlaying(false);
-    setAudioProgress(0);
-    setCurrentWordIndex(-1);
+      setDisplayedContent(paragraphs);
+  }, [paragraphs]);
 
-    if (isActive && !isMorphing) {
-        const text = `${data.title}. ${displayedSummary}`;
-        const u = new SpeechSynthesisUtterance(text);
-        u.rate = 0.95; // Measured, explanatory pace
-        u.pitch = 1.0;
-        u.volume = 1.0;
+  // --- 1. Spoken Brief & Smart Reveal Logic ---
+  useEffect(() => {
+    if (isActive) {
+        // Reset
+        setRevealedParagraphs([]);
+        setProgress(0);
+        
+        // Sequential Reveal Animation
+        paragraphs.forEach((_, i) => {
+            setTimeout(() => {
+                setRevealedParagraphs(prev => [...prev, i]);
+            }, 600 + (i * 1200)); // Staggered delay
+        });
 
-        const voices = window.speechSynthesis.getVoices();
-        const preferredVoice = voices.find(v => v.name === "Google US English") || 
-                               voices.find(v => v.name === "Microsoft Zira - English (United States)") ||
-                               voices.find(v => v.name.includes("Samantha")) ||
-                               voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) || 
-                               voices[0];
-        if (preferredVoice) u.voice = preferredVoice;
-
-        u.onboundary = (event) => {
-            if (event.name === 'word') {
-                const charIndex = event.charIndex;
-                const textBefore = text.substring(0, charIndex);
-                const wordCount = textBefore.trim().split(/\s+/).length;
-                setCurrentWordIndex(wordCount);
-                setAudioProgress((charIndex / text.length) * 100);
-            }
-        };
-
-        u.onend = () => {
-            setIsPlaying(false);
-            setAudioProgress(100);
-            setCurrentWordIndex(-1);
-        };
-
-        utteranceRef.current = u;
-
-        if (isAutoRead && currentPerspective === 'Neutral') { // Only auto-read default view
-            const timer = setTimeout(() => {
-                window.speechSynthesis.speak(u);
-                setIsPlaying(true);
-            }, 600);
-            return () => clearTimeout(timer);
+        // Auto-Start Audio
+        if (isAutoRead) {
+            setTimeout(startReading, 800);
         }
     } else {
-        window.speechSynthesis.cancel();
-        setIsPlaying(false);
+        stopReading();
+        setIsFocusMode(false);
+        setShowWhyItMatters(false);
     }
 
-    return () => {
-        window.speechSynthesis.cancel();
-    };
-  }, [isActive, isAutoRead, data.id, displayedSummary, isMorphing]);
+    return () => stopReading();
+  }, [isActive, isAutoRead, paragraphs]);
 
-  const togglePlay = (e?: React.MouseEvent) => {
+  // --- Audio Engine ---
+  const startReading = () => {
+      if (!isActive) return;
+      if (synthRef.current?.speaking) synthRef.current.cancel();
+
+      // Construct Text based on current state
+      const textToRead = `${data.title}. ${displayedContent.join('. ')}`;
+      const u = new SpeechSynthesisUtterance(textToRead);
+      
+      // Voice Selection (Prefer "Google US English" or smooth voices)
+      const voices = synthRef.current?.getVoices() || [];
+      const preferredVoice = voices.find(v => v.name === "Google US English") || voices.find(v => v.lang === 'en-US') || voices[0];
+      if (preferredVoice) u.voice = preferredVoice;
+
+      u.rate = playbackSpeed;
+      u.pitch = 1.0;
+      u.volume = 1.0;
+
+      // Sync Progress Bar
+      u.onboundary = (event) => {
+          const charIndex = event.charIndex;
+          const textLen = textToRead.length;
+          const pct = Math.min((charIndex / textLen) * 100, 100);
+          setProgress(pct);
+      };
+
+      u.onend = () => {
+          setIsPlaying(false);
+          setProgress(100);
+      };
+
+      synthRef.current?.speak(u);
+      utteranceRef.current = u;
+      setIsPlaying(true);
+  };
+
+  const stopReading = () => {
+      synthRef.current?.cancel();
+      setIsPlaying(false);
+  };
+
+  const togglePause = (e?: React.MouseEvent) => {
       e?.stopPropagation();
-      if (clickPreventRef.current) return;
-
       if (isPlaying) {
-          window.speechSynthesis.cancel();
+          synthRef.current?.pause();
           setIsPlaying(false);
       } else {
-          if (utteranceRef.current) {
-              window.speechSynthesis.speak(utteranceRef.current);
+          if (synthRef.current?.paused) {
+              synthRef.current.resume();
               setIsPlaying(true);
+          } else {
+              startReading();
           }
       }
   };
 
-  // --- Touch/Click Handlers ---
+  // --- 4. Multi-Angle Perspective Logic ---
+  const handlePerspectiveChange = async (newPerspective: Perspective) => {
+      if (newPerspective === perspective) return;
+      
+      // Visual feedback
+      setPerspective(newPerspective);
+      setRevealedParagraphs([]); // Reset reveal to re-animate
+      stopReading();
 
+      // In a real app, this fetches from AI. Here we simulate "morphing".
+      // We'll use the existing utility to simulate a change
+      let instruction = "";
+      switch (newPerspective) {
+          case 'Public': instruction = "Rewrite this from a public opinion perspective, focusing on social impact."; break;
+          case 'Economic': instruction = "Rewrite this focusing strictly on financial markets and economic implications."; break;
+          case 'Human': instruction = "Rewrite this as a human interest story, focusing on individuals affected."; break;
+          default: 
+              setDisplayedContent(paragraphs);
+              setTimeout(() => paragraphs.forEach((_, i) => setRevealedParagraphs(prev => [...prev, i])), 300);
+              return;
+      }
+
+      // Optimistic Update (Simulation)
+      const newText = await modifyText(paragraphs.join(' '), instruction);
+      const newParas = newText.split('\n').filter(p => p.trim().length > 0);
+      
+      setDisplayedContent(newParas);
+      
+      // Re-trigger reveal
+      newParas.forEach((_, i) => {
+          setTimeout(() => {
+              setRevealedParagraphs(prev => [...prev, i]);
+          }, 300 + (i * 800));
+      });
+  };
+
+  // --- Gestures ---
   const handleTouchStart = () => {
-      clickPreventRef.current = false;
-      longPressTimerRef.current = setTimeout(() => {
-          setIsFocusMode(prev => !prev);
+      longPressTimer.current = setTimeout(() => {
+          setIsFocusMode(true);
           if (navigator.vibrate) navigator.vibrate(50);
-          clickPreventRef.current = true; 
-      }, 600);
+      }, 500);
   };
 
   const handleTouchEnd = () => {
-      if (longPressTimerRef.current) {
-          clearTimeout(longPressTimerRef.current);
-      }
+      if (longPressTimer.current) clearTimeout(longPressTimer.current);
+      setIsFocusMode(false);
   };
 
-  const handleReadFull = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      navigate(`/news/${data.articleId}`);
+  const handleContentTap = () => {
+      togglePause();
+  };
+
+  // --- Navigation Handlers ---
+  const handleAIExplain = () => navigate(`/ai-chat?context=reel&headline=${encodeURIComponent(data.title)}`);
+  const handleReadFull = () => navigate(`/news/${data.id}`);
+  const handleSave = () => console.log('Saved'); // Mock
+  const handleShare = () => {
+      if (navigator.share) navigator.share({ title: data.title, text: data.summary, url: window.location.href });
   };
 
   return (
     <div 
-        className="h-full w-full relative bg-gray-900 flex flex-col overflow-hidden select-none"
+        className="relative h-full w-full bg-black text-white overflow-hidden flex flex-col select-none"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        onMouseDown={handleTouchStart} 
-        onMouseUp={handleTouchEnd}
     >
       
-      {/* 1. Blurred Atmosphere Background */}
-      <div className="absolute inset-0 z-0 transition-opacity duration-700">
-          <img 
+      {/* 1. Immersive Background Layer */}
+      <div className={`absolute inset-0 z-0 transition-all duration-700 ${isFocusMode ? 'scale-110 opacity-20' : 'scale-100 opacity-40'}`}>
+          <BlurImageLoader 
             src={data.imageUrl} 
             alt="Background" 
-            className={`w-full h-full object-cover blur-3xl scale-125 transition-opacity duration-700 ${isFocusMode ? 'opacity-10' : 'opacity-40'}`} 
+            className="w-full h-full object-cover blur-xl" 
           />
-          <div className={`absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/90 transition-opacity duration-500 ${isFocusMode ? 'opacity-100' : 'opacity-90'}`}></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-black"></div>
       </div>
 
-      {/* READING FLOW INDICATOR (Right Side) */}
-      <div className="absolute right-0 top-0 bottom-0 w-1 bg-white/10 z-30 pointer-events-none">
+      {/* 5. Reading Flow Indicator (Right Side) */}
+      <div className="absolute right-1 top-24 bottom-32 w-1 bg-gray-800/50 rounded-full z-20 overflow-hidden">
           <div 
-            className="w-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.8)] transition-all duration-300 ease-out"
-            style={{ height: `${readingProgress}%` }}
+            className="w-full bg-indigo-500 transition-all duration-300 ease-linear shadow-[0_0_10px_rgba(99,102,241,0.8)]"
+            style={{ height: `${progress}%` }}
           ></div>
       </div>
 
-      {/* 2. Main Content Canvas */}
-      <div 
-        ref={scrollRef}
-        onScroll={handleScroll}
-        className={`relative z-10 flex-1 flex flex-col p-6 overflow-y-auto custom-scrollbar scrollbar-hide transition-all duration-500 ${isFocusMode ? 'pt-12' : 'pt-24 pb-4'}`}
-        onClick={togglePlay}
-      >
+      {/* Main Content Area */}
+      <div className={`relative z-10 flex-1 flex flex-col p-6 pt-24 pb-32 transition-opacity duration-300 ${isFocusMode ? 'opacity-100' : 'opacity-100'}`}>
           
-          {/* Focus Mode Exit Hint */}
-          {isFocusMode && (
-              <div className="absolute top-6 right-6 animate-in fade-in zoom-in">
-                  <div className="bg-white/10 p-2 rounded-full text-white/50">
-                      <Minimize2 size={20} />
-                  </div>
+          {/* Metadata (Hidden in Focus Mode) */}
+          <div className={`transition-opacity duration-300 ${isFocusMode ? 'opacity-0' : 'opacity-100'}`}>
+              <ReelContextStrip 
+                category={data.category} 
+                location={data.location?.name || 'Global'}
+                timeAgo={data.timeAgo}
+                source={data.source}
+                trustScore={data.trustScore}
+              />
+          </div>
+
+          {/* Headline */}
+          <div className="mb-6 animate-in slide-in-from-left-4 duration-700 delay-100">
+              <h1 className="text-3xl md:text-4xl font-black leading-tight tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400 drop-shadow-sm">
+                  {data.title}
+              </h1>
+          </div>
+
+          {/* Perspective Switcher (4. Multi-Angle News Switch) */}
+          {!isFocusMode && (
+              <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide pb-1">
+                  {['Neutral', 'Public', 'Economic', 'Human'].map((p) => (
+                      <button
+                        key={p}
+                        onClick={(e) => { e.stopPropagation(); handlePerspectiveChange(p as Perspective); }}
+                        className={`text-[10px] font-bold px-3 py-1.5 rounded-full border transition-all whitespace-nowrap flex items-center gap-1 ${
+                            perspective === p 
+                            ? 'bg-white text-black border-white shadow-lg scale-105' 
+                            : 'bg-black/40 text-gray-400 border-white/10 hover:border-white/30'
+                        }`}
+                      >
+                          {perspective === p && <Check size={10} />}
+                          {p}
+                      </button>
+                  ))}
               </div>
           )}
 
-          {/* Context Strip */}
-          <div className={`flex flex-wrap items-center gap-3 mb-6 transition-all duration-500 ${isFocusMode ? 'opacity-0 h-0 overflow-hidden' : 'animate-in slide-in-from-top-4 fade-in duration-700 delay-100'}`}>
-              <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider shadow-sm">
-                  {data.category}
-              </span>
-              <div className="flex items-center gap-1 text-gray-300 text-xs font-medium">
-                  <MapPin size={12} className="text-gray-400" />
-                  {data.location?.name || 'Global'}
-              </div>
-              <div className="flex items-center gap-1 text-gray-300 text-xs font-medium">
-                  <Clock size={12} className="text-gray-400" />
-                  {data.timeAgo}
-              </div>
-              <div className="ml-auto flex items-center gap-1 bg-green-900/40 border border-green-500/30 px-2 py-0.5 rounded-full text-[9px] font-bold text-green-400">
-                  <ShieldCheck size={10} />
-                  {data.trustScore || 95}% Trust
-              </div>
-          </div>
-
-          {/* Headline Zone */}
-          <h1 className={`font-black text-white leading-tight mb-6 drop-shadow-lg transition-all duration-500 ${isFocusMode ? 'text-2xl opacity-50' : 'text-3xl md:text-4xl animate-in slide-in-from-bottom-4 fade-in duration-700 delay-200'}`}>
-              {data.title}
-          </h1>
-
-          {/* Perspective Label (Dynamic) */}
-          <div className="flex items-center justify-between mb-4">
-              <span className={`text-[10px] uppercase font-bold tracking-widest px-2 py-1 rounded transition-colors ${currentPerspective === 'Neutral' ? 'text-gray-400 bg-white/5' : 'text-indigo-300 bg-indigo-500/20 border border-indigo-500/30'}`}>
-                  {currentPerspective} Angle
-              </span>
-          </div>
-
-          {/* Reading Canvas */}
-          <div className={`flex-1 transition-opacity duration-300 ${isMorphing ? 'opacity-0 scale-98 blur-sm' : 'opacity-100 scale-100 blur-0'}`}>
-              <SmartReadCanvas 
-                  text={displayedSummary} 
-                  currentWordIndex={currentWordIndex - titleWordCount} 
-                  isPlaying={isPlaying}
-                  imageUrl={data.imageUrl}
-                  isFocusMode={isFocusMode}
-                  aiInsight={data.aiSummary || "This story is trending due to high engagement in your region."}
-              />
-          </div>
-      </div>
-
-      {/* 3. Bottom Controls Area (Fixed) */}
-      <div className={`relative z-20 w-full px-4 transition-all duration-500 ease-in-out ${isFocusMode ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100 pb-24 pt-4 bg-gradient-to-t from-black via-black/95 to-transparent'}`}>
-          
-          {/* Inline Audio Player */}
-          <div className="mb-6">
-              <AudioPlayerStrip 
-                  isPlaying={isPlaying} 
-                  progress={audioProgress} 
-                  onTogglePlay={togglePlay} 
-              />
-          </div>
-
-          {/* Understanding Actions */}
-          <ReelActionBar 
-              onAIExplain={(e) => { e?.stopPropagation(); setShowExpand(true); }}
-              onSwitchPerspective={cyclePerspective}
-              currentPerspective={currentPerspective}
-              onSave={() => {}}
-              onShare={() => {}}
-              onMore={() => {}}
-              isLiked={false}
-              isSaved={false}
-          />
-          
-          {/* Main CTA */}
-          <button 
-            onClick={handleReadFull}
-            className="absolute bottom-6 right-4 bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md text-white text-xs font-bold px-4 py-2 rounded-full transition-all active:scale-95"
+          {/* Smart Text Canvas (2. Smart Text Reveal) */}
+          <div 
+            className="flex-1 space-y-4 overflow-y-auto pr-4 custom-scrollbar mask-gradient-b" 
+            onClick={handleContentTap}
+            ref={contentRef}
           >
-              Read Full Article →
-          </button>
+              {displayedContent.map((para, idx) => (
+                  <p 
+                    key={`${perspective}-${idx}`} 
+                    className={`text-lg md:text-xl font-medium leading-relaxed transition-all duration-1000 transform ${
+                        revealedParagraphs.includes(idx) 
+                        ? 'opacity-100 translate-y-0 filter-none' 
+                        : 'opacity-0 translate-y-4 blur-sm'
+                    } ${idx === 0 ? 'text-gray-100' : 'text-gray-300'}`}
+                  >
+                      {/* Keyword Highlighting Logic (Simple Mock) */}
+                      {para.split(' ').map((word, wIdx) => {
+                          const isKeyword = word.length > 7 && Math.random() > 0.8;
+                          return isKeyword && revealedParagraphs.includes(idx) ? (
+                              <span key={wIdx} className="text-indigo-300 drop-shadow-[0_0_8px_rgba(165,180,252,0.4)] animate-pulse inline-block">{word} </span>
+                          ) : (
+                              <span key={wIdx}>{word} </span>
+                          );
+                      })}
+                  </p>
+              ))}
+
+              {/* 3. Why It Matters Toggle */}
+              <div className="py-4">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setShowWhyItMatters(!showWhyItMatters); }}
+                    className="flex items-center gap-2 text-xs font-bold text-yellow-400 bg-yellow-400/10 px-4 py-2 rounded-lg border border-yellow-400/20 hover:bg-yellow-400/20 transition-all w-full justify-center"
+                  >
+                      <BrainCircuit size={14} />
+                      {showWhyItMatters ? "Hide Analysis" : "Why this matters?"}
+                      <ChevronDown size={14} className={`transition-transform ${showWhyItMatters ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Why It Matters Content Block */}
+                  <div className={`overflow-hidden transition-all duration-500 ease-in-out ${showWhyItMatters ? 'max-h-40 opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
+                      <div className="bg-gradient-to-r from-yellow-900/40 to-orange-900/40 border-l-4 border-yellow-500 p-4 rounded-r-xl">
+                          <p className="text-sm text-yellow-100 leading-relaxed font-medium">
+                              <span className="font-bold text-yellow-400 block mb-1 uppercase text-[10px] tracking-wider">AI Context</span>
+                              This event significantly shifts the {perspective.toLowerCase()} landscape by altering regulatory frameworks. Experts suggest immediate impact on local markets.
+                          </p>
+                      </div>
+                  </div>
+              </div>
+              
+              <div className="h-12"></div>
+          </div>
+
+          {/* Audio Controls (Mini Player) */}
+          <div className={`mt-2 flex items-center gap-4 transition-opacity duration-300 ${isFocusMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+              <button 
+                onClick={togglePause}
+                className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+              >
+                  {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-1" />}
+              </button>
+              
+              <div className="flex-1">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+                      {isPlaying ? <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> : <span className="w-1.5 h-1.5 bg-gray-500 rounded-full"></span>}
+                      {isPlaying ? 'Speaking Brief...' : 'Audio Paused'}
+                  </span>
+              </div>
+
+              <div className="flex gap-2">
+                  <button onClick={(e) => { e.stopPropagation(); setPlaybackSpeed(s => s === 1 ? 1.5 : 1); }} className="text-[10px] font-bold bg-white/10 px-2 py-1 rounded text-gray-300 hover:bg-white/20 transition-colors">
+                      {playbackSpeed}x
+                  </button>
+              </div>
+          </div>
+
       </div>
 
-      {/* Expand Layer (AI Analysis) */}
-      <ReelExpandLayer 
-        isOpen={showExpand} 
-        onClose={() => setShowExpand(false)} 
-        data={data} 
-      />
+      {/* 3. Action Toolbar */}
+      <div className={`transition-transform duration-300 ${isFocusMode ? 'translate-y-24' : 'translate-y-0'}`}>
+          <ReelActionToolbar 
+            onExplain={handleAIExplain}
+            onSave={handleSave}
+            onShare={handleShare}
+            onReadFull={handleReadFull}
+          />
+      </div>
+
     </div>
   );
-}, (prev, next) => {
-    return prev.data.id === next.data.id && 
-           prev.isActive === next.isActive && 
-           prev.isAutoRead === next.isAutoRead;
-});
+};
 
 export default ReelItem;

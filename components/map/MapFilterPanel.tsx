@@ -9,6 +9,7 @@ export interface MapFilters {
   impact: string; // New
   state: string;
   sentiment: string;
+  type: string;
 }
 
 interface MapFilterPanelProps {
