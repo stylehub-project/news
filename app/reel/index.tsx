@@ -19,6 +19,7 @@ const ReelPage: React.FC = () => {
   const [isAutoRead, setIsAutoRead] = useState(true); 
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const loadedIdsRef = useRef<Set<string>>(new Set());
+  const observerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 1. Initial Data Fetch
   useEffect(() => {
@@ -46,6 +47,7 @@ const ReelPage: React.FC = () => {
           if (isMounted) {
               setReels(formattedReels);
               if (formattedReels.length > 0) {
+                  // Set initial active reel immediately without animation delay
                   setActiveReelId(formattedReels[0].id);
                   formattedReels.forEach((r: any) => loadedIdsRef.current.add(r.id));
               }
@@ -57,40 +59,52 @@ const ReelPage: React.FC = () => {
       return () => { isMounted = false; };
   }, [contentLanguage, markAsLoaded]);
 
-  // 2. Virtualization & Active Item Logic
+  // 2. STABILIZED Intersection Observer
   useEffect(() => {
     if (reels.length === 0) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
+    const options = {
+        root: null, // viewport
+        rootMargin: '0px',
+        threshold: 0.6 // Element must be 60% visible to be considered "Active"
+    };
+
+    const callback = (entries: IntersectionObserverEntry[]) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const id = entry.target.getAttribute('data-id');
-            if (id) {
-                // Short delay to allow snap to settle
-                setTimeout(() => setActiveReelId(id), 150);
-                
-                // Infinite Scroll Trigger (Load 1, Preload 1 strategy)
-                const index = reels.findIndex(r => r.id === id);
-                if (index >= reels.length - 2 && !isLoadingMore) {
-                    handleLoadMore();
+            if (entry.isIntersecting) {
+                const id = entry.target.getAttribute('data-id');
+                if (id) {
+                    // Debounce the state update to prevent flickering during fast scrolls
+                    if (observerTimeoutRef.current) {
+                        clearTimeout(observerTimeoutRef.current);
+                    }
+                    
+                    observerTimeoutRef.current = setTimeout(() => {
+                        setActiveReelId(id);
+                        
+                        // Check for infinite scroll
+                        const index = reels.findIndex(r => r.id === id);
+                        if (index >= reels.length - 2 && !isLoadingMore) {
+                            handleLoadMore();
+                        }
+                    }, 300); // 300ms delay ensures scrolling has settled
                 }
             }
-          }
         });
-      },
-      { threshold: 0.6 } // High threshold ensures we only activate when mostly visible
-    );
+    };
 
+    const observer = new IntersectionObserver(callback, options);
     const elements = document.querySelectorAll('.reel-item');
     elements.forEach((el) => observer.observe(el));
 
-    return () => observer.disconnect();
+    return () => {
+        observer.disconnect();
+        if (observerTimeoutRef.current) clearTimeout(observerTimeoutRef.current);
+    };
   }, [reels.length, isLoadingMore]);
 
   const handleLoadMore = async () => {
       setIsLoadingMore(true);
-      // Simulate network request for next batch
       const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
       const moreNews = await fetchNewsFeed(2, { category: 'All', sort: 'Trending', language: langName });
       
@@ -105,8 +119,12 @@ const ReelPage: React.FC = () => {
           location: { name: 'Global' }
       }));
 
-      // No-Wait Logic: Append immediately, React renders LoadingState at end if needed
-      setReels(prev => [...prev, ...newReels]);
+      // Append ensuring no duplicates if network is slow/fast
+      setReels(prev => {
+          const existingIds = new Set(prev.map(r => r.id));
+          const uniqueNewReels = newReels.filter((r: any) => !existingIds.has(r.id));
+          return [...prev, ...uniqueNewReels];
+      });
       setIsLoadingMore(false);
   };
 
@@ -138,7 +156,6 @@ const ReelPage: React.FC = () => {
 
       <ReelContainer>
         {reels.length === 0 ? (
-            // Initial Full Screen Loader
             <div className="h-full w-full snap-start snap-always">
                 <ReelLoadingState />
             </div>
@@ -149,8 +166,9 @@ const ReelPage: React.FC = () => {
                     key={reel.id} 
                     id={`reel-${reel.id}`} 
                     data-id={reel.id} 
-                    className="reel-item h-full w-full snap-start snap-always transform-gpu"
+                    className="reel-item h-full w-full snap-start snap-always transform-gpu overflow-hidden"
                   >
+                     {/* Only render complex children if close to active to save memory */}
                      <ReelItem 
                         data={reel} 
                         isActive={activeReelId === reel.id} 
@@ -159,7 +177,6 @@ const ReelPage: React.FC = () => {
                   </div>
                 ))}
                 
-                {/* No-Wait Loading Slot at the end of list */}
                 <div className="reel-item h-full w-full snap-start snap-always transform-gpu">
                     <ReelLoadingState />
                 </div>

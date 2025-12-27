@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+
+import React from 'react';
 
 interface ReelReaderCanvasProps {
   content: string[];
@@ -15,20 +16,8 @@ const ReelReaderCanvas: React.FC<ReelReaderCanvasProps> = ({
   perspective,
   onTextTap 
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Scroll to bottom of revealed content smoothly
-  useEffect(() => {
-    if (containerRef.current && revealedCount > 0) {
-      const elements = containerRef.current.children;
-      // Ensure we don't index out of bounds
-      const targetIndex = Math.min(revealedCount - 1, elements.length - 1);
-      if (targetIndex >= 0) {
-        const lastElement = elements[targetIndex];
-        lastElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }
-  }, [revealedCount]);
+  // REMOVED: Auto-scroll useEffect logic causing layout thrashing.
+  // The user should manually scroll if the text is long, preserving stability.
 
   const getSizeClass = () => {
     switch (fontSize) {
@@ -40,7 +29,6 @@ const ReelReaderCanvas: React.FC<ReelReaderCanvasProps> = ({
 
   return (
     <div 
-      ref={containerRef}
       className={`space-y-6 pb-32 transition-all duration-500 ease-in-out ${getSizeClass()}`}
       onClick={(e) => { e.stopPropagation(); onTextTap(); }}
     >
@@ -52,7 +40,7 @@ const ReelReaderCanvas: React.FC<ReelReaderCanvasProps> = ({
           <p
             key={`${perspective}-${idx}`}
             className={`
-              transition-all duration-700 transform will-change-transform
+              transition-all duration-700 transform will-change-transform backface-hidden
               ${isRevealed 
                 ? 'opacity-100 translate-y-0 filter-none' 
                 : 'opacity-0 translate-y-8 blur-sm'}

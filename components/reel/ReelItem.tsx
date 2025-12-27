@@ -27,30 +27,40 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoRead }) => {
   const [showInsight, setShowInsight] = useState(false);
   
   // --- Content State ---
-  const [paragraphs, setParagraphs] = useState<string[]>([]);
+  // Memoize initial content to prevent re-renders when parent state changes
+  const initialParagraphs = useMemo(() => {
+      const raw = data.summary || data.description || "";
+      return raw.split(/(?:\r\n|\r|\n)/g).filter((p: string) => p.trim().length > 0);
+  }, [data.summary, data.description]);
+
+  const [paragraphs, setParagraphs] = useState<string[]>(initialParagraphs);
   const [revealedCount, setRevealedCount] = useState(0);
   const [readProgress, setReadProgress] = useState(0);
 
-  // Initialize content
-  useEffect(() => {
-    const raw = data.summary || data.description || "";
-    setParagraphs(raw.split(/(?:\r\n|\r|\n)/g).filter((p: string) => p.trim().length > 0));
-  }, [data]);
-
   // Reveal Animation Logic
   useEffect(() => {
+    let timeouts: ReturnType<typeof setTimeout>[] = [];
+    
     if (isActive) {
       setRevealedCount(0); // Reset
       const total = paragraphs.length;
       
       // Staggered reveal
       paragraphs.forEach((_, i) => {
-        setTimeout(() => {
+        const timeout = setTimeout(() => {
           setRevealedCount(prev => Math.min(prev + 1, total));
-        }, 500 + (i * 1500)); // Delay first, then pace out
+        }, 500 + (i * 1200)); // Paced reading speed
+        timeouts.push(timeout);
       });
+    } else {
+        // Reset when inactive to ensure fresh animation next time
+        setRevealedCount(0);
     }
-  }, [isActive, paragraphs]);
+
+    return () => {
+        timeouts.forEach(clearTimeout);
+    };
+  }, [isActive, paragraphs]); // Depend on paragraphs mainly
 
   // --- Handlers ---
 
@@ -64,24 +74,23 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoRead }) => {
     const newP = nextP[perspective];
     setPerspective(newP);
     
-    // Reset reveal for morph effect
     setRevealedCount(0);
     
-    // Simulate AI Rewrite (In prod, fetch specific content)
+    // Fallback text while AI loads (Instant Feedback)
+    setParagraphs(["Analyzing perspective...", "Re-calibrating narrative..."]);
+
     let prompt = "";
     if (newP === 'Public') prompt = "Rewrite focusing on social impact.";
     else if (newP === 'Economic') prompt = "Rewrite focusing on financial markets.";
     else if (newP === 'Human') prompt = "Rewrite as a human interest story.";
     else prompt = "Reset to neutral journalistic tone.";
 
-    const newText = await modifyText(paragraphs.join('\n'), prompt);
-    setParagraphs(newText.split('\n').filter(p => p.trim().length > 0));
-    
-    // Re-trigger reveal
-    setTimeout(() => {
-       const total = newText.split('\n').length;
-       for(let i=0; i<total; i++) setTimeout(() => setRevealedCount(prev => prev + 1), 300 + (i * 800));
-    }, 200);
+    try {
+        const newText = await modifyText(initialParagraphs.join('\n'), prompt);
+        setParagraphs(newText.split('\n').filter(p => p.trim().length > 0));
+    } catch (e) {
+        setParagraphs(initialParagraphs); // Fallback
+    }
   };
 
   const handleFontSizeChange = () => {
@@ -92,7 +101,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoRead }) => {
     <div className="relative h-full w-full bg-black overflow-hidden flex flex-col select-none">
       
       {/* 1. Background Layer */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0 pointer-events-none">
         <BlurImageLoader 
           src={data.imageUrl} 
           alt="Background" 
@@ -102,7 +111,7 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoRead }) => {
       </div>
 
       {/* 2. Reading Flow Indicator (Right Edge) */}
-      <div className="absolute right-0.5 top-20 bottom-32 w-1 bg-gray-800/50 rounded-full z-20 overflow-hidden">
+      <div className="absolute right-0.5 top-20 bottom-32 w-1 bg-gray-800/50 rounded-full z-20 overflow-hidden pointer-events-none">
         <div 
           className="w-full bg-indigo-500 transition-all duration-300 ease-linear shadow-[0_0_10px_rgba(99,102,241,0.8)]"
           style={{ height: `${readProgress}%` }}
@@ -122,18 +131,18 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoRead }) => {
         />
 
         {/* Headline */}
-        <h1 className="text-3xl font-black text-white leading-tight mb-6 animate-in slide-in-from-left-4 duration-700">
+        <h1 className="text-2xl md:text-3xl font-black text-white leading-tight mb-6 animate-in slide-in-from-left-4 duration-700">
           {data.title}
         </h1>
 
         {/* Dynamic Reader Canvas */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 mask-gradient-b">
+        <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 mask-gradient-b pb-20">
           <ReelReaderCanvas 
             content={paragraphs}
             revealedCount={revealedCount}
             fontSize={fontSize}
             perspective={perspective}
-            onTextTap={() => {}} // Could pause audio
+            onTextTap={() => {}} 
           />
           
           <AIInsightPanel 
@@ -141,10 +150,12 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoRead }) => {
             onToggle={() => setShowInsight(!showInsight)}
             insight={`This update shifts the ${perspective.toLowerCase()} landscape significantly. Analysts predict immediate downstream effects.`}
           />
+          {/* Bottom spacer for toolbar */}
+          <div className="h-24"></div>
         </div>
 
         {/* Floating Controls (Audio & View) */}
-        <div className="absolute bottom-24 left-6 right-6 flex items-center justify-between pointer-events-none">
+        <div className="absolute bottom-24 left-6 right-6 flex items-center justify-between pointer-events-none z-30">
            <div className="pointer-events-auto">
              <SpokenBriefPlayer 
                 text={`${data.title}. ${paragraphs.join('. ')}`} 
@@ -157,13 +168,13 @@ const ReelItem: React.FC<ReelItemProps> = ({ data, isActive, isAutoRead }) => {
            <div className="flex gap-2 pointer-events-auto">
               <button 
                 onClick={handleFontSizeChange}
-                className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white flex items-center justify-center hover:bg-white/10"
+                className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white flex items-center justify-center hover:bg-white/10 transition-colors"
               >
                 <Type size={16} />
               </button>
               <button 
                 onClick={handlePerspectiveChange}
-                className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white flex items-center justify-center hover:bg-white/10"
+                className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white flex items-center justify-center hover:bg-white/10 transition-colors"
               >
                 <Layers size={16} />
               </button>
