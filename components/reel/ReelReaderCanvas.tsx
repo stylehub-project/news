@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 
 interface ReelReaderCanvasProps {
@@ -22,8 +21,10 @@ const ReelReaderCanvas: React.FC<ReelReaderCanvasProps> = ({
   useEffect(() => {
     if (containerRef.current && revealedCount > 0) {
       const elements = containerRef.current.children;
-      if (elements.length >= revealedCount) {
-        const lastElement = elements[revealedCount - 1];
+      // Ensure we don't index out of bounds
+      const targetIndex = Math.min(revealedCount - 1, elements.length - 1);
+      if (targetIndex >= 0) {
+        const lastElement = elements[targetIndex];
         lastElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }

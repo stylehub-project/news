@@ -2,8 +2,28 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 const getApiKey = () => {
+  // Check standard Vercel/Next.js environment variables
+  if (typeof process !== 'undefined' && process.env) {
+    if (process.env.NEXT_PUBLIC_API_KEY) return process.env.NEXT_PUBLIC_API_KEY;
+    if (process.env.REACT_APP_API_KEY) return process.env.REACT_APP_API_KEY;
+    // @ts-ignore
+    if (process.env.API_KEY) return process.env.API_KEY;
+  }
+
+  // Check Vite environment variables
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+    if ((import.meta as any).env.VITE_API_KEY) return (import.meta as any).env.VITE_API_KEY;
+    if ((import.meta as any).env.API_KEY) return (import.meta as any).env.API_KEY;
+  }
+
+  // Check Window Shim (from index.html)
   // @ts-ignore
-  return (typeof window !== 'undefined' && window.process?.env?.API_KEY) || (import.meta as any).env.VITE_API_KEY || '';
+  if (typeof window !== 'undefined' && window.process?.env?.API_KEY) {
+    // @ts-ignore
+    return window.process.env.API_KEY;
+  }
+
+  return '';
 };
 
 export const fetchNewsFeed = async (page: number, filters: any) => {
@@ -11,7 +31,10 @@ export const fetchNewsFeed = async (page: number, filters: any) => {
   
   try {
     const apiKey = getApiKey();
-    if (!apiKey) return getMockData(page, filters.category, language);
+    if (!apiKey) {
+        console.warn("No API Key found, using mock data.");
+        return getMockData(page, filters.category, language);
+    }
     
     const ai = new GoogleGenAI({ apiKey });
     
@@ -87,11 +110,11 @@ export const modifyText = async (text: string, instruction: string) => {
         const apiKey = getApiKey();
         if (!apiKey) {
             // Mock Fallback behavior if no API key
-            await new Promise(r => setTimeout(r, 1000));
+            await new Promise(r => setTimeout(r, 500));
             if (instruction.includes('Simplify')) return "Here is a simplified version of the text. It uses easier words.";
             if (instruction.includes('Catchier')) return "SHOCKING UPDATE: " + text.substring(0, 20) + "...";
             if (instruction.includes('Rewrite')) return text + " (Reframed for " + instruction.split('perspective')[0] + ")";
-            return text + " (Edited)";
+            return text + " (AI unavailable - Edited)";
         }
 
         const ai = new GoogleGenAI({ apiKey });
@@ -174,10 +197,7 @@ const getHeadline = (category: string, seed: number, isHindi: boolean) => {
 };
 
 export const fetchNewspaperContent = async (title: string, config: any) => {
-    // This mocks the generation of a full newspaper structure
-    // In a real app, this would use Gemini to generate the specific sections based on the 'scope'
-    
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate extra latency
+    await new Promise(resolve => setTimeout(resolve, 1000)); 
 
     return {
         title: title || "The Daily News",

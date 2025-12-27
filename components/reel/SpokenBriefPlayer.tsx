@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { Volume2, VolumeX, Pause, Play } from 'lucide-react';
 
@@ -34,7 +33,6 @@ const SpokenBriefPlayer: React.FC<SpokenBriefPlayerProps> = ({
   // Start logic
   useEffect(() => {
     if (isActive && autoPlay && text) {
-      // Small delay to allow enter animation to finish
       const timer = setTimeout(() => {
         playSpeech();
       }, 600);
@@ -81,23 +79,28 @@ const SpokenBriefPlayer: React.FC<SpokenBriefPlayerProps> = ({
       if (onComplete) onComplete();
     };
 
-    synthRef.current.speak(u);
-    setIsPlaying(true);
-    utteranceRef.current = u;
+    u.onerror = (e) => {
+        console.warn("Speech synthesis error", e);
+        setIsPlaying(false);
+    }
+
+    try {
+        synthRef.current.speak(u);
+        setIsPlaying(true);
+        utteranceRef.current = u;
+    } catch (e) {
+        console.error("Speech start failed", e);
+        setIsPlaying(false);
+    }
   };
 
   const togglePlay = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (isPlaying) {
-      synthRef.current?.pause();
+      synthRef.current?.cancel(); // Cancel instead of pause for cleaner restart/stop
       setIsPlaying(false);
     } else {
-      if (synthRef.current?.paused) {
-        synthRef.current.resume();
-        setIsPlaying(true);
-      } else {
-        playSpeech();
-      }
+      playSpeech();
     }
   };
 
