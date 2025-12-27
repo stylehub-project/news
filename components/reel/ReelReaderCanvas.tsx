@@ -16,20 +16,17 @@ const ReelReaderCanvas: React.FC<ReelReaderCanvasProps> = ({
   perspective,
   onTextTap 
 }) => {
-  // REMOVED: Auto-scroll useEffect logic causing layout thrashing.
-  // The user should manually scroll if the text is long, preserving stability.
-
   const getSizeClass = () => {
     switch (fontSize) {
       case 'sm': return 'text-base leading-relaxed';
-      case 'lg': return 'text-xl leading-relaxed';
+      case 'lg': return 'text-xl leading-loose';
       default: return 'text-lg leading-relaxed';
     }
   };
 
   return (
     <div 
-      className={`space-y-6 pb-32 transition-all duration-500 ease-in-out ${getSizeClass()}`}
+      className={`space-y-6 transition-all duration-500 ease-in-out ${getSizeClass()}`}
       onClick={(e) => { e.stopPropagation(); onTextTap(); }}
     >
       {content.map((paragraph, idx) => {
@@ -40,24 +37,21 @@ const ReelReaderCanvas: React.FC<ReelReaderCanvasProps> = ({
           <p
             key={`${perspective}-${idx}`}
             className={`
-              transition-all duration-700 transform will-change-transform backface-hidden
+              transition-all duration-700 transform will-change-transform font-medium
               ${isRevealed 
                 ? 'opacity-100 translate-y-0 filter-none' 
-                : 'opacity-0 translate-y-8 blur-sm'}
+                : 'opacity-0 translate-y-4 blur-sm'}
               ${isLastRevealed ? 'text-white' : 'text-gray-300'}
             `}
             style={{ 
               transitionDelay: isRevealed ? '0ms' : '0ms',
-              textShadow: '0 1px 2px rgba(0,0,0,0.5)'
+              textShadow: '0 2px 4px rgba(0,0,0,0.8)' // Stronger shadow for visibility
             }}
           >
             {paragraph}
           </p>
         );
       })}
-      
-      {/* Spacer for bottom controls */}
-      <div className="h-20" />
     </div>
   );
 };

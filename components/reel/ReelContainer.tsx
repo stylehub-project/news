@@ -7,7 +7,14 @@ interface ReelContainerProps {
 
 const ReelContainer: React.FC<ReelContainerProps> = ({ children }) => {
   return (
-    <div className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth bg-black relative scrollbar-hide overscroll-y-contain">
+    <div 
+      className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth bg-black relative scrollbar-hide"
+      style={{
+        overscrollBehaviorY: 'contain',
+        touchAction: 'pan-y',
+        WebkitOverflowScrolling: 'touch'
+      }}
+    >
       {children}
       <style>{`
         .scrollbar-hide::-webkit-scrollbar {
