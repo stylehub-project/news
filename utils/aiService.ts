@@ -71,17 +71,29 @@ export const fetchNewsFeed = async (page: number, filters: any) => {
       ]
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        // Note: Removed responseMimeType and responseSchema to prevent RPC 500 errors 
-        // that occur when combining Search Grounding with strict output validation.
-      }
-    });
+    let text = "";
 
-    const text = response.text;
+    try {
+        // 1. Try with Google Search Tool
+        const response = await ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
+          contents: prompt,
+          config: {
+            tools: [{ googleSearch: {} }],
+            // No strict schema here to avoid conflict
+          }
+        });
+        text = response.text || "";
+    } catch (toolError) {
+        console.warn("Tool execution failed, retrying without tools...", toolError);
+        // 2. Fallback to LLM knowledge if Tools fail (RPC 500)
+        const response = await ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
+          contents: prompt,
+        });
+        text = response.text || "";
+    }
+
     if (!text) return getMockData(page, filters.category, language);
     
     try {

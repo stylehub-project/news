@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { X, Mic, MicOff, Volume2, Captions, Loader2, StopCircle, Download } from 'lucide-react';
+import { X, Mic, MicOff, Volume2, Captions, Loader2, StopCircle, Download, Globe, Signal } from 'lucide-react';
 import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
 
 interface VoiceModeProps {
   onClose: () => void;
 }
 
-// ... (Audio Helpers: writeString, floatTo16BitPCM, encodeWAV, decode, encode, decodeAudioData, createBlob - Keeping them as they were correct)
+// ... (Audio Helpers remain the same)
 function writeString(view: DataView, offset: number, string: string) {
   for (let i = 0; i < string.length; i++) {
     view.setUint8(offset + i, string.charCodeAt(i));
@@ -93,65 +93,61 @@ function createBlob(data: Float32Array): { data: string, mimeType: string } {
   };
 }
 
-// Improved High-Visibility Visualizer
+// Enhanced Visualizer with Mobile-Friendly Sizing and Rings
 const LiveVisualizer = memo(({ isSpeaking, volume }: { isSpeaking: boolean, volume: number }) => {
-    // Smoothed volume for scale (clamp between 0 and 100)
+    // Smoothed volume for scale
     const normVol = Math.min(100, Math.max(0, volume));
-    const scale = 1 + (normVol / 80); 
+    const pulseScale = 1 + (normVol / 120); 
     
-    // Bar count for wave
-    const bars = 9;
-
     return (
-        <div className="relative w-80 h-80 flex items-center justify-center">
-            {/* 1. Ambient Glow Background */}
+        <div className="relative w-full max-w-[320px] aspect-square flex items-center justify-center">
+            {/* 1. Dynamic Background Glow */}
             <div 
-                className={`absolute inset-0 bg-gradient-to-tr from-indigo-600/30 to-purple-600/30 rounded-full blur-[60px] transition-all duration-300 ease-out ${isSpeaking ? 'opacity-100 scale-110' : 'opacity-40 scale-90'}`}
+                className={`absolute inset-0 bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 rounded-full blur-[60px] transition-all duration-300 ${isSpeaking ? 'opacity-100 scale-110' : 'opacity-30 scale-90'}`}
             ></div>
 
-            {/* 2. Outer Ripple Rings */}
+            {/* 2. Expanding Ripple Rings */}
             {[...Array(3)].map((_, i) => (
                 <div
                     key={i}
-                    className={`absolute rounded-full border border-indigo-400/20 transition-all duration-700 ease-out ${isSpeaking ? 'opacity-100' : 'opacity-0'}`}
+                    className={`absolute rounded-full border border-indigo-400/30 transition-all duration-[2000ms] ease-out ${isSpeaking ? 'animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite]' : ''}`}
                     style={{
-                        width: `${180 + (i * 60)}px`,
-                        height: `${180 + (i * 60)}px`,
-                        transform: `scale(${isSpeaking ? 1 + (normVol/200) : 0.8})`,
-                        opacity: isSpeaking ? 0.3 - (i * 0.1) : 0
+                        width: `${60 + (i * 20)}%`,
+                        height: `${60 + (i * 20)}%`,
+                        animationDelay: `${i * 0.6}s`,
+                        opacity: isSpeaking ? 0.6 : 0.1
                     }}
                 ></div>
             ))}
 
-            {/* 3. Core Circle Container */}
+            {/* 3. Core Orb */}
             <div 
-                className="relative z-10 w-48 h-48 bg-gray-900 rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(0,0,0,0.5)] border-4 border-gray-800 transition-transform duration-100 overflow-hidden"
-                style={{ transform: `scale(${scale})` }}
+                className="relative z-10 w-40 h-40 sm:w-56 sm:h-56 bg-black rounded-full flex items-center justify-center shadow-[0_0_60px_rgba(79,70,229,0.4)] border-4 border-gray-800 transition-transform duration-100 overflow-hidden"
+                style={{ transform: `scale(${pulseScale})` }}
             >
                 {/* Inner Gradient Mesh */}
-                <div className="absolute inset-0 bg-gradient-to-b from-gray-800 via-gray-900 to-black opacity-90"></div>
+                <div className={`absolute inset-0 bg-gradient-to-br from-indigo-900 via-black to-blue-900 transition-opacity duration-300 ${isSpeaking ? 'opacity-100' : 'opacity-80'}`}></div>
                 
                 {isSpeaking ? (
-                    /* 4. Active Waveform Animation */
-                    <div className="flex items-center justify-center gap-1.5 h-24 relative z-20">
-                        {[...Array(bars)].map((_, i) => {
-                            // Symmetric Wave Logic
-                            const center = Math.floor(bars / 2);
-                            const dist = Math.abs(center - i);
-                            // Randomize slightly but keep symmetric structure
-                            const heightMod = Math.max(10, normVol * (1 - (dist * 0.15)) + (Math.random() * 20));
-                            
-                            return (
-                                <div
+                    /* 4. Active Plasma Animation */
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-[80%] h-[80%] bg-indigo-500 rounded-full blur-2xl opacity-50 animate-pulse"></div>
+                        <div className="w-[40%] h-[40%] bg-white rounded-full blur-md opacity-80 mix-blend-overlay"></div>
+                        
+                        {/* Audio Bars */}
+                        <div className="absolute inset-0 flex items-center justify-center gap-1.5 sm:gap-2">
+                             {[...Array(5)].map((_, i) => (
+                                 <div 
                                     key={i}
-                                    className="w-2.5 rounded-full bg-gradient-to-t from-cyan-400 to-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.8)] transition-all duration-75 ease-linear"
+                                    className="w-1.5 sm:w-2 bg-cyan-400 rounded-full shadow-[0_0_10px_cyan]"
                                     style={{ 
-                                        height: `${Math.min(100, heightMod)}%`,
-                                        opacity: 0.8 + (normVol/500)
+                                        height: `${20 + Math.random() * normVol}%`, 
+                                        transition: 'height 0.1s ease',
+                                        opacity: 0.8
                                     }}
-                                ></div>
-                            );
-                        })}
+                                 ></div>
+                             ))}
+                        </div>
                     </div>
                 ) : (
                     /* 5. Idle Mic State */
@@ -169,7 +165,6 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
   const [isMicOn, setIsMicOn] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [showSubtitles, setShowSubtitles] = useState(true);
-  const [transcripts, setTranscripts] = useState<{ role: 'user' | 'ai', text: string }[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState<{ role: 'user' | 'ai', text: string } | null>(null);
   const [volume, setVolume] = useState(0);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
@@ -190,9 +185,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
 
     const startSession = async () => {
         try {
-            // Robust Key Retrieval
             const apiKey = (window as any).process?.env?.API_KEY || (import.meta as any).env?.VITE_API_KEY;
-            
             if (!apiKey) throw new Error("API Key not configured");
 
             const ai = new GoogleGenAI({ apiKey });
@@ -208,17 +201,23 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
             analyser.fftSize = 256;
             analyserRef.current = analyser;
 
-            // CORRECT MODEL for Live API
             const sessionPromise = ai.live.connect({
                 model: 'gemini-2.5-flash-native-audio-preview-09-2025',
                 config: {
-                    responseModalities: [Modality.AUDIO], // Must be an array
+                    responseModalities: [Modality.AUDIO],
                     speechConfig: {
-                        voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } },
+                        voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } }, // 'Kore' is usually calm/neutral
                     },
+                    tools: [{ googleSearch: {} }], // Enable Search for News
                     inputAudioTranscription: {}, 
                     outputAudioTranscription: {},
-                    systemInstruction: "You are a concise, professional, and friendly news anchor assistant.",
+                    systemInstruction: `
+                        You are a professional, warm, and authoritative News Anchor. 
+                        Your primary job is to deliver the latest, most current news headlines to the user.
+                        You have access to Google Search to find real-time information. 
+                        Use Google Search immediately when asked about current events or "what's happening".
+                        Keep responses concise, spoken clearly, and structured like a news broadcast.
+                    `,
                 },
                 callbacks: {
                     onopen: async () => {
@@ -279,7 +278,8 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
                                 nextStartTimeRef.current += buffer.duration;
                                 
                                 source.onended = () => {
-                                    setIsAiSpeaking(false);
+                                    // Slight delay before visual off
+                                    setTimeout(() => setIsAiSpeaking(false), 200);
                                 };
                             }
                         }
@@ -294,10 +294,6 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
                         }
 
                         if (msg.serverContent?.turnComplete) {
-                            setCurrentTranscript(prev => {
-                                if (prev) setTranscripts(h => [...h, prev]);
-                                return null;
-                            });
                             setIsAiSpeaking(false);
                         }
                     },
@@ -305,6 +301,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
                         setIsConnected(false);
                     },
                     onerror: (err) => {
+                        console.error(err);
                         setError("Connection error");
                     }
                 }
@@ -375,32 +372,35 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] bg-gray-900 text-white flex flex-col animate-in fade-in zoom-in-95 duration-300">
-      <div className="flex justify-between items-center p-6 bg-gradient-to-b from-gray-900 to-transparent">
+    <div className="fixed inset-0 z-[60] bg-gray-900 text-white flex flex-col h-[100dvh] animate-in fade-in zoom-in-95 duration-300">
+      {/* Top Header */}
+      <div className="flex justify-between items-center p-4 sm:p-6 bg-gradient-to-b from-gray-900 to-transparent shrink-0">
         <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
-            <span className="text-white font-bold text-sm tracking-widest uppercase">
-                {isConnected ? 'Voice Connected' : 'Connecting...'}
+            <span className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+            <span className="text-white font-bold text-xs sm:text-sm tracking-widest uppercase flex items-center gap-2">
+                {isConnected ? 'Live Connected' : 'Connecting...'}
+                {isConnected && <Signal size={14} className="text-green-500" />}
             </span>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-3">
             {recordedChunksRef.current.length > 0 && (
                 <button onClick={handleDownload} className="p-2 bg-white/10 rounded-full hover:bg-white/20 text-white transition-colors">
                     <Download size={20} />
                 </button>
             )}
             <button onClick={onClose} className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors">
-                <X size={24} />
+                <X size={20} />
             </button>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center relative">
+      {/* Main Visualizer Area */}
+      <div className="flex-1 flex flex-col items-center justify-center relative p-4 min-h-0">
         {error ? (
-            <div className="text-center p-8 bg-red-900/20 rounded-xl border border-red-500/50">
+            <div className="text-center p-8 bg-red-900/20 rounded-xl border border-red-500/50 max-w-xs mx-auto">
                 <p className="text-red-400 font-bold mb-2">Connection Error</p>
                 <p className="text-sm text-red-200">{error}</p>
-                <button onClick={onClose} className="mt-4 px-4 py-2 bg-red-600 rounded-lg text-sm font-bold">Close</button>
+                <button onClick={onClose} className="mt-4 px-6 py-2 bg-red-600 rounded-lg text-sm font-bold shadow-lg">Close</button>
             </div>
         ) : (
             <LiveVisualizer isSpeaking={isAiSpeaking || (volume > 5)} volume={volume} />
@@ -412,11 +412,12 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
         )}
       </div>
 
+      {/* Transcript Area */}
       {showSubtitles && (
-          <div className="px-6 py-4 min-h-[120px] max-h-[120px] overflow-hidden flex flex-col justify-end bg-gradient-to-t from-gray-900 via-gray-900/80 to-transparent">
+          <div className="px-4 sm:px-6 py-2 min-h-[100px] max-h-[120px] shrink-0 overflow-hidden flex flex-col justify-end bg-gradient-to-t from-gray-900 via-gray-900/90 to-transparent">
               <div className="text-center space-y-2">
                   {currentTranscript && (
-                      <p className={`text-lg font-medium leading-relaxed animate-in slide-in-from-bottom-2 fade-in ${currentTranscript.role === 'ai' ? 'text-white' : 'text-gray-400 italic'}`}>
+                      <p className={`text-base sm:text-lg font-medium leading-relaxed animate-in slide-in-from-bottom-2 fade-in ${currentTranscript.role === 'ai' ? 'text-white' : 'text-gray-400 italic'}`}>
                           {currentTranscript.text}
                       </p>
                   )}
@@ -424,14 +425,28 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
           </div>
       )}
 
-      <div className="p-8 pb-12 flex justify-center items-center gap-6 bg-gray-900">
-         <button onClick={() => setShowSubtitles(!showSubtitles)} className={`p-4 rounded-full transition-colors ${showSubtitles ? 'bg-gray-800 text-white' : 'bg-gray-800/50 text-gray-500'}`}>
+      {/* Bottom Controls */}
+      <div className="p-6 sm:p-8 pb-8 sm:pb-12 flex justify-center items-center gap-6 sm:gap-8 bg-gray-900 shrink-0">
+         <button 
+            onClick={() => setShowSubtitles(!showSubtitles)} 
+            className={`p-4 rounded-full transition-colors ${showSubtitles ? 'bg-gray-800 text-white' : 'bg-gray-800/50 text-gray-500'}`}
+            title="Toggle Subtitles"
+         >
             <Captions size={24} />
          </button>
-         <button onClick={toggleMic} className={`w-20 h-20 rounded-full flex items-center justify-center shadow-xl transition-all active:scale-95 ${isMicOn ? 'bg-white text-black' : 'bg-red-500 text-white'}`}>
-            {isMicOn ? <Mic size={32} /> : <MicOff size={32} />}
+         
+         <button 
+            onClick={toggleMic} 
+            className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center shadow-xl transition-all active:scale-95 ${isMicOn ? 'bg-white text-black' : 'bg-red-500 text-white'}`}
+         >
+            {isMicOn ? <Mic size={28} /> : <MicOff size={28} />}
          </button>
-         <button onClick={onClose} className="p-4 rounded-full bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-colors">
+         
+         <button 
+            onClick={onClose} 
+            className="p-4 rounded-full bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-colors"
+            title="End Session"
+         >
             <StopCircle size={24} />
          </button>
       </div>

@@ -40,6 +40,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
   // Action States
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   
   // Ref to track if speech was manually stopped
   const speechStoppedRef = useRef(false);
@@ -53,6 +54,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
     };
   }, [isSpeaking]);
 
+  // Load voices securely
+  useEffect(() => {
+    const load = () => setVoices(window.speechSynthesis.getVoices());
+    load();
+    window.speechSynthesis.onvoiceschanged = load;
+    return () => { window.speechSynthesis.onvoiceschanged = null; };
+  }, []);
+
   const handleReport = () => {
       setIsReported(true);
       onReport?.(message.id);
@@ -63,20 +72,30 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
       setTimeout(() => setAiState('idle'), 1500);
   };
 
-  // --- "Calm News Anchor" Voice Engine ---
+  // --- Voice Engine ---
 
-  const getAnchorVoice = () => {
-      const voices = window.speechSynthesis.getVoices();
-      
-      // Priority 1: High-quality English voices (Google/Microsoft often sound more natural)
-      // We look for "Google US English" or "Microsoft Zira" as they are standard "news-like" voices.
-      // We avoid heavy accents unless explicitly Hindi content is detected (handled by lang prop usually, but here generally).
-      
-      return voices.find(v => v.name === "Google US English") || 
-             voices.find(v => v.name === "Microsoft Zira - English (United States)") ||
-             voices.find(v => v.name.includes("Samantha")) || // iOS
-             voices.find(v => v.lang === 'en-US' && !v.name.toLowerCase().includes('male')) || // Prefer female/neutral for "warmth" often found in anchors, or user preference
-             voices.find(v => v.lang === 'en-GB') || // British often sounds professional
+  const getReporterVoice = () => {
+      // 1. Exact Match for High Quality Neural/Wavenet Voices (if available in browser/OS)
+      // Note: These specific names depend on what the underlying OS/Browser exposes.
+      const premiumVoices = [
+          "en-IN-Wavenet-D", // Male Calm
+          "en-IN-Wavenet-F", // Female Warm
+          "en-US-Neural2-J", // Neutral Anchor
+          "Google US English",
+          "Microsoft Zira",
+          "Samantha"
+      ];
+
+      for (const name of premiumVoices) {
+          const found = voices.find(v => v.name.includes(name));
+          if (found) return found;
+      }
+
+      // 2. Fallback to Locale specific
+      return voices.find(v => v.lang === 'en-IN' && !v.name.toLowerCase().includes('google')) || // Prefer native OS Indian voice if available
+             voices.find(v => v.lang === 'en-IN') ||
+             voices.find(v => v.lang === 'en-GB') || // British often sounds formal/anchor-like
+             voices.find(v => v.lang === 'en-US') ||
              voices[0];
   };
 
@@ -111,7 +130,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
           } 
           // 2. Normal Lines
           else {
-              // Remove list markers for cleaner reading flow
+              // Remove list markers
               const cleanLine = trimmed.replace(/^(\*|-|\d+\.)\s/, '');
               
               // Split by Bold markdown (**text**)
@@ -132,7 +151,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
 
       // --- Sequential Speaking Queue ---
       let currentIndex = 0;
-      const anchorVoice = getAnchorVoice();
+      const reporterVoice = getReporterVoice();
 
       const speakNext = () => {
           if (speechStoppedRef.current || currentIndex >= segments.length) {
@@ -143,25 +162,22 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
 
           const segment = segments[currentIndex];
           const u = new SpeechSynthesisUtterance(segment.text);
-          u.voice = anchorVoice;
+          if (reporterVoice) u.voice = reporterVoice;
 
-          // --- "Calm News Anchor" Profile ---
-          // Neutral – Calm – Professional – Warm
-          // ~0.9x to 1.0x speed
-          
+          // Apply Tonal Emotions
           switch (segment.tone) {
               case 'heading':
-                  u.pitch = 0.95; // Slightly lower/serious for headlines
-                  u.rate = 0.9;   // Deliberate pace for importance
+                  u.pitch = 1.0; 
+                  u.rate = 0.9;   // Slower, authoritative
                   break;
               case 'bold':
-                  u.pitch = 1.0; 
-                  u.rate = 0.95;  // Slight pause/emphasis
+                  u.pitch = 1.05; // Slightly higher emphasis
+                  u.rate = 0.95;  
                   break;
               case 'normal':
               default:
-                  u.pitch = 1.0;  // Neutral
-                  u.rate = 1.0;   // Clear, conversational but professional
+                  u.pitch = 1.0;  
+                  u.rate = 1.0;  
                   break;
           }
           u.volume = 1.0;
