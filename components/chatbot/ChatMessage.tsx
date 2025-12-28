@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { User, ExternalLink, ArrowRight, Flag, Info, CheckCircle2, Wand2, Volume2, StopCircle, Copy, Share2, Check } from 'lucide-react';
+import { User, ExternalLink, ArrowRight, Flag, Info, CheckCircle2, Wand2, Volume2, StopCircle, Copy, Share2, Check, Loader2 } from 'lucide-react';
+import { GoogleGenAI, Modality } from "@google/genai";
 import HighlightReadingMode from '../HighlightReadingMode';
 import StoryboardAttachment, { StoryboardData } from './StoryboardAttachment';
 import ImageAttachment from './ImageAttachment';
@@ -32,26 +33,61 @@ interface ChatMessageProps {
   onReport?: (id: string) => void;
 }
 
+// --- Audio Helper Functions ---
+function decode(base64: string) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+async function decodeAudioData(
+  data: Uint8Array,
+  ctx: AudioContext,
+  sampleRate: number,
+  numChannels: number,
+): Promise<AudioBuffer> {
+  const dataInt16 = new Int16Array(data.buffer);
+  const frameCount = dataInt16.length / numChannels;
+  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+
+  for (let channel = 0; channel < numChannels; channel++) {
+    const channelData = buffer.getChannelData(channel);
+    for (let i = 0; i < frameCount; i++) {
+      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    }
+  }
+  return buffer;
+}
+
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onReport }) => {
   const isUser = message.role === 'user';
   const [isReported, setIsReported] = useState(false);
-  const [aiState, setAiState] = useState<'idle' | 'speaking'>('idle');
+  const [aiState, setAiState] = useState<'idle' | 'speaking' | 'thinking' | 'error'>('idle');
   
   // Action States
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  
-  // Ref to track if speech was manually stopped
-  const speechStoppedRef = useRef(false);
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
 
-  // Cleanup speech on unmount
+  // Audio Context Refs
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
+
+  // Cleanup audio on unmount
   useEffect(() => {
     return () => {
-      if (isSpeaking) {
-        window.speechSynthesis.cancel();
+      if (sourceRef.current) {
+        sourceRef.current.stop();
+      }
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
       }
     };
-  }, [isSpeaking]);
+  }, []);
 
   const handleReport = () => {
       setIsReported(true);
@@ -59,140 +95,92 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
   };
 
   const handleAvatarClick = () => {
-      setAiState('speaking');
-      setTimeout(() => setAiState('idle'), 1500);
+      if (!isSpeaking) {
+        setAiState('speaking');
+        setTimeout(() => setAiState('idle'), 1500);
+      }
   };
 
-  // --- "Calm News Anchor" Voice Engine ---
-
-  const getAnchorVoice = () => {
-      const voices = window.speechSynthesis.getVoices();
-      
-      // Priority 1: High-quality English voices (Google/Microsoft often sound more natural)
-      return voices.find(v => v.name === "Google US English") || 
-             voices.find(v => v.name === "Microsoft Zira - English (United States)") ||
-             voices.find(v => v.name.includes("Samantha")) || // iOS
-             voices.find(v => v.lang === 'en-US' && !v.name.toLowerCase().includes('male')) || // Prefer female/neutral for "warmth" often found in anchors
-             voices.find(v => v.lang === 'en-GB') || // British often sounds professional
-             voices[0];
-  };
-
-  const handleReadAloud = (e: React.MouseEvent) => {
+  const handleReadAloud = async (e: React.MouseEvent) => {
       e.stopPropagation();
       
-      // Toggle Off
+      // Stop Playback
       if (isSpeaking) {
-          speechStoppedRef.current = true;
-          window.speechSynthesis.cancel();
+          if (sourceRef.current) {
+              sourceRef.current.stop();
+              sourceRef.current = null;
+          }
           setIsSpeaking(false);
           setAiState('idle');
           return;
       }
 
-      speechStoppedRef.current = false;
-      setIsSpeaking(true);
-      setAiState('speaking');
+      setIsGeneratingAudio(true);
+      setAiState('thinking');
 
-      // --- Parsing Content for Tone ---
-      // We break the text into "semantic segments" to apply different prosody
-      const segments: { text: string; tone: 'normal' | 'bold' | 'heading' }[] = [];
-      const lines = message.content.split('\n');
+      try {
+          const apiKey = (window as any).process?.env?.API_KEY || (import.meta as any).env?.VITE_API_KEY;
+          if (!apiKey) throw new Error("API Key not available");
 
-      lines.forEach(line => {
-          const trimmed = line.trim();
-          if (!trimmed) return;
+          const ai = new GoogleGenAI({ apiKey });
+          
+          // Clean text slightly to avoid reading markdown symbols literally if desired,
+          // though Gemini TTS is usually smart enough.
+          const cleanText = message.content.replace(/\*/g, '');
 
-          // 1. Headings (Markdown #) or Short Emphatic Lines
-          if (/^#+\s/.test(trimmed) || (trimmed.length < 50 && trimmed.endsWith(':'))) {
-              const clean = trimmed.replace(/^#+\s/, '') + '.'; // Add pause via punctuation
-              segments.push({ text: clean, tone: 'heading' });
-          } 
-          // 2. Normal Lines
-          else {
-              // Remove list markers for cleaner reading flow
-              const cleanLine = trimmed.replace(/^(\*|-|\d+\.)\s/, '');
-              
-              // Split by Bold markdown (**text**)
-              const parts = cleanLine.split(/(\*\*.*?\*\*)/g);
-              
-              parts.forEach(part => {
-                  if (part.startsWith('**') && part.endsWith('**')) {
-                      // Bold Text found
-                      const text = part.replace(/\*\*/g, '');
-                      if (text.trim()) segments.push({ text: text, tone: 'bold' });
-                  } else if (part.trim()) {
-                      // Normal Text
-                      segments.push({ text: part, tone: 'normal' });
+          const response = await ai.models.generateContent({
+              model: "gemini-2.5-flash-preview-tts",
+              contents: [{ parts: [{ text: cleanText }] }],
+              config: {
+                  responseModalities: [Modality.AUDIO],
+                  speechConfig: {
+                      voiceConfig: {
+                          prebuiltVoiceConfig: { voiceName: 'Kore' }
+                      }
                   }
-              });
+              }
+          });
+
+          const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+          if (!base64Audio) throw new Error("No audio generated");
+
+          // Initialize Audio Context
+          let ctx = audioContextRef.current;
+          if (!ctx) {
+              const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+              ctx = new AudioContextClass({ sampleRate: 24000 });
+              audioContextRef.current = ctx;
           }
-      });
 
-      // --- Sequential Speaking Queue ---
-      let currentIndex = 0;
-      
-      // Ensure voices are loaded (sometimes needed for Chrome)
-      let anchorVoice = getAnchorVoice();
-      if (!anchorVoice && window.speechSynthesis.getVoices().length === 0) {
-          // Retry once if voices aren't loaded yet
-          setTimeout(() => {
-             anchorVoice = getAnchorVoice();
-             if(anchorVoice) speakNext();
-          }, 500);
-      } else {
-          speakNext();
-      }
+          if (ctx.state === 'suspended') {
+              await ctx.resume();
+          }
 
-      function speakNext() {
-          if (speechStoppedRef.current || currentIndex >= segments.length) {
+          const audioBuffer = await decodeAudioData(decode(base64Audio), ctx, 24000, 1);
+          
+          const source = ctx.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(ctx.destination);
+          
+          source.onended = () => {
               setIsSpeaking(false);
               setAiState('idle');
-              return;
-          }
+              sourceRef.current = null;
+          };
 
-          const segment = segments[currentIndex];
-          const u = new SpeechSynthesisUtterance(segment.text);
-          if (!anchorVoice) anchorVoice = getAnchorVoice(); // Try getting voice again just in case
-          if (anchorVoice) u.voice = anchorVoice;
-
-          // --- "Calm News Anchor" Profile ---
-          // Neutral – Calm – Professional – Warm
+          source.start();
+          sourceRef.current = source;
           
-          switch (segment.tone) {
-              case 'heading':
-                  u.pitch = 0.95; // Slightly lower/serious for headlines
-                  u.rate = 0.9;   // Deliberate pace for importance
-                  break;
-              case 'bold':
-                  u.pitch = 1.05; // Highlight
-                  u.rate = 0.95;  // Slight pause/emphasis
-                  break;
-              case 'normal':
-              default:
-                  u.pitch = 1.0;  // Neutral
-                  u.rate = 1.05;  // Efficient, conversational flow
-                  break;
-          }
-          u.volume = 1.0;
+          setIsSpeaking(true);
+          setAiState('speaking');
 
-          u.onend = () => {
-              currentIndex++;
-              speakNext();
-          };
-
-          u.onerror = (err) => {
-              // Log specific error code, not the whole object to avoid [object Object]
-              console.error("Speech Error Event:", err.error);
-              
-              // If it's a 'canceled' or 'interrupted' error, it's usually fine to just stop
-              if (err.error !== 'canceled' && err.error !== 'interrupted') {
-                  setIsSpeaking(false);
-                  setAiState('idle');
-              }
-          };
-
-          window.speechSynthesis.speak(u);
-      };
+      } catch (error) {
+          console.error("AI TTS Error:", error);
+          setAiState('error');
+          setTimeout(() => setAiState('idle'), 2000);
+      } finally {
+          setIsGeneratingAudio(false);
+      }
   };
 
   const handleCopy = (e: React.MouseEvent) => {
@@ -237,7 +225,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                     <div className="relative">
                         <div className="absolute inset-0 bg-indigo-500 blur-md opacity-30 rounded-full"></div>
                         <InteractiveAvatar 
-                            state={message.isStreaming || isSpeaking ? 'speaking' : aiState} 
+                            state={message.isStreaming ? 'speaking' : aiState} 
                             size={40} 
                             onClick={handleAvatarClick}
                         />
@@ -317,10 +305,19 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
                         <div className="flex items-center gap-2">
                             <button 
                                 onClick={handleReadAloud} 
-                                className={`p-1.5 rounded-full transition-colors flex items-center gap-1 ${isSpeaking ? 'bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400 shadow-sm' : 'text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:text-slate-500 dark:hover:text-indigo-300 dark:hover:bg-white/10'}`} 
-                                title={isSpeaking ? "Stop Report" : "Listen to Report"}
+                                disabled={isGeneratingAudio}
+                                className={`p-1.5 rounded-full transition-all flex items-center gap-1 ${
+                                    isSpeaking 
+                                    ? 'bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400 shadow-sm' 
+                                    : 'text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:text-slate-500 dark:hover:text-indigo-300 dark:hover:bg-white/10'
+                                }`} 
+                                title={isSpeaking ? "Stop" : "AI Read Aloud"}
                             >
-                                {isSpeaking ? <StopCircle size={14} className="animate-pulse" /> : <Volume2 size={14} />}
+                                {isGeneratingAudio ? (
+                                    <Loader2 size={14} className="animate-spin text-indigo-500" />
+                                ) : (
+                                    isSpeaking ? <StopCircle size={14} className="animate-pulse" /> : <Volume2 size={14} />
+                                )}
                                 {isSpeaking && <span className="text-[10px] font-bold">Stop</span>}
                             </button>
 
