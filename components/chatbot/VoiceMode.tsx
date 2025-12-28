@@ -95,38 +95,57 @@ function createBlob(data: Float32Array): { data: string, mimeType: string } {
 
 // Visualizer
 const LiveVisualizer = memo(({ isSpeaking, volume }: { isSpeaking: boolean, volume: number }) => {
-    const scale = 1 + (volume / 50); 
-    
+    // Volume smoothing for ring scale
+    const ringSize = 120 + (Math.min(volume, 50) * 1.5);
+
     return (
-        <div className="relative w-64 h-64 flex items-center justify-center">
-            <div className={`absolute inset-0 border-2 border-indigo-500/30 rounded-full transition-all duration-1000 ${isSpeaking ? 'scale-150 opacity-0' : 'scale-100 opacity-100'}`}></div>
-            <div className={`absolute inset-0 border-2 border-blue-500/30 rounded-full transition-all duration-1000 delay-100 ${isSpeaking ? 'scale-125 opacity-0' : 'scale-90 opacity-100'}`}></div>
-            
-            <div 
-                className={`w-32 h-32 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 shadow-[0_0_50px_rgba(79,70,229,0.5)] flex items-center justify-center transition-all duration-75`}
-                style={{ transform: `scale(${isSpeaking ? scale : 1})` }}
-            >
+        <div className="relative w-80 h-80 flex items-center justify-center">
+            {/* Outer Ripple Rings */}
+            {[...Array(3)].map((_, i) => (
+                <div
+                    key={i}
+                    className={`absolute rounded-full border border-indigo-500/30 transition-all duration-300 ease-out ${isSpeaking ? 'opacity-100' : 'opacity-20'}`}
+                    style={{
+                        width: `${ringSize + (i * 45)}px`,
+                        height: `${ringSize + (i * 45)}px`,
+                        transform: `scale(${isSpeaking ? 1 + (i * 0.05) : 1})`,
+                        opacity: isSpeaking ? 0.6 - (i * 0.15) : 0.1
+                    }}
+                ></div>
+            ))}
+
+            {/* Glowing Core Background */}
+            <div className={`absolute inset-0 bg-indigo-500/20 rounded-full blur-3xl transition-all duration-200 ${isSpeaking ? 'scale-110 opacity-60' : 'scale-75 opacity-20'}`}></div>
+
+            {/* Main Circle */}
+            <div className="relative z-10 w-44 h-44 bg-gradient-to-b from-gray-800 to-black rounded-full flex items-center justify-center shadow-2xl border border-gray-700/50 overflow-hidden">
+                {/* Gloss Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent pointer-events-none rounded-full"></div>
+                
                 {isSpeaking ? (
-                    <Volume2 size={48} className="text-white animate-pulse" />
+                    /* Dynamic Audio Bars */
+                    <div className="flex items-center gap-1.5 h-20 items-end justify-center pb-6">
+                        {[...Array(7)].map((_, i) => {
+                            // Calculate height based on volume and index for a wave shape
+                            const centerOffset = Math.abs(3 - i); // 3 is center index of 7
+                            const baseHeight = 25;
+                            const volMod = Math.max(0, volume - (centerOffset * 5));
+                            const height = Math.min(100, baseHeight + volMod * 2 + (Math.random() * 20));
+
+                            return (
+                                <div
+                                    key={i}
+                                    className="w-2.5 bg-gradient-to-t from-indigo-500 to-blue-400 rounded-full transition-all duration-75"
+                                    style={{ height: `${height}%`, opacity: 0.9 }}
+                                ></div>
+                            );
+                        })}
+                    </div>
                 ) : (
-                    <Mic size={48} className="text-white" />
+                    /* Mic Icon when listening/idle */
+                    <Mic size={48} className="text-gray-400 drop-shadow-md" />
                 )}
             </div>
-
-            {isSpeaking && (
-                <div className="absolute inset-0 flex items-center justify-center gap-1 pointer-events-none">
-                    {[...Array(8)].map((_, i) => (
-                        <div 
-                            key={i} 
-                            className="w-1.5 bg-white/50 rounded-full animate-[wave_0.5s_ease-in-out_infinite]"
-                            style={{ 
-                                height: `${Math.min(100, Math.max(20, volume * Math.random() * 2))}%`,
-                                animationDelay: `${i * 0.05}s`
-                            }}
-                        ></div>
-                    ))}
-                </div>
-            )}
         </div>
     );
 });

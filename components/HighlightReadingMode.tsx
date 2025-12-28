@@ -35,8 +35,10 @@ const HighlightReadingMode: React.FC<HighlightReadingModeProps> = ({
   }, []);
 
   const getReporterVoice = () => {
-      // Consistent News Anchor Selection
-      return voices.find(v => v.name === "Google US English") || 
+      // Prioritize Indian/Hindi accents
+      return voices.find(v => v.lang === 'hi-IN' || v.name.includes('Hindi') || v.name.includes('India')) ||
+             voices.find(v => v.lang === 'en-IN') ||
+             voices.find(v => v.name === "Google US English") || 
              voices.find(v => v.name === "Microsoft Zira - English (United States)") ||
              voices.find(v => v.name.includes("Samantha")) ||
              voices.find(v => v.lang === 'en-US' && !v.name.includes("Zira")) || 
