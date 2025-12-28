@@ -47,21 +47,28 @@ export const fetchNewsFeed = async (page: number, filters: any) => {
       Output Language: ${language}
     `;
 
+    // Relaxed config to avoid RPC errors with Tools + Schema
     const prompt = `
       Find 5 unique news articles about "${topic}".
       Context: ${filterContext}.
       Page: ${page}.
       
-      Return a JSON array with these properties for each article:
-      - id: string (unique)
-      - title: string (Translate to ${language})
-      - description: string (Short summary in ${language})
-      - source: string
-      - timeAgo: string (e.g. '2h ago')
-      - category: string
-      - imageUrl: string (use a placeholder if none found, prefer real high quality images)
+      You have access to Google Search. Use it to find real, up-to-date information.
       
-      Use the googleSearch tool to find real, up-to-date information.
+      IMPORTANT: Output the result strictly as a JSON Array. Do not wrap in markdown code blocks.
+      
+      JSON Structure:
+      [
+        {
+          "id": "unique_string",
+          "title": "Translated Headline",
+          "description": "Short summary",
+          "source": "Publisher Name",
+          "timeAgo": "e.g. 2h ago",
+          "category": "Category",
+          "imageUrl": "URL or placeholder"
+        }
+      ]
     `;
 
     const response = await ai.models.generateContent({
@@ -69,22 +76,8 @@ export const fetchNewsFeed = async (page: number, filters: any) => {
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
-        responseMimeType: "application/json",
-        responseSchema: {
-            type: Type.ARRAY,
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                    id: { type: Type.STRING },
-                    title: { type: Type.STRING },
-                    description: { type: Type.STRING },
-                    source: { type: Type.STRING },
-                    timeAgo: { type: Type.STRING },
-                    category: { type: Type.STRING },
-                    imageUrl: { type: Type.STRING }
-                }
-            }
-        }
+        // Note: Removed responseMimeType and responseSchema to prevent RPC 500 errors 
+        // that occur when combining Search Grounding with strict output validation.
       }
     });
 
@@ -92,8 +85,20 @@ export const fetchNewsFeed = async (page: number, filters: any) => {
     if (!text) return getMockData(page, filters.category, language);
     
     try {
-        const cleanText = text.replace(/```json\n?|```/g, '').trim();
-        return JSON.parse(cleanText);
+        // Robust cleaning to handle potential Markdown wrapping
+        const cleanText = text.replace(/```json|```/g, '').trim();
+        const arrayStart = cleanText.indexOf('[');
+        const arrayEnd = cleanText.lastIndexOf(']');
+        
+        if (arrayStart !== -1 && arrayEnd !== -1) {
+            const jsonStr = cleanText.substring(arrayStart, arrayEnd + 1);
+            return JSON.parse(jsonStr);
+        }
+        
+        // Fallback if no array found
+        console.warn("No JSON array found in response");
+        return getMockData(page, filters.category, language);
+
     } catch (parseError) {
         console.warn("JSON Parse Failed, using fallback data", parseError);
         return getMockData(page, filters.category, language);
@@ -101,6 +106,7 @@ export const fetchNewsFeed = async (page: number, filters: any) => {
 
   } catch (error) {
     console.error("AI Fetch Error", error);
+    // Graceful fallback to mock data on API error
     return getMockData(page, filters.category, language);
   }
 };

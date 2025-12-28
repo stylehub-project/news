@@ -63,15 +63,20 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
       setTimeout(() => setAiState('idle'), 1500);
   };
 
-  // --- Reporting & Explaining Voice Engine ---
+  // --- "Calm News Anchor" Voice Engine ---
 
-  const getReporterVoice = () => {
+  const getAnchorVoice = () => {
       const voices = window.speechSynthesis.getVoices();
-      // Priority: Indian/Hindi Accented English -> US English -> Default
-      return voices.find(v => v.lang === 'hi-IN' || v.name.includes('Hindi') || v.name.includes('India')) ||
-             voices.find(v => v.lang === 'en-IN') ||
-             voices.find(v => v.name === "Google US English") ||
-             voices.find(v => v.lang === 'en-US') ||
+      
+      // Priority 1: High-quality English voices (Google/Microsoft often sound more natural)
+      // We look for "Google US English" or "Microsoft Zira" as they are standard "news-like" voices.
+      // We avoid heavy accents unless explicitly Hindi content is detected (handled by lang prop usually, but here generally).
+      
+      return voices.find(v => v.name === "Google US English") || 
+             voices.find(v => v.name === "Microsoft Zira - English (United States)") ||
+             voices.find(v => v.name.includes("Samantha")) || // iOS
+             voices.find(v => v.lang === 'en-US' && !v.name.toLowerCase().includes('male')) || // Prefer female/neutral for "warmth" often found in anchors, or user preference
+             voices.find(v => v.lang === 'en-GB') || // British often sounds professional
              voices[0];
   };
 
@@ -92,11 +97,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
       setAiState('speaking');
 
       // --- Parsing Content for Tone ---
-      // We break the text into segments to apply different tones.
-      // Headline: Authoritative, slightly slower.
-      // Body: Explanatory, clear, measured pace.
-      // Bold: Emphatic.
-      
       const segments: { text: string; tone: 'normal' | 'bold' | 'heading' }[] = [];
       const lines = message.content.split('\n');
 
@@ -109,9 +109,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
               const clean = trimmed.replace(/^#+\s/, '') + '.'; // Add pause
               segments.push({ text: clean, tone: 'heading' });
           } 
-          // 2. Normal Lines (Check for Bold inside)
+          // 2. Normal Lines
           else {
-              // Remove list markers for cleaner reading
+              // Remove list markers for cleaner reading flow
               const cleanLine = trimmed.replace(/^(\*|-|\d+\.)\s/, '');
               
               // Split by Bold markdown (**text**)
@@ -132,7 +132,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
 
       // --- Sequential Speaking Queue ---
       let currentIndex = 0;
-      const reporterVoice = getReporterVoice();
+      const anchorVoice = getAnchorVoice();
 
       const speakNext = () => {
           if (speechStoppedRef.current || currentIndex >= segments.length) {
@@ -143,22 +143,25 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
 
           const segment = segments[currentIndex];
           const u = new SpeechSynthesisUtterance(segment.text);
-          u.voice = reporterVoice;
+          u.voice = anchorVoice;
 
-          // Apply Tonal Emotions for "Reporting & Explaining"
+          // --- "Calm News Anchor" Profile ---
+          // Neutral – Calm – Professional – Warm
+          // ~0.9x to 1.0x speed
+          
           switch (segment.tone) {
               case 'heading':
-                  u.pitch = 0.95; // Slightly lower, authoritative
-                  u.rate = 0.9;   // Slower, deliberate headline reading
+                  u.pitch = 0.95; // Slightly lower/serious for headlines
+                  u.rate = 0.9;   // Deliberate pace for importance
                   break;
               case 'bold':
-                  u.pitch = 1.05; // Slightly higher for emphasis
-                  u.rate = 0.9;   // Slow down for key terms
+                  u.pitch = 1.0; 
+                  u.rate = 0.95;  // Slight pause/emphasis
                   break;
               case 'normal':
               default:
                   u.pitch = 1.0;  // Neutral
-                  u.rate = 0.95;  // Measured pace (Explaining style)
+                  u.rate = 1.0;   // Clear, conversational but professional
                   break;
           }
           u.volume = 1.0;
@@ -178,7 +181,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
       };
 
       // Start Queue
-      window.speechSynthesis.cancel(); // Clear anything pending
+      window.speechSynthesis.cancel();
       speakNext();
   };
 

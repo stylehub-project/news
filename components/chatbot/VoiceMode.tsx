@@ -93,57 +93,72 @@ function createBlob(data: Float32Array): { data: string, mimeType: string } {
   };
 }
 
-// Visualizer
+// Improved High-Visibility Visualizer
 const LiveVisualizer = memo(({ isSpeaking, volume }: { isSpeaking: boolean, volume: number }) => {
-    // Volume smoothing for ring scale
-    const ringSize = 120 + (Math.min(volume, 50) * 1.5);
+    // Smoothed volume for scale (clamp between 0 and 100)
+    const normVol = Math.min(100, Math.max(0, volume));
+    const scale = 1 + (normVol / 80); 
+    
+    // Bar count for wave
+    const bars = 9;
 
     return (
         <div className="relative w-80 h-80 flex items-center justify-center">
-            {/* Outer Ripple Rings */}
+            {/* 1. Ambient Glow Background */}
+            <div 
+                className={`absolute inset-0 bg-gradient-to-tr from-indigo-600/30 to-purple-600/30 rounded-full blur-[60px] transition-all duration-300 ease-out ${isSpeaking ? 'opacity-100 scale-110' : 'opacity-40 scale-90'}`}
+            ></div>
+
+            {/* 2. Outer Ripple Rings */}
             {[...Array(3)].map((_, i) => (
                 <div
                     key={i}
-                    className={`absolute rounded-full border border-indigo-500/30 transition-all duration-300 ease-out ${isSpeaking ? 'opacity-100' : 'opacity-20'}`}
+                    className={`absolute rounded-full border border-indigo-400/20 transition-all duration-700 ease-out ${isSpeaking ? 'opacity-100' : 'opacity-0'}`}
                     style={{
-                        width: `${ringSize + (i * 45)}px`,
-                        height: `${ringSize + (i * 45)}px`,
-                        transform: `scale(${isSpeaking ? 1 + (i * 0.05) : 1})`,
-                        opacity: isSpeaking ? 0.6 - (i * 0.15) : 0.1
+                        width: `${180 + (i * 60)}px`,
+                        height: `${180 + (i * 60)}px`,
+                        transform: `scale(${isSpeaking ? 1 + (normVol/200) : 0.8})`,
+                        opacity: isSpeaking ? 0.3 - (i * 0.1) : 0
                     }}
                 ></div>
             ))}
 
-            {/* Glowing Core Background */}
-            <div className={`absolute inset-0 bg-indigo-500/20 rounded-full blur-3xl transition-all duration-200 ${isSpeaking ? 'scale-110 opacity-60' : 'scale-75 opacity-20'}`}></div>
-
-            {/* Main Circle */}
-            <div className="relative z-10 w-44 h-44 bg-gradient-to-b from-gray-800 to-black rounded-full flex items-center justify-center shadow-2xl border border-gray-700/50 overflow-hidden">
-                {/* Gloss Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent pointer-events-none rounded-full"></div>
+            {/* 3. Core Circle Container */}
+            <div 
+                className="relative z-10 w-48 h-48 bg-gray-900 rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(0,0,0,0.5)] border-4 border-gray-800 transition-transform duration-100 overflow-hidden"
+                style={{ transform: `scale(${scale})` }}
+            >
+                {/* Inner Gradient Mesh */}
+                <div className="absolute inset-0 bg-gradient-to-b from-gray-800 via-gray-900 to-black opacity-90"></div>
                 
                 {isSpeaking ? (
-                    /* Dynamic Audio Bars */
-                    <div className="flex items-center gap-1.5 h-20 items-end justify-center pb-6">
-                        {[...Array(7)].map((_, i) => {
-                            // Calculate height based on volume and index for a wave shape
-                            const centerOffset = Math.abs(3 - i); // 3 is center index of 7
-                            const baseHeight = 25;
-                            const volMod = Math.max(0, volume - (centerOffset * 5));
-                            const height = Math.min(100, baseHeight + volMod * 2 + (Math.random() * 20));
-
+                    /* 4. Active Waveform Animation */
+                    <div className="flex items-center justify-center gap-1.5 h-24 relative z-20">
+                        {[...Array(bars)].map((_, i) => {
+                            // Symmetric Wave Logic
+                            const center = Math.floor(bars / 2);
+                            const dist = Math.abs(center - i);
+                            // Randomize slightly but keep symmetric structure
+                            const heightMod = Math.max(10, normVol * (1 - (dist * 0.15)) + (Math.random() * 20));
+                            
                             return (
                                 <div
                                     key={i}
-                                    className="w-2.5 bg-gradient-to-t from-indigo-500 to-blue-400 rounded-full transition-all duration-75"
-                                    style={{ height: `${height}%`, opacity: 0.9 }}
+                                    className="w-2.5 rounded-full bg-gradient-to-t from-cyan-400 to-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.8)] transition-all duration-75 ease-linear"
+                                    style={{ 
+                                        height: `${Math.min(100, heightMod)}%`,
+                                        opacity: 0.8 + (normVol/500)
+                                    }}
                                 ></div>
                             );
                         })}
                     </div>
                 ) : (
-                    /* Mic Icon when listening/idle */
-                    <Mic size={48} className="text-gray-400 drop-shadow-md" />
+                    /* 5. Idle Mic State */
+                    <div className="relative z-20 flex flex-col items-center">
+                        <Mic size={40} className="text-gray-500 drop-shadow-md mb-2" />
+                        <span className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">Listening</span>
+                    </div>
                 )}
             </div>
         </div>
