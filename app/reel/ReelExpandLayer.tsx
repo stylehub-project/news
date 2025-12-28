@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, MapPin, List, ArrowRight, BrainCircuit, Globe, Volume2, Pause, ShieldCheck, ExternalLink, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -72,8 +73,8 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
       const voice = getBestVoice();
       if (voice) utterance.voice = voice;
       
-      utterance.pitch = 1.1; // Sweet/Cute pitch
-      utterance.rate = 1.0;
+      utterance.pitch = 1.1; 
+      utterance.rate = 1.2; // FASTER talking (was 1.0)
       utterance.volume = 1.0;
 
       utterance.onend = () => setIsPlayingVoice(false);
@@ -119,7 +120,7 @@ const ReelExpandLayer: React.FC<ReelExpandLayerProps> = ({ isOpen, onClose, data
             <div className={`flex items-center justify-between p-3 rounded-xl border ${data.factCheck.score > 90 ? 'bg-emerald-900/20 border-emerald-800 text-emerald-400' : 'bg-yellow-900/20 border-yellow-800 text-yellow-400'}`}>
                 <div className="flex items-center gap-2">
                     <ShieldCheck size={18} />
-                    <span className="font-bold text-xs uppercase tracking-wide">AI Fact Check</span>
+                    <span className="font-bold text-xs uppercase tracking-wide">Fact Check</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="text-xs font-medium">{data.factCheck.status}</span>

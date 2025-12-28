@@ -117,7 +117,7 @@ const ChatPage: React.FC = () => {
             chatSessionRef.current = ai.chats.create({
                 model: 'gemini-flash-lite-latest', 
                 config: {
-                    systemInstruction: "You are News Gemini 🤖. Summarize news, use bold for key facts, and be emoji-friendly! Provide a summary, explain why it matters, and list potential impacts. ✨",
+                    systemInstruction: "You are a professional News Anchor AI. Summarize news concisely, use bold for key facts, and be emoji-friendly! Provide a summary, explain why it matters, and list potential impacts. If asked for Hindi headlines, provide them in Hindi text. ✨",
                     tools: [{ googleSearch: {} }],
                 },
             });
@@ -178,7 +178,7 @@ const ChatPage: React.FC = () => {
               chatSessionRef.current = ai.chats.create({ 
                   model: 'gemini-flash-lite-latest',
                   config: {
-                      systemInstruction: "You are News Gemini 🤖. Be expressive with emojis! ✨ Suggest 3 follow-up questions! 💡",
+                      systemInstruction: "You are a professional News Anchor AI. Be expressive with emojis! ✨ Suggest 3 follow-up questions! 💡",
                       tools: [{ googleSearch: {} }]
                   }
               });
@@ -345,7 +345,7 @@ const ChatPage: React.FC = () => {
                     <InteractiveAvatar state={avatarState} size={38} />
                 </div>
                 <div>
-                    <h1 className="font-black text-gray-900 dark:text-white leading-none tracking-tight">News Gemini ✨</h1>
+                    <h1 className="font-black text-gray-900 dark:text-white leading-none tracking-tight">AI Assistant ✨</h1>
                     <div className="flex items-center gap-1.5 mt-1">
                         <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
                         <span className="text-[10px] text-indigo-600 dark:text-indigo-300 font-bold uppercase tracking-wider block">Live Intelligence 🚀</span>
@@ -379,8 +379,8 @@ const ChatPage: React.FC = () => {
                     <div className="w-24 h-24 bg-gradient-to-tr from-indigo-500 to-blue-600 rounded-3xl flex items-center justify-center shadow-2xl mb-8 relative group">
                         <Bot size={48} className="text-white drop-shadow-lg group-hover:scale-110 transition-transform" />
                     </div>
-                    <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-4">Hey! I'm Gemini 🤖</h2>
-                    <p className="text-gray-500 dark:text-slate-400 max-w-sm mb-10 text-sm font-medium">I'm your personal AI news anchor. Ask me to summarize the day, analyze trends, or create a custom report! ✨📡</p>
+                    <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-4">Hey! I'm Your AI 🤖</h2>
+                    <p className="text-gray-500 dark:text-slate-400 max-w-sm mb-10 text-sm font-medium">I'm your personal news anchor. Ask me to summarize the day, analyze trends, or create a custom report! ✨📡</p>
                     <button onClick={() => handleSend("Give me a morning briefing ☀️")} className="bg-indigo-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2 hover:scale-105 active:scale-95">
                         <Zap size={18} className="fill-yellow-300" /> Start Daily Briefing
                     </button>

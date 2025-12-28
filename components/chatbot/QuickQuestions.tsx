@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Sparkles } from 'lucide-react';
 
@@ -7,8 +8,8 @@ interface QuickQuestionsProps {
 
 const QUESTIONS = [
   "Summarize today's top stories",
+  "🇮🇳 Today's Headlines (Hindi)",
   "Explain Quantum Computing",
-  "Create a flowchart for legislation",
   "Show me a graph of Tech stocks",
   "Generate newspaper layout",
   "Teach me about AI (Notebook Mode)"

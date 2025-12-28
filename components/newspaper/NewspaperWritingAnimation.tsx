@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { PenTool, RefreshCw } from 'lucide-react';
 
@@ -30,7 +31,7 @@ const NewspaperWritingAnimation: React.FC<NewspaperWritingAnimationProps> = ({ i
             {stage === 'image-gen' && "Generating Visuals..."}
             {stage === 'finalizing' && "Polishing Layout..."}
           </h3>
-          <p className="text-xs text-gray-400">Gemini is curating your personalized edition.</p>
+          <p className="text-xs text-gray-400">Our AI editor is curating your personalized edition.</p>
         </div>
 
         {/* Progress Bar */}

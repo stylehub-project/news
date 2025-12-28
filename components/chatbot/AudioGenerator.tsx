@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Play, Pause, Download, Sparkles, RefreshCw, Music, Settings2, FileText, Mic, Radio, Clock, Zap } from 'lucide-react';
+import { X, Play, Pause, Download, Sparkles, RefreshCw, Music, Settings2, FileText, Mic, Radio, Clock, Zap, Filter } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import Button from '../ui/Button';
 
@@ -135,6 +136,7 @@ interface AudioGeneratorProps {
 const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
   const [step, setStep] = useState<'config' | 'generating' | 'playing'>('config');
   const [topic, setTopic] = useState('');
+  const [category, setCategory] = useState('Top Stories');
   const [language, setLanguage] = useState('Hinglish');
   const [tone, setTone] = useState('Reporter');
   const [mode, setMode] = useState('News Briefing');
@@ -152,8 +154,10 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
   const [playbackTime, setPlaybackTime] = useState(0);
   const startTimeRef = useRef(0);
 
-  const generateAudioWithSettings = async (t: string, l: string, tn: string, m: string, dur: string) => {
-      setTopic(t);
+  const generateAudioWithSettings = async (t: string, l: string, tn: string, m: string, dur: string, cat: string) => {
+      // If topic is empty, use category to seed
+      const effectiveTopic = t || `Latest updates in ${cat}`;
+      setTopic(effectiveTopic);
       setStep('generating');
       setLoadingText('Connecting to Newsroom...');
 
@@ -168,7 +172,8 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
             : "Provide a detailed discussion, around 300 words. Explore nuances and context.";
 
           const scriptPrompt = `
-            Create a spoken dialogue between Joe (Male) and Jane (Female) about: "${t}".
+            Create a spoken dialogue between Joe (Male) and Jane (Female) about: "${effectiveTopic}".
+            Context: The user is interested in the "${cat}" category.
             Language: ${l} (If Hinglish, mix Hindi and English naturally).
             Tone: ${tn}. 
             Format: ${m}.
@@ -235,12 +240,8 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
   };
 
   const handleGenerate = () => {
-      if (!topic.trim()) return;
-      generateAudioWithSettings(topic, language, tone, mode, duration);
-  };
-
-  const handleQuickDailyBriefing = () => {
-      generateAudioWithSettings("Today's Top Global Headlines", "English", "Professional", "News Briefing", duration);
+      // Pass category into generator
+      generateAudioWithSettings(topic, language, tone, mode, duration, category);
   };
 
   const togglePlay = () => {
@@ -306,26 +307,33 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
                   <h2 className="text-lg font-bold flex items-center gap-2"><Settings2 className="text-indigo-500" /> Audio Config</h2>
                   <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-gray-500"><X size={20} /></button>
               </div>
-              <div className="flex-1 p-6 overflow-y-auto max-w-md mx-auto w-full space-y-6 text-gray-900 dark:text-white">
+              <div className="flex-1 p-6 overflow-y-auto max-w-md mx-auto w-full space-y-6 text-gray-900 dark:text-white custom-scrollbar">
                   
-                  {/* Quick Action */}
-                  <Button 
-                    variant="secondary" 
-                    fullWidth 
-                    onClick={handleQuickDailyBriefing}
-                    className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 border-indigo-100 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 shadow-sm"
-                    leftIcon={<Zap size={18} className="text-yellow-500 fill-yellow-500" />}
-                  >
-                    Generate Today's Headlines
-                  </Button>
-
-                  <div className="h-px bg-gray-200 dark:bg-gray-800 w-full"></div>
+                  {/* Category Filter Selection */}
+                  <div>
+                      <label className="block text-xs font-bold uppercase mb-2 text-gray-600 dark:text-gray-400">Content Source</label>
+                      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                          {['Top Stories', 'Tech', 'Politics', 'Business', 'World', 'Science'].map(cat => (
+                              <button
+                                  key={cat}
+                                  onClick={() => setCategory(cat)}
+                                  className={`px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap border transition-colors ${
+                                      category === cat 
+                                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' 
+                                      : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800'
+                                  }`}
+                              >
+                                  {cat}
+                              </button>
+                          ))}
+                      </div>
+                  </div>
 
                   <div>
-                      <label className="block text-sm font-bold mb-2">Topic</label>
+                      <label className="block text-sm font-bold mb-2 text-gray-900 dark:text-white">Custom Topic (Optional)</label>
                       <textarea 
-                          className="w-full p-4 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none h-24 resize-none shadow-sm"
-                          placeholder="e.g. 'Daily Tech News Summary'"
+                          className="w-full p-4 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none h-20 resize-none shadow-sm text-gray-900 dark:text-white placeholder:text-gray-400"
+                          placeholder={`Leave empty to use ${category} headlines...`}
                           value={topic}
                           onChange={(e) => setTopic(e.target.value)}
                       />
@@ -333,8 +341,8 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
                   
                   <div className="grid grid-cols-2 gap-4">
                       <div>
-                          <label className="block text-xs font-bold uppercase mb-2">Language</label>
-                          <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full p-3 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 outline-none">
+                          <label className="block text-xs font-bold uppercase mb-2 text-gray-600 dark:text-gray-400">Language</label>
+                          <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full p-3 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 outline-none text-gray-900 dark:text-white">
                               <option value="Hinglish">Hinglish</option>
                               <option value="English">English</option>
                               <option value="Hindi">Hindi</option>
@@ -343,8 +351,8 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
                           </select>
                       </div>
                       <div>
-                          <label className="block text-xs font-bold uppercase mb-2">Tone</label>
-                          <select value={tone} onChange={(e) => setTone(e.target.value)} className="w-full p-3 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 outline-none">
+                          <label className="block text-xs font-bold uppercase mb-2 text-gray-600 dark:text-gray-400">Tone</label>
+                          <select value={tone} onChange={(e) => setTone(e.target.value)} className="w-full p-3 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 outline-none text-gray-900 dark:text-white">
                               <option value="Reporter">Reporter</option>
                               <option value="Casual">Casual</option>
                               <option value="Excited">Excited</option>
@@ -357,13 +365,13 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
 
                   {/* Mode Selection */}
                   <div>
-                      <label className="block text-xs font-bold uppercase mb-2">Format Mode</label>
+                      <label className="block text-xs font-bold uppercase mb-2 text-gray-600 dark:text-gray-400">Format Mode</label>
                       <div className="grid grid-cols-2 gap-2">
                           {['News Briefing', 'Deep Dive', 'Debate', 'Interview'].map((m) => (
                               <button
                                 key={m}
                                 onClick={() => setMode(m)}
-                                className={`p-3 rounded-lg text-sm font-medium border transition-all ${mode === m ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-300'}`}
+                                className={`p-3 rounded-lg text-sm font-medium border transition-all ${mode === m ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-800 hover:border-indigo-300'}`}
                               >
                                 {m}
                               </button>
@@ -373,13 +381,13 @@ const AudioGenerator: React.FC<AudioGeneratorProps> = ({ onClose }) => {
 
                   {/* Duration Selection */}
                   <div>
-                      <label className="block text-xs font-bold uppercase mb-2">Duration</label>
-                      <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+                      <label className="block text-xs font-bold uppercase mb-2 text-gray-600 dark:text-gray-400">Duration</label>
+                      <div className="flex bg-gray-100 dark:bg-gray-900 p-1 rounded-xl">
                           {['Short', 'Long'].map((d) => (
                               <button
                                 key={d}
                                 onClick={() => setDuration(d as any)}
-                                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${duration === d ? 'bg-white dark:bg-gray-700 shadow-sm text-indigo-600 dark:text-white' : 'text-gray-500'}`}
+                                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${duration === d ? 'bg-white dark:bg-gray-800 shadow-sm text-indigo-600 dark:text-white' : 'text-gray-500'}`}
                               >
                                   {d === 'Short' ? <Clock size={14} /> : <FileText size={14} />}
                                   {d} ({d === 'Short' ? '~1 min' : '~3 min'})

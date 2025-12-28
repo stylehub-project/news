@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Mic, Radio, X, Zap, Headphones, Sparkles } from 'lucide-react';
 import Modal from '../ui/Modal';
@@ -40,7 +41,7 @@ const AIInteractionModal: React.FC<AIInteractionModalProps> = ({ isOpen, onClose
                             </span>
                         </h4>
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            Real-time voice conversation with Gemini. Low latency, natural flow.
+                            Real-time voice conversation with our smart assistant. Low latency, natural flow.
                         </p>
                     </div>
                 </div>
@@ -64,7 +65,7 @@ const AIInteractionModal: React.FC<AIInteractionModalProps> = ({ isOpen, onClose
                             </span>
                         </h4>
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            Generate deep-dive podcasts or summaries. Multi-speaker (NotebookLM style).
+                            Generate deep-dive podcasts or summaries. Multi-speaker conversation format.
                         </p>
                     </div>
                 </div>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { X, Mic, MicOff, Volume2, Captions, Loader2, StopCircle, Download } from 'lucide-react';
 import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
@@ -345,7 +346,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
         <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
             <span className="text-white font-bold text-sm tracking-widest uppercase">
-                {isConnected ? 'Gemini Live' : 'Connecting...'}
+                {isConnected ? 'Voice Connected' : 'Connecting...'}
             </span>
         </div>
         <div className="flex gap-4">
