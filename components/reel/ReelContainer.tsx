@@ -10,8 +10,8 @@ const ReelContainer: React.FC<ReelContainerProps> = ({ children }) => {
     <div 
       className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth bg-black relative scrollbar-hide"
       style={{
-        overscrollBehaviorY: 'contain',
-        touchAction: 'pan-y',
+        overscrollBehaviorY: 'contain', // Prevents pull-to-refresh from messing up snap
+        touchAction: 'pan-y', // clearer touch intent for browser
         WebkitOverflowScrolling: 'touch'
       }}
     >

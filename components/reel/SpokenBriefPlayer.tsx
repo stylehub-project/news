@@ -21,9 +21,16 @@ const SpokenBriefPlayer: React.FC<SpokenBriefPlayerProps> = ({
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const synthRef = useRef<SpeechSynthesis | null>(window.speechSynthesis);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  // Safely access window for SSR/Vercel
+  const synthRef = useRef<SpeechSynthesis | null>(null);
   const mountedRef = useRef(true);
+
+  // Initialize synth on mount only
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        synthRef.current = window.speechSynthesis;
+    }
+  }, []);
 
   // Ensure voices are loaded before trying to speak
   const loadVoices = () => {
@@ -32,11 +39,21 @@ const SpokenBriefPlayer: React.FC<SpokenBriefPlayerProps> = ({
     if (voices.length > 0) return Promise.resolve(voices);
     
     return new Promise<SpeechSynthesisVoice[]>((resolve) => {
+        if (!synthRef.current) return resolve([]);
+        
         const handler = () => {
-            resolve(window.speechSynthesis.getVoices());
-            window.speechSynthesis.removeEventListener('voiceschanged', handler);
+            if (synthRef.current) {
+                resolve(synthRef.current.getVoices());
+            }
+            if (typeof window !== 'undefined') {
+                window.speechSynthesis.removeEventListener('voiceschanged', handler);
+            }
         };
-        window.speechSynthesis.addEventListener('voiceschanged', handler);
+        
+        if (typeof window !== 'undefined') {
+            window.speechSynthesis.addEventListener('voiceschanged', handler);
+        }
+        
         // Timeout just in case
         setTimeout(() => resolve([]), 2000);
     });
@@ -57,9 +74,10 @@ const SpokenBriefPlayer: React.FC<SpokenBriefPlayerProps> = ({
   // Auto-play Logic with safety delay
   useEffect(() => {
     if (isActive && autoPlay && text && !hasError) {
+      // Small delay to allow DOM/Interaction to register
       const timer = setTimeout(() => {
         if (mountedRef.current) playSpeech().catch(() => {});
-      }, 1000); // 1s delay to allow page transition to settle
+      }, 1000); 
       return () => clearTimeout(timer);
     }
   }, [isActive, autoPlay, text, hasError]);
@@ -87,7 +105,7 @@ const SpokenBriefPlayer: React.FC<SpokenBriefPlayerProps> = ({
 
     const u = new SpeechSynthesisUtterance(text);
     
-    // Voice Selection
+    // Voice Selection Strategy
     // @ts-ignore
     const preferred = voices.find(v => v.name === "Google US English") || 
                       // @ts-ignore
@@ -118,6 +136,9 @@ const SpokenBriefPlayer: React.FC<SpokenBriefPlayerProps> = ({
         if (!mountedRef.current) return;
         console.warn("Speech playback warning:", e);
         setIsPlaying(false);
+        
+        // Handle "not-allowed" or similar errors gracefully
+        // @ts-ignore
         if (e.error === 'not-allowed' || e.error === 'network') {
             setHasError(true); // Show manual play button if auto-play was blocked
         }
@@ -126,7 +147,6 @@ const SpokenBriefPlayer: React.FC<SpokenBriefPlayerProps> = ({
     try {
         synthRef.current.speak(u);
         setIsPlaying(true);
-        utteranceRef.current = u;
     } catch (e) {
         console.error("Speech start failed", e);
         if (mountedRef.current) {
