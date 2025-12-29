@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
@@ -5,6 +6,8 @@ import BottomNav from './BottomNav';
 import FloatingAIButton from './FloatingAIButton';
 import FloatingFeedback from './FloatingFeedback';
 import ToastContainer from './ui/ToastContainer';
+import ConnectivityIndicator from './ui/ConnectivityIndicator';
+import NotificationBanner from './ui/NotificationBanner';
 import { useTheme } from '../context/ThemeContext';
 
 const Layout: React.FC = () => {
@@ -28,6 +31,13 @@ const Layout: React.FC = () => {
 
   return (
     <div className={`font-sans h-dvh w-full max-w-md mx-auto shadow-2xl overflow-hidden relative border-x dark:border-gray-800 flex flex-col transition-colors duration-300 ${getBackgroundClass()}`}>
+      
+      {/* Network Status Overlay */}
+      <ConnectivityIndicator />
+      
+      {/* Global Alert Banner */}
+      <NotificationBanner />
+
       {/* Top Navbar - Sticky/Fixed at top of flex container */}
       {showNav && <div className="shrink-0 z-40"><Navbar /></div>}
 

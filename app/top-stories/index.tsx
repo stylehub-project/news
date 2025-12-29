@@ -8,10 +8,12 @@ import SmartLoader from '../../components/loaders/SmartLoader';
 import Toast, { ToastType } from '../../components/ui/Toast';
 import { fetchNewsFeed } from '../../utils/aiService';
 import { useLanguage } from '../../context/LanguageContext';
+import { useBookmark } from '../../context/BookmarkContext';
 
 const TopStoriesPage = () => {
   const navigate = useNavigate();
   const { contentLanguage } = useLanguage();
+  const { toggleBookmark } = useBookmark();
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -68,23 +70,16 @@ const TopStoriesPage = () => {
       const article = articles.find(a => a.id === id);
       if (!article) return;
 
-      const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
-      const exists = bookmarks.some((b: any) => b.id === id);
-      
-      if (!exists) {
-          const newBookmark = { 
-              id: article.id, 
-              title: article.title, 
-              source: article.source, 
-              category: article.category,
-              imageUrl: article.imageUrl,
-              savedAt: new Date().toLocaleDateString()
-          };
-          localStorage.setItem('bookmarks', JSON.stringify([newBookmark, ...bookmarks]));
-          setToast({ show: true, msg: 'Story Saved 🔖', type: 'success' });
-      } else {
-          setToast({ show: true, msg: 'Already Saved', type: 'info' });
-      }
+      toggleBookmark({
+          id: article.id,
+          title: article.title,
+          source: article.source,
+          category: article.category,
+          imageUrl: article.imageUrl,
+          timeAgo: article.timeAgo,
+          description: article.description
+      });
+      setToast({ show: true, msg: 'Story Saved 🔖', type: 'success' });
   };
 
   const handleShare = async (id: string) => {

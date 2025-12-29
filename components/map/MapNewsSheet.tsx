@@ -1,9 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import Sheet from '../ui/Sheet';
-import { ArrowRight, Sparkles, Smartphone, Clock, Globe, BrainCircuit, Volume2, Pause, FileText } from 'lucide-react';
+import { ArrowRight, Sparkles, Smartphone, Clock, Globe, BrainCircuit, Volume2, Pause, FileText, Bookmark } from 'lucide-react';
 import Button from '../ui/Button';
 import { useNavigate } from 'react-router-dom';
+import { useBookmark } from '../../context/BookmarkContext';
+import Toast from '../ui/Toast';
 
 interface MapNewsSheetProps {
   isOpen: boolean;
@@ -17,23 +19,29 @@ interface MapNewsSheetProps {
     imageUrl?: string;
     type: string;
     locationName?: string;
+    category?: string;
   } | null;
 }
 
 const MapNewsSheet: React.FC<MapNewsSheetProps> = ({ isOpen, onClose, data }) => {
   const navigate = useNavigate();
+  const { toggleBookmark, isBookmarked } = useBookmark();
   const [tab, setTab] = useState<'overview' | 'ai'>('overview');
   const [isPlaying, setIsPlaying] = useState(false);
+  const [showToast, setShowToast] = useState(false);
 
   // Reset state on close or data change
   useEffect(() => {
       if (!isOpen) {
           setIsPlaying(false);
           window.speechSynthesis.cancel();
+          setShowToast(false);
       }
   }, [isOpen, data]);
 
   if (!data) return null;
+
+  const isSaved = isBookmarked(data.id);
 
   const handlePlayAudio = (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -49,8 +57,27 @@ const MapNewsSheet: React.FC<MapNewsSheetProps> = ({ isOpen, onClose, data }) =>
       }
   };
 
+  const handleSave = () => {
+      toggleBookmark({
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          source: data.source || 'Map Feed',
+          imageUrl: data.imageUrl || '',
+          timeAgo: data.time || 'Today',
+          category: data.category || 'World',
+      });
+      setShowToast(true);
+  };
+
   return (
     <Sheet isOpen={isOpen} onClose={onClose} title={tab === 'ai' ? "AI Analysis" : "Intel Brief"}>
+      {showToast && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 w-max">
+              <Toast type="success" message={isSaved ? "Saved to Library" : "Removed"} onClose={() => setShowToast(false)} />
+          </div>
+      )}
+
       <div className="flex flex-col gap-4 pb-6">
         
         {/* Tab Switcher */}
@@ -88,7 +115,15 @@ const MapNewsSheet: React.FC<MapNewsSheetProps> = ({ isOpen, onClose, data }) =>
                         {isPlaying ? <Pause size={20} fill="currentColor" /> : <Volume2 size={20} />}
                     </button>
 
-                    <div className="absolute top-2 right-2 flex gap-2">
+                    {/* Bookmark Button */}
+                    <button 
+                        onClick={handleSave}
+                        className={`absolute top-2 right-2 p-2 rounded-full backdrop-blur-md transition-all active:scale-90 shadow-sm ${isSaved ? 'bg-blue-600 text-white' : 'bg-black/30 text-white hover:bg-black/50'}`}
+                    >
+                        <Bookmark size={16} fill={isSaved ? "currentColor" : "none"} />
+                    </button>
+
+                    <div className="absolute top-2 left-2 flex gap-2">
                         <span className={`px-2 py-1 rounded-full text-[10px] font-bold text-white uppercase shadow-sm ${
                             data.type === 'breaking' ? 'bg-red-600' :
                             data.type === 'trending' ? 'bg-yellow-500' :

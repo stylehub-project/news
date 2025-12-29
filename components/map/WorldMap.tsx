@@ -10,8 +10,9 @@ import TimeScrubber from './TimeScrubber';
 import MapComparisonOverlay from './MapComparisonOverlay';
 import MapSmartInsights from './MapSmartInsights';
 import MapAudioPlayer from './MapAudioPlayer';
-import { TrendingUp, AlertTriangle, Globe, WifiOff, Maximize, ZoomIn } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Globe, WifiOff, Maximize, ZoomIn, CloudOff } from 'lucide-react';
 import Toast from '../ui/Toast';
+import { useNetwork } from '../../context/NetworkContext';
 
 // 10.14 Hierarchical Data Structure
 // Coordinates (x,y) are relative % on the map image
@@ -22,14 +23,12 @@ export const MARKERS = [
   { id: 'g_usa', x: 22, y: 38, type: 'breaking', title: 'North America: Market Alert', category: 'Business', locationName: 'North America', minZoom: 1, maxZoom: 3.5, impactRadius: 14, momentum: 'High', sentiment: 'Tense', detailLevel: 'cluster' },
 
   // --- LEVEL 2: REGIONAL/STATE (Zoom 3.5 - 6) ---
-  // India Regions
   { id: 'r_in_north', x: 68.5, y: 38, type: 'breaking', title: 'North India: Climate Emergency', category: 'Environment', locationName: 'North India', minZoom: 3.5, maxZoom: 6, impactRadius: 10, momentum: 'High', sentiment: 'Tense', detailLevel: 'region' },
   { id: 'r_in_west', x: 67, y: 46, type: 'trending', title: 'Maharashtra: Investment Hub', category: 'Business', locationName: 'Maharashtra', minZoom: 3.5, maxZoom: 6, impactRadius: 9, momentum: 'High', sentiment: 'Positive', detailLevel: 'region' },
   { id: 'r_in_south', x: 70, y: 50, type: 'general', title: 'Karnataka: Startups', category: 'Tech', locationName: 'Karnataka', minZoom: 3.5, maxZoom: 6, impactRadius: 8, momentum: 'Medium', sentiment: 'Positive', detailLevel: 'region' },
   { id: 'r_in_south_east', x: 71, y: 48, type: 'general', title: 'Tamil Nadu: Manufacturing', category: 'Business', locationName: 'Tamil Nadu', minZoom: 3.5, maxZoom: 6, impactRadius: 8, momentum: 'Medium', sentiment: 'Positive', detailLevel: 'region' },
   { id: 'r_in_east', x: 73, y: 42, type: 'breaking', title: 'Bengal: Cultural Fest', category: 'Entertainment', locationName: 'West Bengal', minZoom: 3.5, maxZoom: 6, impactRadius: 7, momentum: 'High', sentiment: 'Positive', detailLevel: 'region' },
   
-  // Global Regions
   { id: 'r_us_east', x: 24, y: 39, type: 'breaking', title: 'US East Coast: Finance', category: 'Business', locationName: 'East Coast', minZoom: 3.5, maxZoom: 6, impactRadius: 8, momentum: 'High', sentiment: 'Tense', detailLevel: 'region' },
   { id: 'r_jp_kanto', x: 80, y: 40, type: 'trending', title: 'Kanto Region: Robotics', category: 'Tech', locationName: 'Japan', minZoom: 3.5, maxZoom: 6, impactRadius: 7, momentum: 'Medium', sentiment: 'Positive', detailLevel: 'region' },
 
@@ -45,7 +44,6 @@ export const MARKERS = [
   { id: 'c_nyc', x: 22, y: 38, type: 'breaking', title: 'NYC: UN General Assembly', source: 'Reuters', time: '10m ago', timestamp: 0.1, category: 'Politics', locationName: 'New York', minZoom: 6, maxZoom: 9, impactRadius: 8, momentum: 'High', sentiment: 'Neutral', detailLevel: 'city' },
 
   // --- LEVEL 4: STREET/LOCAL (Zoom 9+) ---
-  // Using slightly offset coordinates to simulate "drilling down" into the city
   { id: 's_del_cp', x: 68.52, y: 41.02, type: 'breaking', title: 'Connaught Place: Traffic Advisory due to Protest', subtitle: 'Heavy congestion reported near inner circle. Police advising alternate routes.', source: 'TrafficAlert', time: '5m ago', timestamp: 0.05, category: 'Politics', locationName: 'Connaught Place', minZoom: 9, maxZoom: 20, impactRadius: 3, momentum: 'High', sentiment: 'Negative', detailLevel: 'street' },
   { id: 's_mum_bkc', x: 67.22, y: 46.02, type: 'trending', title: 'BKC: Apple Store Opening Queue', subtitle: 'Thousands gathered overnight for the new flagship store launch. Tim Cook expected to visit.', source: 'LocalNews', time: '30m ago', timestamp: 0.1, category: 'Tech', locationName: 'Bandra Kurla Complex', minZoom: 9, maxZoom: 20, impactRadius: 4, momentum: 'High', sentiment: 'Positive', detailLevel: 'street' },
   { id: 's_hyd_hitech', x: 69.82, y: 47.02, type: 'trending', title: 'Hitech City: 5G Lab Launch', subtitle: 'New innovation center opens.', source: 'TechNews', time: '30m ago', timestamp: 0.1, category: 'Tech', locationName: 'Hitech City', minZoom: 9, maxZoom: 20, impactRadius: 4, momentum: 'High', sentiment: 'Positive', detailLevel: 'street' },
@@ -62,6 +60,7 @@ interface WorldMapProps {
 }
 
 const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatmap = true, flyToLocation, isAudioMode = false }) => {
+  const { isOnline } = useNetwork();
   // View State - Initialized to focus on India
   const [transform, setTransform] = useState({ x: -550, y: 80, k: 5.5 }); 
   const [isDragging, setIsDragging] = useState(false);
@@ -98,18 +97,18 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
   const [audioSummary, setAudioSummary] = useState("Monitoring feed...");
   const audioIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Zoom Level Label for UI logic (Internal use only, display removed)
-  const currentLevelLabel = useMemo(() => {
-      if (transform.k < 3.5) return "Orbit View (Global)";
-      if (transform.k < 6) return "Regional View";
-      if (transform.k < 9) return "City View";
-      return "Tactical View (Street)";
-  }, [transform.k]);
-
   useEffect(() => {
       const timer = setTimeout(() => setIsMapReady(true), 100);
       return () => clearTimeout(timer);
   }, []);
+
+  // Force specific settings when offline
+  useEffect(() => {
+      if (!isOnline) {
+          setMapLayer('schematic'); // Force schematic if offline to save heavy image load
+          setToast({ message: "Offline Mode: Showing cached locations", type: 'info' });
+      }
+  }, [isOnline]);
 
   // Update Visible Bounds & Audio Trigger
   useEffect(() => {
@@ -129,7 +128,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
       const randomActive = filteredMarkers[Math.floor(Math.random() * filteredMarkers.length)];
       if (randomActive) {
           setAudioRegion(randomActive.locationName);
-          setAudioSummary(`Activity detected: ${randomActive.title}. Level: ${currentLevelLabel}.`);
+          setAudioSummary(`Activity detected: ${randomActive.title}. Level: ${transform.k > 6 ? 'Local' : 'Regional'}.`);
           setIsAudioPlaying(true);
           speak(randomActive.title); 
       }
@@ -377,6 +376,13 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
            </div>
        )}
 
+       {/* Offline Mode Badge (13.8) */}
+       {!isOnline && (
+           <div className="absolute top-24 left-1/2 -translate-x-1/2 z-30 bg-black/80 text-gray-300 px-4 py-1.5 rounded-full border border-gray-700 flex items-center gap-2 text-xs font-bold animate-in fade-in">
+               <CloudOff size={14} /> Offline Map Mode
+           </div>
+       )}
+
        {/* Audio Player Overlay */}
        {isAudioMode && (
            <MapAudioPlayer 
@@ -412,7 +418,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
        )}
 
       <div 
-        className={`w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing ${isDragging ? 'cursor-grabbing' : ''}`}
+        className={`w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing ${isDragging ? 'cursor-grabbing' : ''} ${!isOnline ? 'grayscale opacity-70' : ''}`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -473,15 +479,18 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
                 </div>
            )}
            
-           <div style={{ transform: 'translateZ(1px)' }}>
-                <HeatmapLayer 
-                    markers={filteredMarkers} 
-                    visible={showHeatmap} 
-                    mode={perspective === 'Human' ? 'sentiment' : 'intensity'}
-                    onZoneClick={setActiveZone}
-                    zoomLevel={transform.k}
-                />
-           </div>
+           {/* Heatmap disabled when offline to improve performance and remove reliance on dynamic data */}
+           {isOnline && (
+                <div style={{ transform: 'translateZ(1px)' }}>
+                    <HeatmapLayer 
+                        markers={filteredMarkers} 
+                        visible={showHeatmap} 
+                        mode={perspective === 'Human' ? 'sentiment' : 'intensity'}
+                        onZoneClick={setActiveZone}
+                        zoomLevel={transform.k}
+                    />
+                </div>
+           )}
 
            {/* Empty State (10.12) */}
            {isMapReady && filteredMarkers.length === 0 && (
@@ -517,7 +526,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ filters, onResetFilters, showHeatma
         </div>
       </div>
 
-      {showTimeline && !isCompareMode && (
+      {showTimeline && !isCompareMode && isOnline && (
           <TimeScrubber 
             value={timeValue}
             onChange={setTimeValue}

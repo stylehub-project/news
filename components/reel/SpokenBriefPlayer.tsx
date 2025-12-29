@@ -1,8 +1,11 @@
 
-import React, { useEffect, useRef, useState } from 'react';
-import { Volume2, Pause, Play, AlertCircle } from 'lucide-react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { Volume2, Pause, Play, AlertCircle, FastForward } from 'lucide-react';
+import { useHistory } from '../../context/HistoryContext';
 
 interface SpokenBriefPlayerProps {
+  id?: string; // Content ID for tracking
+  title?: string;
   text: string;
   isActive: boolean;
   autoPlay: boolean;
@@ -12,6 +15,8 @@ interface SpokenBriefPlayerProps {
 }
 
 const SpokenBriefPlayer: React.FC<SpokenBriefPlayerProps> = ({ 
+  id,
+  title,
   text, 
   isActive, 
   autoPlay, 
@@ -21,18 +26,38 @@ const SpokenBriefPlayer: React.FC<SpokenBriefPlayerProps> = ({
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasError, setHasError] = useState(false);
-  // Safely access window for SSR/Vercel
+  const [currentSentenceIdx, setCurrentSentenceIdx] = useState(0);
+  
   const synthRef = useRef<SpeechSynthesis | null>(null);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const mountedRef = useRef(true);
+  
+  const { trackProgress, getHistoryItem } = useHistory();
 
-  // Initialize synth on mount only
+  // Split text into sentences for resuming capability
+  const sentences = useMemo(() => {
+      if (!text) return [];
+      // Simple regex split for sentences
+      return text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
+  }, [text]);
+
+  // Load Saved Progress (15.6)
+  useEffect(() => {
+      if (id) {
+          const history = getHistoryItem(id);
+          if (history && history.audioProgress && history.audioProgress < sentences.length - 1) {
+              setCurrentSentenceIdx(history.audioProgress);
+          }
+      }
+  }, [id, getHistoryItem, sentences.length]);
+
+  // Initialize synth
   useEffect(() => {
     if (typeof window !== 'undefined') {
         synthRef.current = window.speechSynthesis;
     }
   }, []);
 
-  // Ensure voices are loaded before trying to speak
   const loadVoices = () => {
     if (!synthRef.current) return Promise.resolve([]);
     let voices = synthRef.current.getVoices();
@@ -40,26 +65,16 @@ const SpokenBriefPlayer: React.FC<SpokenBriefPlayerProps> = ({
     
     return new Promise<SpeechSynthesisVoice[]>((resolve) => {
         if (!synthRef.current) return resolve([]);
-        
         const handler = () => {
-            if (synthRef.current) {
-                resolve(synthRef.current.getVoices());
-            }
-            if (typeof window !== 'undefined') {
-                window.speechSynthesis.removeEventListener('voiceschanged', handler);
-            }
+            if (synthRef.current) resolve(synthRef.current.getVoices());
+            if (typeof window !== 'undefined') window.speechSynthesis.removeEventListener('voiceschanged', handler);
         };
-        
-        if (typeof window !== 'undefined') {
-            window.speechSynthesis.addEventListener('voiceschanged', handler);
-        }
-        
-        // Timeout just in case
+        if (typeof window !== 'undefined') window.speechSynthesis.addEventListener('voiceschanged', handler);
         setTimeout(() => resolve([]), 2000);
     });
   };
 
-  // Cleanup on unmount or inactive
+  // Cleanup
   useEffect(() => {
     mountedRef.current = true;
     if (!isActive) {
@@ -71,13 +86,12 @@ const SpokenBriefPlayer: React.FC<SpokenBriefPlayerProps> = ({
     };
   }, [isActive]);
 
-  // Auto-play Logic with safety delay
+  // Auto-play
   useEffect(() => {
     if (isActive && autoPlay && text && !hasError) {
-      // Small delay to allow DOM/Interaction to register
       const timer = setTimeout(() => {
-        if (mountedRef.current) playSpeech().catch(() => {});
-      }, 1000); 
+        if (mountedRef.current && !isPlaying) playSpeech();
+      }, 800); 
       return () => clearTimeout(timer);
     }
   }, [isActive, autoPlay, text, hasError]);
@@ -87,82 +101,80 @@ const SpokenBriefPlayer: React.FC<SpokenBriefPlayerProps> = ({
       synthRef.current.cancel();
       if (mountedRef.current) {
         setIsPlaying(false);
-        onProgress(0);
       }
     }
   };
 
-  const playSpeech = async () => {
-    if (!synthRef.current || !text) return;
-    
-    // Reset state
-    synthRef.current.cancel();
-    setHasError(false);
-
-    // Wait for voices
-    const voices = await loadVoices();
-    if (!mountedRef.current) return;
-
-    const u = new SpeechSynthesisUtterance(text);
-    
-    // Voice Selection Strategy
-    // @ts-ignore
-    const preferred = voices.find(v => v.name === "Google US English") || 
-                      // @ts-ignore
-                      voices.find(v => v.name.includes("Samantha")) || 
-                      voices[0];
-    
-    if (preferred) u.voice = preferred;
-    u.rate = speed;
-    u.pitch = 1.0;
-    u.volume = 1.0;
-
-    u.onboundary = (e) => {
-      if (!mountedRef.current) return;
-      const length = text.length;
-      const percent = (e.charIndex / length) * 100;
-      onProgress(percent);
-    };
-
-    u.onend = () => {
-      if (mountedRef.current) {
+  const speakSentence = async (index: number) => {
+      if (!synthRef.current || index >= sentences.length || !mountedRef.current) {
+          if (index >= sentences.length && onComplete) onComplete();
           setIsPlaying(false);
-          onProgress(100);
-          if (onComplete) onComplete();
+          return;
       }
-    };
 
-    u.onerror = (e) => {
-        if (!mountedRef.current) return;
-        console.warn("Speech playback warning:", e);
-        setIsPlaying(false);
-        
-        // Handle "not-allowed" or similar errors gracefully
-        // @ts-ignore
-        if (e.error === 'not-allowed' || e.error === 'network') {
-            setHasError(true); // Show manual play button if auto-play was blocked
-        }
-    }
+      // Save Progress (15.6)
+      setCurrentSentenceIdx(index);
+      const progressPercent = Math.round((index / sentences.length) * 100);
+      onProgress(progressPercent);
+      
+      if (id && title) {
+          trackProgress(id, 'reel', title, progressPercent, undefined, undefined, index);
+      }
 
-    try {
-        synthRef.current.speak(u);
-        setIsPlaying(true);
-    } catch (e) {
-        console.error("Speech start failed", e);
-        if (mountedRef.current) {
-            setIsPlaying(false);
-            setHasError(true);
-        }
-    }
+      const chunk = sentences[index];
+      const u = new SpeechSynthesisUtterance(chunk);
+      utteranceRef.current = u;
+
+      const voices = await loadVoices();
+      // @ts-ignore
+      const preferred = voices.find(v => v.name === "Google US English") || voices.find(v => v.name.includes("Samantha")) || voices[0];
+      if (preferred) u.voice = preferred;
+      
+      u.rate = speed;
+      u.pitch = 1.0;
+
+      u.onend = () => {
+          if (mountedRef.current && isPlaying) {
+              speakSentence(index + 1);
+          }
+      };
+
+      u.onerror = (e) => {
+          console.warn("Speech Error", e);
+          // @ts-ignore
+          if (e.error !== 'interrupted') {
+             setIsPlaying(false);
+             setHasError(true);
+          }
+      };
+
+      try {
+          synthRef.current.speak(u);
+      } catch (e) {
+          setIsPlaying(false);
+      }
+  };
+
+  const playSpeech = () => {
+      if (!synthRef.current || !text) return;
+      
+      synthRef.current.cancel(); // Clear queue
+      setHasError(false);
+      setIsPlaying(true);
+      
+      // Start from current index
+      speakSentence(currentSentenceIdx);
   };
 
   const togglePlay = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (isPlaying) {
+      // Pause actually cancels current utterance but keeps index
       synthRef.current?.cancel();
       setIsPlaying(false);
     } else {
-      playSpeech();
+      setIsPlaying(true);
+      speakSentence(currentSentenceIdx);
     }
   };
 
@@ -175,12 +187,20 @@ const SpokenBriefPlayer: React.FC<SpokenBriefPlayerProps> = ({
         {isPlaying ? <Pause size={14} fill="currentColor" /> : hasError ? <AlertCircle size={14} /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
       </button>
       
-      <div className="flex flex-col">
-        <span className="text-[9px] font-bold text-gray-300 uppercase tracking-wider">
-          {isPlaying ? 'Speaking Brief' : hasError ? 'Tap to Speak' : 'Paused'}
-        </span>
-        <div className="w-20 h-1 bg-white/20 rounded-full mt-1 overflow-hidden">
-           <div className={`h-full bg-indigo-400 rounded-full ${isPlaying ? 'animate-pulse' : ''}`} style={{ width: '100%' }}></div>
+      <div className="flex flex-col min-w-[80px]">
+        <div className="flex justify-between items-end">
+            <span className="text-[9px] font-bold text-gray-300 uppercase tracking-wider">
+            {isPlaying ? 'Speaking' : hasError ? 'Error' : currentSentenceIdx > 0 ? 'Resume' : 'Listen'}
+            </span>
+            {currentSentenceIdx > 0 && (
+                <span className="text-[8px] text-indigo-400 font-mono">{Math.round((currentSentenceIdx / sentences.length) * 100)}%</span>
+            )}
+        </div>
+        <div className="w-full h-1 bg-white/20 rounded-full mt-1 overflow-hidden">
+           <div 
+             className={`h-full bg-indigo-400 rounded-full transition-all duration-300`} 
+             style={{ width: `${(currentSentenceIdx / sentences.length) * 100}%` }}
+           ></div>
         </div>
       </div>
     </div>

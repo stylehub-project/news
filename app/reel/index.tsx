@@ -8,20 +8,24 @@ import ReelLoadingState from '../../components/reel/ReelLoadingState';
 import { useLoading } from '../../context/LoadingContext';
 import { fetchNewsFeed } from '../../utils/aiService';
 import { useLanguage } from '../../context/LanguageContext';
+import { useHistory } from '../../context/HistoryContext';
 
 const ReelPage: React.FC = () => {
   const navigate = useNavigate();
   const { markAsLoaded } = useLoading();
   const { contentLanguage } = useLanguage();
+  const { trackProgress, getHistoryItem } = useHistory();
   
   const [reels, setReels] = useState<any[]>([]);
   const [activeReelId, setActiveReelId] = useState<string>('');
   const [isAutoRead, setIsAutoRead] = useState(true); 
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isResuming, setIsResuming] = useState(false);
+  
   const loadedIdsRef = useRef<Set<string>>(new Set());
   const observerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 1. Initial Data Fetch
+  // 1. Initial Data Fetch & Resume Logic
   useEffect(() => {
       let isMounted = true;
       const loadReels = async () => {
@@ -46,10 +50,32 @@ const ReelPage: React.FC = () => {
 
           if (isMounted) {
               setReels(formattedReels);
+              
+              // Resume Logic
+              const historyItem = getHistoryItem('reel_session');
+              let startIndex = 0;
+              
+              if (historyItem && historyItem.meta?.lastReelId) {
+                  const foundIndex = formattedReels.findIndex((r: any) => r.id === historyItem.meta.lastReelId);
+                  if (foundIndex !== -1) {
+                      startIndex = foundIndex;
+                      setIsResuming(true);
+                      setTimeout(() => setIsResuming(false), 2000);
+                  }
+              }
+
               if (formattedReels.length > 0) {
-                  // Set initial active reel immediately without animation delay
-                  setActiveReelId(formattedReels[0].id);
+                  const startId = formattedReels[startIndex].id;
+                  setActiveReelId(startId);
                   formattedReels.forEach((r: any) => loadedIdsRef.current.add(r.id));
+                  
+                  // Scroll to resumed item
+                  if (startIndex > 0) {
+                      setTimeout(() => {
+                          const el = document.getElementById(`reel-${startId}`);
+                          el?.scrollIntoView({ behavior: 'auto' });
+                      }, 100);
+                  }
               }
               markAsLoaded('reel');
           }
@@ -57,7 +83,7 @@ const ReelPage: React.FC = () => {
 
       loadReels();
       return () => { isMounted = false; };
-  }, [contentLanguage, markAsLoaded]);
+  }, [contentLanguage, markAsLoaded, getHistoryItem]);
 
   // 2. STABILIZED Intersection Observer
   useEffect(() => {
@@ -82,6 +108,12 @@ const ReelPage: React.FC = () => {
                     observerTimeoutRef.current = setTimeout(() => {
                         setActiveReelId(id);
                         
+                        // 15.1 Track Reel History
+                        const activeReel = reels.find(r => r.id === id);
+                        if (activeReel) {
+                            trackProgress('reel_session', 'reel', 'Reel Session', 50, 0, { lastReelId: id });
+                        }
+
                         // Check for infinite scroll
                         const index = reels.findIndex(r => r.id === id);
                         if (index >= reels.length - 2 && !isLoadingMore) {
@@ -101,7 +133,7 @@ const ReelPage: React.FC = () => {
         observer.disconnect();
         if (observerTimeoutRef.current) clearTimeout(observerTimeoutRef.current);
     };
-  }, [reels.length, isLoadingMore]);
+  }, [reels, isLoadingMore, trackProgress]); // Added trackProgress dependency
 
   const handleLoadMore = async () => {
       setIsLoadingMore(true);
@@ -131,6 +163,13 @@ const ReelPage: React.FC = () => {
   return (
     <div className="h-full w-full bg-black relative font-sans">
       
+      {/* 15.2 Resuming Indicator */}
+      {isResuming && (
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-black/80 text-white px-4 py-1 rounded-full text-xs font-bold animate-pulse border border-white/20">
+              Resuming Session...
+          </div>
+      )}
+
       {/* Header Overlay */}
       <div className="absolute top-0 left-0 w-full z-50 p-4 pt-4 flex justify-between items-center pointer-events-none">
          <button 

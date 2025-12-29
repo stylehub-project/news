@@ -24,7 +24,7 @@ const ReelActionToolbar: React.FC<ReelActionToolbarProps> = ({ onExplain, onSave
 
         <button 
             onClick={(e) => { e.stopPropagation(); onSave(); }}
-            className="flex flex-col items-center justify-center w-14 h-12 rounded-xl hover:bg-white/10 text-gray-400 hover:text-white transition-colors gap-0.5"
+            className="flex flex-col items-center justify-center w-14 h-12 rounded-xl hover:bg-white/10 text-gray-400 hover:text-white transition-colors gap-0.5 active:scale-95"
         >
             <Bookmark size={18} />
             <span className="text-[9px] font-bold">Save</span>
@@ -32,7 +32,7 @@ const ReelActionToolbar: React.FC<ReelActionToolbarProps> = ({ onExplain, onSave
 
         <button 
             onClick={(e) => { e.stopPropagation(); onShare(); }}
-            className="flex flex-col items-center justify-center w-14 h-12 rounded-xl hover:bg-white/10 text-gray-400 hover:text-white transition-colors gap-0.5"
+            className="flex flex-col items-center justify-center w-14 h-12 rounded-xl hover:bg-white/10 text-gray-400 hover:text-white transition-colors gap-0.5 active:scale-95"
         >
             <Share2 size={18} />
             <span className="text-[9px] font-bold">Share</span>

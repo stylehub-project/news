@@ -1,5 +1,6 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
+import { cacheService } from './cacheService';
 
 const getApiKey = () => {
   // Check standard Vercel/Next.js environment variables
@@ -26,127 +27,7 @@ const getApiKey = () => {
   return '';
 };
 
-export const fetchNewsFeed = async (page: number, filters: any) => {
-  const language = filters.language || 'English';
-  
-  try {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-        console.warn("No API Key found, using mock data.");
-        return getMockData(page, filters.category, language);
-    }
-    
-    const ai = new GoogleGenAI({ apiKey });
-    
-    const topic = filters.category === 'All' ? 'latest global news' : `${filters.category} news`;
-
-    const filterContext = `
-      Focus on: ${filters.filter || 'General'}
-      Region: ${filters.state || 'Global'}
-      Sort by: ${filters.sort || 'Latest'}
-      Output Language: ${language}
-    `;
-
-    // Relaxed config to avoid RPC errors with Tools + Schema
-    const prompt = `
-      Find 5 unique news articles about "${topic}".
-      Context: ${filterContext}.
-      Page: ${page}.
-      
-      You have access to Google Search. Use it to find real, up-to-date information.
-      
-      IMPORTANT: Output the result strictly as a JSON Array. Do not wrap in markdown code blocks.
-      
-      JSON Structure:
-      [
-        {
-          "id": "unique_string",
-          "title": "Translated Headline",
-          "description": "Short summary",
-          "source": "Publisher Name",
-          "timeAgo": "e.g. 2h ago",
-          "category": "Category",
-          "imageUrl": "URL or placeholder"
-        }
-      ]
-    `;
-
-    let text = "";
-
-    try {
-        // 1. Try with Google Search Tool
-        const response = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
-          contents: prompt,
-          config: {
-            tools: [{ googleSearch: {} }],
-            // No strict schema here to avoid conflict
-          }
-        });
-        text = response.text || "";
-    } catch (toolError) {
-        console.warn("Tool execution failed, retrying without tools...", toolError);
-        // 2. Fallback to LLM knowledge if Tools fail (RPC 500)
-        const response = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
-          contents: prompt,
-        });
-        text = response.text || "";
-    }
-
-    if (!text) return getMockData(page, filters.category, language);
-    
-    try {
-        // Robust cleaning to handle potential Markdown wrapping
-        const cleanText = text.replace(/```json|```/g, '').trim();
-        const arrayStart = cleanText.indexOf('[');
-        const arrayEnd = cleanText.lastIndexOf(']');
-        
-        if (arrayStart !== -1 && arrayEnd !== -1) {
-            const jsonStr = cleanText.substring(arrayStart, arrayEnd + 1);
-            return JSON.parse(jsonStr);
-        }
-        
-        // Fallback if no array found
-        console.warn("No JSON array found in response");
-        return getMockData(page, filters.category, language);
-
-    } catch (parseError) {
-        console.warn("JSON Parse Failed, using fallback data", parseError);
-        return getMockData(page, filters.category, language);
-    }
-
-  } catch (error) {
-    console.error("AI Fetch Error", error);
-    // Graceful fallback to mock data on API error
-    return getMockData(page, filters.category, language);
-  }
-};
-
-export const modifyText = async (text: string, instruction: string) => {
-    try {
-        const apiKey = getApiKey();
-        if (!apiKey) {
-            // Mock Fallback behavior if no API key
-            await new Promise(r => setTimeout(r, 500));
-            if (instruction.includes('Simplify')) return "Here is a simplified version of the text. It uses easier words.";
-            if (instruction.includes('Catchier')) return "SHOCKING UPDATE: " + text.substring(0, 20) + "...";
-            if (instruction.includes('Rewrite')) return text + " (Reframed for " + instruction.split('perspective')[0] + ")";
-            return text + " (AI unavailable - Edited)";
-        }
-
-        const ai = new GoogleGenAI({ apiKey });
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `Original Text: "${text}"\n\nInstruction: ${instruction}. Return only the modified text, nothing else.`
-        });
-        return response.text || text;
-    } catch (e) {
-        console.error(e);
-        return text;
-    }
-};
-
+// Mock data generator for offline/fallback scenarios
 const getMockData = (page: number, category: string = 'General', language: string = 'English') => {
     const baseSeed = page * 100;
     const isHindi = language === 'Hindi';
@@ -214,10 +95,155 @@ const getHeadline = (category: string, seed: number, isHindi: boolean) => {
     return templatesEn[seed % templatesEn.length].replace("{cat}", category);
 };
 
+export const fetchNewsFeed = async (page: number, filters: any) => {
+  const language = filters.language || 'English';
+  const cacheKey = `feed_${filters.category}_${filters.sort}_${page}_${language}`;
+
+  // 1. Try Cache First (Stale-while-revalidate strategy is hard in simple await, so we prioritize speed/offline)
+  // If offline, this is the only source.
+  const cachedData = cacheService.get(cacheKey);
+  if (!navigator.onLine && cachedData) {
+      console.log("Serving from offline cache");
+      return cachedData;
+  }
+
+  // If online but we want to be snappy, we could return cache, but let's try fresh first
+  
+  try {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        console.warn("No API Key found, using mock data.");
+        const mock = getMockData(page, filters.category, language);
+        cacheService.set(cacheKey, mock); // Cache the mock too for consistency
+        return mock;
+    }
+    
+    const ai = new GoogleGenAI({ apiKey });
+    
+    const topic = filters.category === 'All' ? 'latest global news' : `${filters.category} news`;
+
+    const filterContext = `
+      Focus on: ${filters.filter || 'General'}
+      Region: ${filters.state || 'Global'}
+      Sort by: ${filters.sort || 'Latest'}
+      Output Language: ${language}
+    `;
+
+    const prompt = `
+      Find 5 unique news articles about "${topic}".
+      Context: ${filterContext}.
+      Page: ${page}.
+      
+      You have access to Google Search. Use it to find real, up-to-date information.
+      
+      IMPORTANT: Output the result strictly as a JSON Array. Do not wrap in markdown code blocks.
+      
+      JSON Structure:
+      [
+        {
+          "id": "unique_string",
+          "title": "Translated Headline",
+          "description": "Short summary",
+          "source": "Publisher Name",
+          "timeAgo": "e.g. 2h ago",
+          "category": "Category",
+          "imageUrl": "URL or placeholder"
+        }
+      ]
+    `;
+
+    let text = "";
+
+    try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
+          contents: prompt,
+          config: {
+            tools: [{ googleSearch: {} }],
+          }
+        });
+        text = response.text || "";
+    } catch (toolError) {
+        console.warn("Tool execution failed, retrying without tools...", toolError);
+        const response = await ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
+          contents: prompt,
+        });
+        text = response.text || "";
+    }
+
+    if (!text) throw new Error("Empty response");
+    
+    // Robust cleaning
+    const cleanText = text.replace(/```json|```/g, '').trim();
+    const arrayStart = cleanText.indexOf('[');
+    const arrayEnd = cleanText.lastIndexOf(']');
+    
+    if (arrayStart !== -1 && arrayEnd !== -1) {
+        const jsonStr = cleanText.substring(arrayStart, arrayEnd + 1);
+        const data = JSON.parse(jsonStr);
+        
+        // Success - Cache it
+        cacheService.set(cacheKey, data);
+        return data;
+    }
+    
+    throw new Error("Invalid JSON format");
+
+  } catch (error) {
+    console.error("AI Fetch Error", error);
+    
+    // Fallback: Return Cache if available (even if expired, better than nothing)
+    // Here we use raw localStorage to bypass expiry check if network failed
+    try {
+        const rawCache = localStorage.getItem(`nc_cache_${cacheKey}`);
+        if (rawCache) {
+            return JSON.parse(rawCache).value;
+        }
+    } catch(e) {}
+
+    // Ultimate Fallback: Mock Data
+    return getMockData(page, filters.category, language);
+  }
+};
+
+export const modifyText = async (text: string, instruction: string) => {
+    // Modify text is rarely cached as it's interactive, but we can try
+    const cacheKey = `mod_${text.substring(0, 20)}_${instruction}`;
+    const cached = cacheService.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+        const apiKey = getApiKey();
+        if (!apiKey) {
+            await new Promise(r => setTimeout(r, 500));
+            return text + " (AI unavailable - Offline Edited)";
+        }
+
+        const ai = new GoogleGenAI({ apiKey });
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: `Original Text: "${text}"\n\nInstruction: ${instruction}. Return only the modified text, nothing else.`
+        });
+        const result = response.text || text;
+        cacheService.set(cacheKey, result);
+        return result;
+    } catch (e) {
+        console.error(e);
+        return text;
+    }
+};
+
 export const fetchNewspaperContent = async (title: string, config: any) => {
+    // This is a heavy operation, definitely cache the 'config' signature
+    const cacheKey = `newspaper_${title}_${JSON.stringify(config)}`;
+    const cached = cacheService.get(cacheKey);
+    if (cached) return cached;
+
+    // Simulation logic remains, but we cache the result
     await new Promise(resolve => setTimeout(resolve, 1000)); 
 
-    return {
+    const result = {
         title: title || "The Daily News",
         date: new Date().toLocaleDateString(),
         issueNumber: `${Math.floor(Math.random() * 500) + 100}`,
@@ -254,4 +280,7 @@ export const fetchNewspaperContent = async (title: string, config: any) => {
             }
         ]
     };
+    
+    cacheService.set(cacheKey, result);
+    return result;
 };

@@ -1,13 +1,17 @@
 
 import React from 'react';
-import { Camera, Settings, ShieldCheck, Zap, Globe, Smartphone, BookOpen, RotateCcw } from 'lucide-react';
+import { Camera, Settings, ShieldCheck, Zap, Globe, Smartphone, BookOpen, RotateCcw, Clock, Bookmark } from 'lucide-react';
 import PageHeader from '../../components/PageHeader';
 import ThemeSwitcher from '../../components/ThemeSwitcher';
 import { useLanguage } from '../../context/LanguageContext';
+import { useBookmark } from '../../context/BookmarkContext';
 import { translations } from '../../utils/translations';
+import { useNavigate } from 'react-router-dom';
 
 const ProfilePage: React.FC = () => {
+  const navigate = useNavigate();
   const { appLanguage, setAppLanguage, contentLanguage, setContentLanguage } = useLanguage();
+  const { bookmarks } = useBookmark();
   const t = translations[appLanguage];
 
   const handleResetApp = () => {
@@ -82,6 +86,32 @@ const ProfilePage: React.FC = () => {
         </div>
 
         <div className="space-y-4">
+            
+            {/* History Link */}
+            <div 
+                onClick={() => navigate('/history')}
+                className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between transition-colors hover:shadow-md duration-300 cursor-pointer group"
+            >
+                <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl group-hover:scale-110 transition-transform"><Clock size={20}/></div>
+                    <span className="font-bold text-gray-700 dark:text-gray-200">Reading History</span>
+                </div>
+            </div>
+
+            {/* Bookmarks Link */}
+            <div 
+                onClick={() => navigate('/bookmarks')}
+                className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between transition-colors hover:shadow-md duration-300 cursor-pointer group"
+            >
+                <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-xl group-hover:scale-110 transition-transform"><Bookmark size={20}/></div>
+                    <span className="font-bold text-gray-700 dark:text-gray-200">{t.saved}</span>
+                </div>
+                <div className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs font-bold text-gray-500 dark:text-gray-400">
+                    {bookmarks.length}
+                </div>
+            </div>
+
             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between transition-colors hover:shadow-md duration-300 cursor-pointer group">
                 <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl group-hover:scale-110 transition-transform"><Settings size={20}/></div>

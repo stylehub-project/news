@@ -1,157 +1,165 @@
-import React, { useState, useEffect } from 'react';
-import { Bookmark, Grid, List, Trash2, Filter, CheckCircle } from 'lucide-react';
+
+import React, { useState, useMemo } from 'react';
+import { Bookmark, Trash2, Filter, Search, Sparkles, Headphones, ShieldCheck, ListFilter } from 'lucide-react';
 import PageHeader from '../../components/PageHeader';
-import BookmarkCard from '../../components/cards/BookmarkCard';
-import NewsCardBasic from '../../components/cards/NewsCardBasic';
+import SwipeableBookmarkItem from '../../components/cards/SwipeableBookmarkItem';
 import Button from '../../components/ui/Button';
+import { useBookmark } from '../../context/BookmarkContext';
+import { useNavigate } from 'react-router-dom';
+import Toast from '../../components/ui/Toast';
 
 const BookmarksPage: React.FC = () => {
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-  const [sortBy, setSortBy] = useState<'newest' | 'category'>('newest');
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [items, setItems] = useState<any[]>([]);
+  const navigate = useNavigate();
+  const { bookmarks, removeBookmark, markAsRead, clearAll } = useBookmark();
+  const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'read'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
-  useEffect(() => {
-      // Load from local storage
-      try {
-          const saved = JSON.parse(localStorage.getItem('bookmarks') || '[]');
-          setItems(saved);
-      } catch (e) {
-          console.error("Failed to load bookmarks", e);
+  // Filter Logic
+  const filteredBookmarks = useMemo(() => {
+      let items = bookmarks;
+      
+      // Tab Filter
+      if (activeTab === 'unread') items = items.filter(b => !b.isRead);
+      if (activeTab === 'read') items = items.filter(b => b.isRead);
+
+      // Search Filter
+      if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          items = items.filter(b => 
+              b.title.toLowerCase().includes(q) || 
+              b.description?.toLowerCase().includes(q) || 
+              b.source.toLowerCase().includes(q)
+          );
       }
-  }, []);
 
-  const updateStorage = (newItems: any[]) => {
-      setItems(newItems);
-      localStorage.setItem('bookmarks', JSON.stringify(newItems));
+      return items;
+  }, [bookmarks, activeTab, searchQuery]);
+
+  const handleAIAnalysis = () => {
+      if (bookmarks.length === 0) return;
+      // Construct a context string of titles
+      const context = bookmarks.slice(0, 5).map(b => b.title).join(". ");
+      navigate(`/ai-chat?context=library&headline=${encodeURIComponent("Summarize my saved reading list: " + context)}`);
   };
 
-  const toggleSelection = (id: string) => {
-    setSelectedIds(prev => 
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
+  const handleAudioBrief = () => {
+      navigate('/ai-chat?mode=generator');
   };
 
-  const handleDeleteSelected = () => {
-    const newItems = items.filter(item => !selectedIds.includes(item.id));
-    updateStorage(newItems);
-    setSelectedIds([]);
-    setIsSelectionMode(false);
+  const handleClearAll = () => {
+      if (window.confirm("Clear all saved stories? This cannot be undone.")) {
+          clearAll();
+          setToastMsg("Library cleared");
+          setShowToast(true);
+      }
   };
-
-  const handleDeleteOne = (id: string) => {
-      const newItems = items.filter(item => item.id !== id);
-      updateStorage(newItems);
-  };
-
-  const sortedItems = [...items].sort((a, b) => {
-      if (sortBy === 'category') return (a.category || '').localeCompare(b.category || '');
-      // Mock newest sort by assuming array order or check savedAt date string parsing
-      return 0; 
-  });
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24 dark:bg-gray-900 transition-colors">
+    <div className="min-h-screen bg-gray-50 dark:bg-black pb-24 transition-colors">
       <PageHeader 
-        title={isSelectionMode ? `${selectedIds.length} Selected` : "Saved Stories"} 
+        title="Saved for Later" 
         action={
-            <button 
-                onClick={() => {
-                    setIsSelectionMode(!isSelectionMode);
-                    setSelectedIds([]);
-                }}
-                className={`text-sm font-bold ${isSelectionMode ? 'text-blue-600' : 'text-gray-500'}`}
-            >
-                {isSelectionMode ? 'Done' : 'Manage'}
-            </button>
+            bookmarks.length > 0 && (
+                <button onClick={handleClearAll} className="text-xs font-bold text-red-500 hover:text-red-600 px-2 py-1">
+                    Clear All
+                </button>
+            )
         }
       />
 
-      {/* Controls */}
-      {!isSelectionMode && items.length > 0 && (
-        <div className="px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center sticky top-[57px] z-30 transition-colors">
-            <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-gray-500 uppercase">Sort:</span>
-                <select 
-                    className="text-sm font-bold bg-transparent outline-none dark:text-white"
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
-                >
-                    <option value="newest">Newest</option>
-                    <option value="category">Category</option>
-                </select>
-            </div>
-            
-            <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
-                <button 
-                    onClick={() => setViewMode('list')}
-                    className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-gray-600 shadow-sm text-blue-600 dark:text-blue-400' : 'text-gray-400'}`}
-                >
-                    <List size={16} />
-                </button>
-                <button 
-                    onClick={() => setViewMode('grid')}
-                    className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-gray-600 shadow-sm text-blue-600 dark:text-blue-400' : 'text-gray-400'}`}
-                >
-                    <Grid size={16} />
-                </button>
-            </div>
-        </div>
+      {showToast && (
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
+              <Toast type="success" message={toastMsg} onClose={() => setShowToast(false)} />
+          </div>
       )}
 
-      {/* Content */}
-      <div className={`p-4 ${viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-3'}`}>
-        {sortedItems.length === 0 ? (
-            <div className="col-span-2 text-center py-20 text-gray-400">
-                <Bookmark size={48} className="mx-auto mb-4 opacity-20" />
-                <p>No saved stories yet.</p>
+      {/* AI Actions */}
+      <div className="p-4 pb-2 grid grid-cols-2 gap-3">
+          <button 
+            onClick={handleAIAnalysis}
+            disabled={bookmarks.length === 0}
+            className="flex items-center justify-center gap-2 p-3 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-xl text-white shadow-lg active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+          >
+              <Sparkles size={16} className="text-yellow-300" />
+              <span className="text-xs font-bold">Summarize All</span>
+          </button>
+          <button 
+            onClick={handleAudioBrief}
+            className="flex items-center justify-center gap-2 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-200 shadow-sm active:scale-95 transition-all"
+          >
+              <Headphones size={16} className="text-pink-500" />
+              <span className="text-xs font-bold">Audio Brief</span>
+          </button>
+      </div>
+
+      {/* Controls & Search */}
+      <div className="sticky top-[57px] z-30 bg-gray-50/95 dark:bg-black/95 backdrop-blur-md px-4 py-2 space-y-3 transition-colors">
+          {/* Search */}
+          <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input 
+                  type="text" 
+                  placeholder="Search saved stories..." 
+                  className="w-full bg-white dark:bg-gray-800 pl-9 pr-4 py-2.5 rounded-xl border-none outline-none text-sm font-medium shadow-sm dark:text-white placeholder:text-gray-400"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+              />
+          </div>
+
+          {/* Tabs */}
+          <div className="flex bg-gray-200 dark:bg-gray-800 p-1 rounded-lg">
+              {['all', 'unread', 'read'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab as any)}
+                    className={`flex-1 py-1.5 text-xs font-bold capitalize rounded-md transition-all ${
+                        activeTab === tab 
+                        ? 'bg-white dark:bg-gray-600 text-black dark:text-white shadow-sm' 
+                        : 'text-gray-500 dark:text-gray-400'
+                    }`}
+                  >
+                      {tab} ({
+                          tab === 'all' ? bookmarks.length : 
+                          tab === 'unread' ? bookmarks.filter(b => !b.isRead).length : 
+                          bookmarks.filter(b => b.isRead).length
+                      })
+                  </button>
+              ))}
+          </div>
+      </div>
+
+      {/* Content List */}
+      <div className="p-4 space-y-3 min-h-[300px]">
+        {filteredBookmarks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-gray-400 opacity-60">
+                <Bookmark size={48} className="mb-4 stroke-1" />
+                <p className="text-sm font-medium">No stories found.</p>
+                {activeTab !== 'all' && (
+                    <button onClick={() => setActiveTab('all')} className="mt-2 text-blue-500 text-xs font-bold">View All Saved</button>
+                )}
             </div>
         ) : (
-            sortedItems.map(item => {
-                const isSelected = selectedIds.includes(item.id);
-                return (
-                    <div 
-                        key={item.id} 
-                        className="relative group cursor-pointer"
-                        onClick={() => isSelectionMode ? toggleSelection(item.id) : null}
-                    >
-                        {/* Selection Overlay */}
-                        {isSelectionMode && (
-                            <div className={`absolute inset-0 z-20 bg-white/50 dark:bg-black/50 backdrop-blur-[1px] flex items-center justify-center rounded-xl border-2 transition-all ${isSelected ? 'border-blue-500 bg-blue-50/20' : 'border-transparent'}`}>
-                                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
-                                    {isSelected && <CheckCircle size={14} className="text-white" />}
-                                </div>
-                            </div>
-                        )}
-
-                        {viewMode === 'list' ? (
-                            <BookmarkCard
-                                {...item}
-                                onRemove={!isSelectionMode ? handleDeleteOne : undefined}
-                            />
-                        ) : (
-                            <div className="h-full">
-                                <NewsCardBasic 
-                                    {...item}
-                                    description={item.description || "Saved for later reading."}
-                                    timeAgo={item.savedAt}
-                                />
-                            </div>
-                        )}
-                    </div>
-                );
-            })
+            filteredBookmarks.map(item => (
+                <SwipeableBookmarkItem 
+                    key={item.id}
+                    data={item}
+                    onRead={() => markAsRead(item.id)}
+                    onDelete={() => removeBookmark(item.id)}
+                    onClick={() => navigate(`/news/${item.id}`)}
+                />
+            ))
         )}
       </div>
 
-      {/* Bulk Delete Bar */}
-      {isSelectionMode && selectedIds.length > 0 && (
-          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-red-600 text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3 animate-in slide-in-from-bottom-4 z-40 cursor-pointer hover:bg-red-700 transition-colors" onClick={handleDeleteSelected}>
-              <Trash2 size={18} />
-              <span className="font-bold text-sm">Delete {selectedIds.length}</span>
+      {/* Privacy Footer */}
+      <div className="text-center pb-8 pt-4 opacity-40">
+          <div className="flex items-center justify-center gap-1.5 text-[10px] text-gray-500 font-medium">
+              <ShieldCheck size={12} />
+              <span>Stored securely on this device</span>
           </div>
-      )}
+      </div>
     </div>
   );
 };
