@@ -4,6 +4,9 @@ import { Share2, Bookmark, Clock, ChevronRight, Sparkles, Zap, Check } from 'luc
 import BlurImageLoader from '../loaders/BlurImageLoader';
 import { useNavigate } from 'react-router-dom';
 
+// Abstract News Background for Fallback
+const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=800&auto=format&fit=crop";
+
 interface SwipeableCardProps {
   data: any;
   onSwipe: (direction: 'left' | 'right') => void;
@@ -187,7 +190,12 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
 
             {/* Full Background Image */}
             <div className="absolute inset-0">
-                <BlurImageLoader src={data.imageUrl} alt={data.title} className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" />
+                <BlurImageLoader 
+                    src={data.imageUrl} 
+                    fallbackSrc={FALLBACK_IMAGE}
+                    alt={data.title} 
+                    className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" 
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
             </div>
 

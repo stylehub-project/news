@@ -1,6 +1,10 @@
+
 import React from 'react';
 import Card from '../ui/Card';
 import BlurImageLoader from '../loaders/BlurImageLoader';
+
+// Fallback Image
+const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=800&auto=format&fit=crop";
 
 interface TopHeadlineCardProps {
   id: string;
@@ -30,6 +34,7 @@ const TopHeadlineCard: React.FC<TopHeadlineCardProps> = ({
       <div className="absolute inset-0">
         <BlurImageLoader 
             src={imageUrl} 
+            fallbackSrc={FALLBACK_IMAGE}
             alt={title} 
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
         />

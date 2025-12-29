@@ -5,6 +5,7 @@ import { useNetwork } from '../../context/NetworkContext';
 
 interface BlurImageLoaderProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   wrapperClassName?: string;
+  fallbackSrc?: string;
 }
 
 const BlurImageLoader: React.FC<BlurImageLoaderProps> = ({ 
@@ -12,12 +13,14 @@ const BlurImageLoader: React.FC<BlurImageLoaderProps> = ({
   alt, 
   className = '', 
   wrapperClassName = '',
+  fallbackSrc,
   ...props 
 }) => {
   const { isLowData, isOnline } = useNetwork();
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [shouldLoad, setShouldLoad] = useState(!isLowData);
+  const [currentSrc, setCurrentSrc] = useState(src);
 
   // Re-evaluate if we should load when connection improves
   useEffect(() => {
@@ -26,12 +29,27 @@ const BlurImageLoader: React.FC<BlurImageLoaderProps> = ({
       }
   }, [isLowData]);
 
-  // If offline, check if image is cached by browser automatically.
-  // If not, it will error out, which we handle.
+  // Reset state when source changes
+  useEffect(() => {
+      setCurrentSrc(src);
+      setHasError(false);
+      setIsLoaded(false);
+  }, [src]);
 
   const handleManualLoad = (e: React.MouseEvent) => {
       e.stopPropagation();
       setShouldLoad(true);
+  };
+
+  const handleError = () => {
+      if (fallbackSrc && currentSrc !== fallbackSrc) {
+          // Try fallback if available and not already trying it
+          setCurrentSrc(fallbackSrc);
+      } else {
+          // Fallback failed or no fallback provided
+          setHasError(true);
+          setIsLoaded(true); // Stop loading animation to show error state
+      }
   };
 
   return (
@@ -60,14 +78,11 @@ const BlurImageLoader: React.FC<BlurImageLoaderProps> = ({
       {/* Actual Image - Only rendered if shouldLoad is true */}
       {shouldLoad && (
           <img
-            src={src}
+            src={currentSrc}
             alt={alt}
             className={`relative z-0 transition-all duration-700 ease-in-out ${isLoaded ? 'opacity-100 scale-100 blur-0' : 'opacity-0 scale-105 blur-md'} ${className}`}
             onLoad={() => setIsLoaded(true)}
-            onError={() => {
-                setHasError(true);
-                setIsLoaded(true); // Reveal error state
-            }}
+            onError={handleError}
             {...props}
           />
       )}

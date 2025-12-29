@@ -7,6 +7,9 @@ import BlurImageLoader from '../loaders/BlurImageLoader';
 import { useBookmark } from '../../context/BookmarkContext';
 import { useHistory } from '../../context/HistoryContext';
 
+// Abstract Fallback
+const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?q=80&w=800&auto=format&fit=crop";
+
 interface NewsCardBasicProps {
   id: string;
   title: string;
@@ -65,6 +68,7 @@ const NewsCardBasic: React.FC<NewsCardBasicProps> = ({
       <div className="relative aspect-video w-full overflow-hidden">
         <BlurImageLoader 
           src={imageUrl} 
+          fallbackSrc={FALLBACK_IMAGE}
           alt={title} 
           wrapperClassName="w-full h-full"
           className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
