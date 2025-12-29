@@ -2,15 +2,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-    Sparkles, Search, Filter, RefreshCw, 
-    Smartphone, Zap, ChevronDown, Clock, Globe,
-    AlertTriangle, PlayCircle
+    Sparkles, Search, RefreshCw, 
+    Smartphone, Zap, Clock, Globe,
+    AlertTriangle
 } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
 import PageHeader from '../../components/PageHeader';
 import NewsCardBasic from '../../components/cards/NewsCardBasic';
 import NewsSkeleton from '../../components/skeletons/NewsSkeleton';
-import Button from '../../components/ui/Button';
 import { fetchNewsFeed } from '../../utils/aiService';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -24,9 +22,7 @@ const AICategoryInsight = ({ category }: { category: string }) => {
             setLoading(true);
             try {
                 // Simulate AI delay for UX or call API
-                // const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
                 // In a real scenario, we'd make the API call here. 
-                // For this demo, we simulate a "Live" generation to save tokens on mount/unmount spam.
                 await new Promise(r => setTimeout(r, 1500));
                 
                 setInsight({
@@ -157,10 +153,17 @@ const CategoryControlBar = ({
     );
 };
 
-const CategoryPage = () => {
-  const { id } = useParams<{ id: string }>();
+interface CategoryPageProps {
+    staticId?: string;
+}
+
+const CategoryPage: React.FC<CategoryPageProps> = ({ staticId }) => {
+  const { id: paramId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { contentLanguage } = useLanguage();
+  
+  // Use staticId if provided (for manual routes), otherwise fallback to params
+  const id = staticId || paramId;
   
   // State
   const [articles, setArticles] = useState<any[]>([]);
@@ -204,8 +207,8 @@ const CategoryPage = () => {
           }, 800);
       };
 
-      loadSmartFeed();
-  }, [title, contentLanguage]);
+      if (id) loadSmartFeed();
+  }, [title, contentLanguage, id]);
 
   // --- Filtering Logic ---
   useEffect(() => {
@@ -220,13 +223,9 @@ const CategoryPage = () => {
           );
       }
 
-      // Filters (Simulated logic as real metadata might be missing in mock)
+      // Filters
       if (activeFilter === 'Impact') {
           result = result.sort((a, b) => (a.impact === 'High' ? -1 : 1));
-      } else if (activeFilter === 'Time') {
-          // Assume already sorted by time roughly, but could resort if timestamps existed
-      } else if (activeFilter === 'Region') {
-          // Could filter by region keyword if available
       }
 
       setFilteredArticles(result);
@@ -272,10 +271,10 @@ const CategoryPage = () => {
   };
 
   const handleWatchReel = (newsId: string) => {
-      // In a real app, pass the ID to reel page to start there
-      // For now, just open reels
       navigate('/reel');
   };
+
+  if (!id) return <div>Category not found</div>;
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50 dark:bg-black pb-20 transition-colors duration-300">

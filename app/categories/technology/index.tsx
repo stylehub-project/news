@@ -1,14 +1,7 @@
-import React from 'react';
-import { Cpu } from 'lucide-react';
-import GenericPageSkeleton from '../../../components/skeletons/GenericPageSkeleton';
 
-const TechPage = () => (
-  <GenericPageSkeleton 
-    title="Technology"
-    gradient="bg-indigo-600"
-    icon={<Cpu size={48} />}
-    features={["Product Launches", "Startup News", "AI Breakthroughs"]}
-  />
-);
+import React from 'react';
+import CategoryPage from '../CategoryPage';
+
+const TechPage = () => <CategoryPage staticId="technology" />;
 
 export default TechPage;
