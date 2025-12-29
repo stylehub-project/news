@@ -1,11 +1,19 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Share2, Bookmark, Clock, ChevronRight, Sparkles, Zap, Check } from 'lucide-react';
 import BlurImageLoader from '../loaders/BlurImageLoader';
 import { useNavigate } from 'react-router-dom';
 
-// Abstract News Background for Fallback
-const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=800&auto=format&fit=crop";
+// Diverse Fallback Images for Headlines
+const FALLBACK_IMAGES = [
+  "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=800&auto=format&fit=crop", // News Abstract
+  "https://images.unsplash.com/photo-1495020689067-958852a7765e?q=80&w=800&auto=format&fit=crop", // Newspaper
+  "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?q=80&w=800&auto=format&fit=crop", // TV News
+  "https://images.unsplash.com/photo-1526304640152-d4619684e484?q=80&w=800&auto=format&fit=crop", // Finance
+  "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=800&auto=format&fit=crop", // Tech
+  "https://images.unsplash.com/photo-1523995462485-3d171b5c8fa9?q=80&w=800&auto=format&fit=crop", // Global
+  "https://images.unsplash.com/photo-1503694978674-be25dd5c6d07?q=80&w=800&auto=format&fit=crop", // General
+];
 
 interface SwipeableCardProps {
   data: any;
@@ -34,6 +42,17 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLongPressRef = useRef(false);
+
+  // Deterministic Fallback based on ID
+  const fallbackImage = useMemo(() => {
+      let hash = 0;
+      const str = data.id || 'default';
+      for (let i = 0; i < str.length; i++) {
+          hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const index = Math.abs(hash) % FALLBACK_IMAGES.length;
+      return FALLBACK_IMAGES[index];
+  }, [data.id]);
 
   // --- Touch Handlers ---
 
@@ -192,7 +211,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
             <div className="absolute inset-0">
                 <BlurImageLoader 
                     src={data.imageUrl} 
-                    fallbackSrc={FALLBACK_IMAGE}
+                    fallbackSrc={fallbackImage}
                     alt={data.title} 
                     className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" 
                 />
@@ -227,9 +246,12 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
                 </p>
 
                 {/* Footer Buttons */}
-                <div className="flex gap-3">
+                <div className="flex gap-3 relative z-20 pointer-events-auto">
                     <button 
-                        onClick={(e) => { e.stopPropagation(); navigate(`/news/${data.id}`); }}
+                        onClick={(e) => { 
+                            e.stopPropagation(); 
+                            navigate(`/news/${data.id}`); 
+                        }}
                         className="flex-1 bg-white text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors active:scale-95 shadow-lg"
                     >
                         Read Story <ChevronRight size={16} />
@@ -237,7 +259,10 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
                     
                     {/* AI Analysis Icon (Robot/Sparkles) */}
                     <button 
-                        onClick={(e) => { e.stopPropagation(); onAIExplain?.(data.id); }}
+                        onClick={(e) => { 
+                            e.stopPropagation(); 
+                            onAIExplain?.(data.id); 
+                        }}
                         className="p-3 bg-indigo-600 rounded-xl text-white hover:bg-indigo-500 transition-colors shadow-lg active:scale-90 relative group"
                         title="AI Analysis"
                     >
