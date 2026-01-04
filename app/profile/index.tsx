@@ -1,18 +1,25 @@
 
-import React from 'react';
-import { Camera, Settings, ShieldCheck, Zap, Globe, Smartphone, BookOpen, RotateCcw, Clock, Bookmark } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Camera, Settings, ShieldCheck, Zap, Globe, Smartphone, BookOpen, RotateCcw, Clock, Bookmark, Edit2, Check } from 'lucide-react';
 import PageHeader from '../../components/PageHeader';
 import ThemeSwitcher from '../../components/ThemeSwitcher';
 import { useLanguage } from '../../context/LanguageContext';
 import { useBookmark } from '../../context/BookmarkContext';
+import { useUser } from '../../context/UserContext';
 import { translations } from '../../utils/translations';
 import { useNavigate } from 'react-router-dom';
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { appLanguage, setAppLanguage, contentLanguage, setContentLanguage } = useLanguage();
+  const { user, updateUser } = useUser();
   const { bookmarks } = useBookmark();
   const t = translations[appLanguage];
+  
+  // Profile State
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState(user.name);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleResetApp = () => {
       if (window.confirm("Are you sure you want to reset the app? This will clear all your saved data, preferences, and bookmarks.")) {
@@ -20,6 +27,24 @@ const ProfilePage: React.FC = () => {
           sessionStorage.clear();
           window.location.reload();
       }
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+              updateUser({ avatar: reader.result as string });
+          };
+          reader.readAsDataURL(file);
+      }
+  };
+
+  const saveName = () => {
+      if (editNameValue.trim()) {
+          updateUser({ name: editNameValue });
+      }
+      setIsEditingName(false);
   };
 
   return (
@@ -33,20 +58,32 @@ const ProfilePage: React.FC = () => {
         <div className="flex flex-col items-center mb-8 mt-4">
             
             {/* Cinematic Avatar Composition */}
-            <div className="relative w-36 h-36 mb-6 group cursor-pointer">
+            <div 
+                className="relative w-36 h-36 mb-6 group cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+            >
+                {/* Hidden File Input */}
+                <input 
+                    type="file" 
+                    ref={fileInputRef}
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                />
+
                 {/* Volumetric Backlight Glow */}
                 <div className="absolute -inset-6 bg-gradient-to-tr from-blue-600/30 to-purple-600/30 rounded-full blur-3xl opacity-40 group-hover:opacity-70 transition-opacity duration-1000"></div>
                 
-                {/* Orbital Ring 1 (Cyan/Blue) - Rotates Clockwise */}
+                {/* Orbital Ring 1 */}
                 <div className="absolute -inset-[3px] rounded-full border border-cyan-500/20 border-t-cyan-400 border-r-transparent animate-[spin_8s_linear_infinite]"></div>
                 
-                {/* Orbital Ring 2 (Purple/Pink) - Rotates Counter-Clockwise */}
+                {/* Orbital Ring 2 */}
                 <div className="absolute inset-[3px] rounded-full border border-purple-500/20 border-b-purple-400 border-l-transparent animate-[spin_12s_linear_infinite_reverse]"></div>
 
                 {/* Main Avatar Container */}
                 <div className="absolute inset-[8px] rounded-full z-10 overflow-hidden border-4 border-white/20 dark:border-black/20 shadow-[0_10px_40px_rgba(0,0,0,0.3)] bg-gray-100 dark:bg-gray-800">
                     <img 
-                        src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=400&auto=format&fit=crop" 
+                        src={user.avatar} 
                         alt="Profile" 
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
                     />
@@ -67,17 +104,42 @@ const ProfilePage: React.FC = () => {
                         <span className="tracking-wide">PRO</span>
                     </div>
                 </div>
-                
-                {/* Status Indicator */}
-                <div className="absolute top-1 right-2 z-20">
-                     <div className="w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full shadow-sm animate-pulse"></div>
-                </div>
             </div>
 
-            {/* Typography */}
-            <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight drop-shadow-sm">Lakshya</h2>
+            {/* Editable Name */}
+            <div className="flex items-center gap-2">
+                {isEditingName ? (
+                    <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg p-1 border border-blue-500">
+                        <input 
+                            type="text" 
+                            value={editNameValue}
+                            onChange={(e) => setEditNameValue(e.target.value)}
+                            className="bg-transparent border-none outline-none text-2xl font-black text-gray-900 dark:text-white w-40 text-center"
+                            autoFocus
+                            onKeyDown={(e) => e.key === 'Enter' && saveName()}
+                        />
+                        <button 
+                            onClick={saveName}
+                            className="p-1 bg-blue-600 text-white rounded-md"
+                        >
+                            <Check size={16} />
+                        </button>
+                    </div>
+                ) : (
+                    <h2 
+                        className="text-3xl font-black text-gray-900 dark:text-white tracking-tight drop-shadow-sm flex items-center gap-2 cursor-pointer hover:opacity-80"
+                        onClick={() => {
+                            setEditNameValue(user.name);
+                            setIsEditingName(true);
+                        }}
+                    >
+                        {user.name} <Edit2 size={16} className="text-gray-400" />
+                    </h2>
+                )}
+            </div>
+
             <div className="flex items-center gap-2 mt-1">
-                <span className="text-gray-500 dark:text-gray-400 font-medium text-sm">@lakshya</span>
+                <span className="text-gray-500 dark:text-gray-400 font-medium text-sm">@{user.username}</span>
                 <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
                 <span className="text-blue-600 dark:text-blue-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
                     <Zap size={10} className="fill-current" /> {t.early_adopter}
@@ -86,8 +148,7 @@ const ProfilePage: React.FC = () => {
         </div>
 
         <div className="space-y-4">
-            
-            {/* History Link */}
+            {/* ... Rest of existing settings code (bookmarks, history, etc) ... */}
             <div 
                 onClick={() => navigate('/history')}
                 className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between transition-colors hover:shadow-md duration-300 cursor-pointer group"
@@ -98,7 +159,6 @@ const ProfilePage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Bookmarks Link */}
             <div 
                 onClick={() => navigate('/bookmarks')}
                 className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between transition-colors hover:shadow-md duration-300 cursor-pointer group"
@@ -124,11 +184,9 @@ const ProfilePage: React.FC = () => {
                 <ThemeSwitcher />
             </div>
 
-            {/* Language Selection Section */}
             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-4 transition-colors">
                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1 block">{t.language_preferences}</span>
                  
-                 {/* App Interface Language */}
                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg">
@@ -157,7 +215,6 @@ const ProfilePage: React.FC = () => {
 
                  <div className="h-px bg-gray-100 dark:bg-gray-700"></div>
 
-                 {/* Content Language */}
                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg">

@@ -1,12 +1,12 @@
 
 import React, { useState } from 'react';
-import { Filter, X, ChevronDown, Check } from 'lucide-react';
+import { Filter, X, ChevronDown, Check, Cloud } from 'lucide-react';
 
 export interface MapFilters {
   category: string;
   time: string;
-  source: string; // New
-  impact: string; // New
+  source: string;
+  impact: string;
   state: string;
   sentiment: string;
   type: string;
@@ -22,31 +22,30 @@ const MapFilterPanel: React.FC<MapFilterPanelProps> = ({ filters, onChange }) =>
   
   const FILTER_GROUPS = [
       {
-          key: 'time',
-          label: 'Timeframe',
-          options: ['Now', 'Today', 'This Week']
-      },
-      {
           key: 'category',
-          label: 'Topic',
-          options: ['All', 'Politics', 'Tech', 'Environment', 'Business']
+          label: 'Phenomenon',
+          options: ['All', 'Storm', 'Heat', 'Cold', 'Flood', 'Wind', 'Rain']
       },
       {
           key: 'impact',
-          label: 'Impact Level',
+          label: 'Severity',
           options: ['All', 'High', 'Medium', 'Low']
+      },
+      {
+          key: 'time',
+          label: 'Forecast',
+          options: ['Now', '24h', 'Weekly']
       },
       {
           key: 'source',
           label: 'Source',
-          options: ['All', 'Verified', 'Major', 'Local']
+          options: ['All', 'Met Dept', 'Global', 'Local']
       }
   ];
 
   return (
     <div className="relative flex items-center justify-end pointer-events-auto">
       
-      {/* Dropside Container (Glass Dark Theme) */}
       <div 
         className={`absolute right-0 top-14 bg-black/90 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-5 w-72 transition-all duration-300 origin-top-right z-50 ${
             isOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'
@@ -54,18 +53,18 @@ const MapFilterPanel: React.FC<MapFilterPanelProps> = ({ filters, onChange }) =>
       >
         <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2">
-                <Filter size={12} /> Map Controls
+                <Cloud size={12} /> Weather Filters
             </h3>
             <button 
                 onClick={() => {
                     onChange('category', 'All');
-                    onChange('time', 'Today');
+                    onChange('time', 'Now');
                     onChange('impact', 'All');
                     onChange('source', 'All');
                 }} 
                 className="text-[10px] text-blue-400 font-bold hover:text-blue-300"
             >
-                Reset Default
+                Reset
             </button>
         </div>
 
@@ -97,7 +96,6 @@ const MapFilterPanel: React.FC<MapFilterPanelProps> = ({ filters, onChange }) =>
         </div>
       </div>
 
-      {/* Main Toggle Button (Glass Dark Theme) */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-lg border ${
@@ -105,7 +103,7 @@ const MapFilterPanel: React.FC<MapFilterPanelProps> = ({ filters, onChange }) =>
             ? 'bg-blue-600 text-white border-blue-500 shadow-blue-500/30' 
             : 'bg-black/40 backdrop-blur-md text-white border-white/10 hover:bg-black/60'
         }`}
-        title="Map Filters"
+        title="Weather Filters"
       >
         <Filter size={18} className={isOpen ? 'fill-current' : ''} />
       </button>

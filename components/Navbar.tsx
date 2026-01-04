@@ -1,11 +1,14 @@
+
 import React from 'react';
 import { Search, Bell, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import { useUser } from '../context/UserContext';
 import { translations } from '../utils/translations';
 
 const Navbar: React.FC = () => {
   const { appLanguage } = useLanguage();
+  const { user } = useUser();
   const t = translations[appLanguage];
 
   return (
@@ -25,8 +28,8 @@ const Navbar: React.FC = () => {
                 {/* Avatar Image with Depth */}
                 <div className="absolute inset-[3px] rounded-full overflow-hidden z-20 shadow-inner bg-gray-100 dark:bg-gray-800">
                      <img 
-                        src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop" 
-                        alt="Profile" 
+                        src={user.avatar} 
+                        alt={user.name}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
                      />
                      {/* Gloss Overlay */}

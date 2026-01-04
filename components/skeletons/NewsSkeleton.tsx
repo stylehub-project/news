@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import Shimmer from '../ui/Shimmer';
 
 const FACTS = [
   "Did you know? The first newspaper was printed in 1605.",
-  "Gemini can summarize 1000 words in seconds.",
+  "AI can summarize 1000 words in seconds.",
   "Reading keeps your brain active!",
   "Updating headlines from around the world..."
 ];

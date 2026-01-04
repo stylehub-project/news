@@ -4,16 +4,27 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
     Sparkles, Search, RefreshCw, 
     Smartphone, Zap, Clock, Globe,
-    AlertTriangle
+    AlertTriangle, Layers, BookOpen
 } from 'lucide-react';
 import PageHeader from '../../components/PageHeader';
 import NewsCardBasic from '../../components/cards/NewsCardBasic';
 import NewsSkeleton from '../../components/skeletons/NewsSkeleton';
-import { fetchNewsFeed } from '../../utils/aiService';
+import { fetchNewsFeed, fetchCategoryInsight } from '../../utils/aiService';
 import { useLanguage } from '../../context/LanguageContext';
 
+// --- Sub-topics Data ---
+const SUB_TOPICS: Record<string, string[]> = {
+    'Technology': ['AI & Robotics', 'Consumer Tech', 'Crypto', 'Cybersecurity', 'Startups'],
+    'Politics': ['Elections', 'Policy', 'International Relations', 'Local Gov', 'Opinions'],
+    'Business': ['Markets', 'Economy', 'Corporate', 'Real Estate', 'Personal Finance'],
+    'Science': ['Space', 'Climate', 'Biology', 'Physics', 'Health'],
+    'World': ['Conflicts', 'Diplomacy', 'Development', 'Culture'],
+    'Health': ['Wellness', 'Medical Research', 'Public Health', 'Nutrition'],
+    'Sports': ['Cricket', 'Football', 'Olympics', 'Tennis', 'Motorsport'],
+};
+
 // --- AI Insight Component ---
-const AICategoryInsight = ({ category }: { category: string }) => {
+const AICategoryInsight = ({ category, subTopic }: { category: string, subTopic: string }) => {
     const [insight, setInsight] = useState<{summary: string, keywords: string[]} | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -21,14 +32,10 @@ const AICategoryInsight = ({ category }: { category: string }) => {
         const generateInsight = async () => {
             setLoading(true);
             try {
-                // Simulate AI delay for UX or call API
-                // In a real scenario, we'd make the API call here. 
-                await new Promise(r => setTimeout(r, 1500));
-                
-                setInsight({
-                    summary: `${category} is seeing a massive shift in focus today. Major discussions revolve around emerging regulations and market volatility driven by recent global events.`,
-                    keywords: ['Regulation', 'Market Shift', 'Innovation', 'Global Impact']
-                });
+                // Fetch context specific to the subtopic if selected
+                const query = subTopic === 'All' ? category : `${subTopic} in ${category}`;
+                const data = await fetchCategoryInsight(query);
+                setInsight(data as any);
             } catch (e) {
                 console.error(e);
             } finally {
@@ -36,7 +43,7 @@ const AICategoryInsight = ({ category }: { category: string }) => {
             }
         };
         generateInsight();
-    }, [category]);
+    }, [category, subTopic]);
 
     if (loading) {
         return (
@@ -65,7 +72,7 @@ const AICategoryInsight = ({ category }: { category: string }) => {
                         <div className="p-1.5 bg-indigo-600 rounded-lg text-white shadow-lg shadow-indigo-500/30">
                             <Sparkles size={14} className="animate-spin-slow" />
                         </div>
-                        <span className="text-xs font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">AI Trend Intel</span>
+                        <span className="text-xs font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Deep Dive Intel</span>
                     </div>
                     <span className="flex items-center gap-1 text-[10px] text-green-600 dark:text-green-400 font-medium bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full border border-green-100 dark:border-green-900/30">
                         <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Live
@@ -73,7 +80,7 @@ const AICategoryInsight = ({ category }: { category: string }) => {
                 </div>
 
                 <h3 className="text-lg font-black text-gray-900 dark:text-white mb-2 leading-tight">
-                    What's happening in <span className="text-indigo-600 dark:text-indigo-400">{category}</span> today?
+                    State of <span className="text-indigo-600 dark:text-indigo-400">{subTopic === 'All' ? category : subTopic}</span>
                 </h3>
                 
                 <p className="text-sm text-gray-600 dark:text-gray-300 font-medium leading-relaxed mb-4">
@@ -96,59 +103,88 @@ const AICategoryInsight = ({ category }: { category: string }) => {
 const CategoryControlBar = ({ 
     onSearch, 
     onFilterChange, 
-    activeFilter 
+    activeFilter,
+    subTopics,
+    activeSubTopic,
+    onSubTopicChange
 }: { 
     onSearch: (q: string) => void, 
     onFilterChange: (f: string) => void,
-    activeFilter: string
+    activeFilter: string,
+    subTopics: string[],
+    activeSubTopic: string,
+    onSubTopicChange: (t: string) => void
 }) => {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
 
     return (
-        <div className="sticky top-[57px] z-30 bg-white/90 dark:bg-black/90 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 px-4 py-2 flex items-center gap-3 transition-colors duration-300">
-            <div className={`flex-1 transition-all duration-300 ${isSearchOpen ? 'grow' : 'grow-0'}`}>
-                {isSearchOpen ? (
-                    <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-xl px-3 py-2 animate-in fade-in slide-in-from-left-2">
-                        <Search size={14} className="text-gray-400 mr-2" />
-                        <input 
-                            autoFocus
-                            placeholder="Search in category..." 
-                            className="bg-transparent border-none outline-none text-xs w-full font-medium dark:text-white"
-                            onChange={(e) => onSearch(e.target.value)}
-                            onBlur={(e) => !e.target.value && setIsSearchOpen(false)}
-                        />
-                    </div>
-                ) : (
-                    <button 
-                        onClick={() => setIsSearchOpen(true)}
-                        className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                    >
-                        <Search size={16} />
-                    </button>
-                )}
-            </div>
+        <div className="sticky top-[57px] z-30 bg-white/90 dark:bg-black/90 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 transition-colors duration-300 flex flex-col">
+            <div className="px-4 py-2 flex items-center gap-3">
+                <div className={`flex-1 transition-all duration-300 ${isSearchOpen ? 'grow' : 'grow-0'}`}>
+                    {isSearchOpen ? (
+                        <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-xl px-3 py-2 animate-in fade-in slide-in-from-left-2">
+                            <Search size={14} className="text-gray-400 mr-2" />
+                            <input 
+                                autoFocus
+                                placeholder="Search in category..." 
+                                className="bg-transparent border-none outline-none text-xs w-full font-medium dark:text-white"
+                                onChange={(e) => onSearch(e.target.value)}
+                                onBlur={(e) => !e.target.value && setIsSearchOpen(false)}
+                            />
+                        </div>
+                    ) : (
+                        <button 
+                            onClick={() => setIsSearchOpen(true)}
+                            className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
+                            <Search size={16} />
+                        </button>
+                    )}
+                </div>
 
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide py-1 flex-1 justify-end">
-                {[
-                    { id: 'All', icon: null },
-                    { id: 'Time', icon: Clock },
-                    { id: 'Impact', icon: AlertTriangle },
-                    { id: 'Region', icon: Globe }
-                ].map(f => (
-                    <button
-                        key={f.id}
-                        onClick={() => onFilterChange(f.id)}
-                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all whitespace-nowrap ${
-                            activeFilter === f.id 
-                            ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white shadow-md' 
-                            : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
-                        }`}
-                    >
-                        {f.icon && <f.icon size={10} />}
-                        {f.id}
-                    </button>
-                ))}
+                <div className="flex gap-2 overflow-x-auto scrollbar-hide py-1 flex-1 justify-end">
+                    {[
+                        { id: 'All', icon: null },
+                        { id: 'Time', icon: Clock },
+                        { id: 'Impact', icon: AlertTriangle },
+                        { id: 'Region', icon: Globe }
+                    ].map(f => (
+                        <button
+                            key={f.id}
+                            onClick={() => onFilterChange(f.id)}
+                            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all whitespace-nowrap ${
+                                activeFilter === f.id 
+                                ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white shadow-md' 
+                                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
+                            }`}
+                        >
+                            {f.icon && <f.icon size={10} />}
+                            {f.id}
+                        </button>
+                    ))}
+                </div>
             </div>
+            
+            {/* Sub-Topics Scroller */}
+            {subTopics.length > 0 && (
+                <div className="px-4 pb-2 flex gap-2 overflow-x-auto scrollbar-hide">
+                    <button
+                        onClick={() => onSubTopicChange('All')}
+                        className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all ${activeSubTopic === 'All' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200' : 'bg-gray-50 dark:bg-gray-800 text-gray-500'}`}
+                    >
+                        All
+                    </button>
+                    {subTopics.map(t => (
+                        <button
+                            key={t}
+                            onClick={() => onSubTopicChange(t)}
+                            className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all ${activeSubTopic === t ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200' : 'bg-gray-50 dark:bg-gray-800 text-gray-500'}`}
+                        >
+                            {t}
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
@@ -173,11 +209,13 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ staticId }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   
+  // Formatting Title & Subtopics
+  const title = id ? id.charAt(0).toUpperCase() + id.slice(1) : 'Category';
+  const subTopics = SUB_TOPICS[title] || [];
+  const [activeSubTopic, setActiveSubTopic] = useState('All');
+  
   // Ref for intersection observer
   const observer = useRef<IntersectionObserver | null>(null);
-
-  // Formatting Title
-  const title = id ? id.charAt(0).toUpperCase() + id.slice(1) : 'Category';
 
   // --- Smart Loading Logic ---
   useEffect(() => {
@@ -185,22 +223,25 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ staticId }) => {
           setLoadingState('init');
           setArticles([]);
           const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
+          
+          // Use sub-topic if selected for more specific results
+          const queryCategory = activeSubTopic === 'All' ? title : `${activeSubTopic} ${title}`;
 
           // 1. Load Top Stories (High Priority)
-          const topStories = await fetchNewsFeed(1, { category: title, sort: 'Top', language: langName });
-          const taggedTop = topStories.map((a: any) => ({ ...a, feedType: 'Top Story', impact: 'High' }));
+          const topStories = await fetchNewsFeed(1, { category: queryCategory, sort: 'Top', language: langName });
+          const taggedTop = topStories.map((a: any) => ({ ...a, feedType: 'Deep Dive', impact: 'High' }));
           setArticles(prev => [...prev, ...taggedTop]);
           
           setLoadingState('streaming');
 
           // 2. Load Trending (Medium Priority) - slightly delayed to simulate streaming
           setTimeout(async () => {
-              const trendingStories = await fetchNewsFeed(1, { category: title, sort: 'Trending', language: langName });
+              const trendingStories = await fetchNewsFeed(1, { category: queryCategory, sort: 'Trending', language: langName });
               // Dedupe
               const existingIds = new Set(taggedTop.map((a: any) => a.id));
               const uniqueTrending = trendingStories
                   .filter((a: any) => !existingIds.has(a.id))
-                  .map((a: any) => ({ ...a, feedType: 'Trending', impact: 'Medium' }));
+                  .map((a: any) => ({ ...a, feedType: 'Latest', impact: 'Medium' }));
               
               setArticles(prev => [...prev, ...uniqueTrending]);
               setLoadingState('complete');
@@ -208,7 +249,7 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ staticId }) => {
       };
 
       if (id) loadSmartFeed();
-  }, [title, contentLanguage, id]);
+  }, [title, contentLanguage, id, activeSubTopic]);
 
   // --- Filtering Logic ---
   useEffect(() => {
@@ -236,7 +277,8 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ staticId }) => {
       if (loadingState !== 'complete') return;
       const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
       const nextPage = page + 1;
-      const moreNews = await fetchNewsFeed(nextPage, { category: title, sort: 'Latest', language: langName });
+      const queryCategory = activeSubTopic === 'All' ? title : `${activeSubTopic} ${title}`;
+      const moreNews = await fetchNewsFeed(nextPage, { category: queryCategory, sort: 'Latest', language: langName });
       
       const newItems = moreNews.map((a: any) => ({ ...a, feedType: 'Latest' }));
       
@@ -280,14 +322,17 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ staticId }) => {
     <div className="h-full overflow-y-auto bg-gray-50 dark:bg-black pb-20 transition-colors duration-300">
       <PageHeader title={title} showBack />
       
-      {/* 11.5 AI Insights */}
-      <AICategoryInsight category={title} />
+      {/* 11.5 AI Insights - Context Aware */}
+      <AICategoryInsight category={title} subTopic={activeSubTopic} />
 
-      {/* 11.6 Search & Filters */}
+      {/* 11.6 Search & Filters & SubTopics */}
       <CategoryControlBar 
         onSearch={setSearchQuery} 
         onFilterChange={setActiveFilter}
         activeFilter={activeFilter}
+        subTopics={subTopics}
+        activeSubTopic={activeSubTopic}
+        onSubTopicChange={setActiveSubTopic}
       />
       
       <div className="p-4 space-y-5">
@@ -295,7 +340,9 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ staticId }) => {
           {activeFilter === 'All' && !searchQuery && articles.length > 0 && (
               <div className="flex items-center gap-2 mb-2">
                   <Zap size={14} className="text-yellow-500 fill-yellow-500" />
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Top Stories</span>
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      {activeSubTopic === 'All' ? 'Top Stories' : `Best of ${activeSubTopic}`}
+                  </span>
               </div>
           )}
 
@@ -313,7 +360,7 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ staticId }) => {
                           {/* Inject a "Trending" header mid-stream if we switch feed types */}
                           {index > 0 && news.feedType !== filteredArticles[index-1].feedType && !searchQuery && (
                               <div className="flex items-center gap-2 mt-6 mb-2">
-                                  {news.feedType === 'Trending' ? <TrendingUpIcon /> : <ClockIcon />}
+                                  {news.feedType === 'Deep Dive' ? <BookOpen className="text-indigo-500 w-4 h-4" /> : <ClockIcon />}
                                   <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">{news.feedType}</span>
                               </div>
                           )}

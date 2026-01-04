@@ -1,62 +1,428 @@
-import React from 'react';
-import { Send, Image as ImageIcon, BarChart2, Mic } from 'lucide-react';
-import ComingSoonBanner from '../../components/ComingSoonBanner';
+
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { GoogleGenAI, Chat } from "@google/genai";
+import ChatMessage, { Message } from '../../components/chatbot/ChatMessage';
+import ChatInputBar from '../../components/chatbot/ChatInputBar';
+import QuickQuestions from '../../components/chatbot/QuickQuestions';
+import VoiceMode from '../../components/chatbot/VoiceMode';
+import AudioGenerator from '../../components/chatbot/AudioGenerator';
+import AIInteractionModal from '../../components/chatbot/AIInteractionModal';
+import AIHubTour from '../../components/chatbot/AIHubTour';
+import ThinkingIndicator from '../../components/chatbot/ThinkingIndicator';
+import InteractiveAvatar from '../../components/chatbot/InteractiveAvatar';
+import { Trash2, StopCircle, Bot, Zap, AudioWaveform } from 'lucide-react';
+import SmartLoader from '../../components/loaders/SmartLoader';
+import { useLoading } from '../../context/LoadingContext';
+import Button from '../../components/ui/Button';
+import Toast from '../../components/ui/Toast';
+
+// Helper to get API Key safely checking multiple environments
+const getApiKey = () => {
+  let apiKey = '';
+  
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+    apiKey = (import.meta as any).env.VITE_API_KEY || (import.meta as any).env.API_KEY;
+  }
+  
+  if (!apiKey && typeof process !== 'undefined' && process.env) {
+    // @ts-ignore
+    apiKey = process.env.NEXT_PUBLIC_API_KEY || process.env.API_KEY || process.env.REACT_APP_API_KEY;
+  }
+  
+  if (!apiKey && typeof window !== 'undefined' && (window as any).process?.env) {
+      apiKey = (window as any).process.env.API_KEY;
+  }
+  
+  if (!apiKey) {
+    return '';
+  }
+  return apiKey;
+};
+
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const ChatPage: React.FC = () => {
-  return (
-    <div className="flex flex-col h-[calc(100vh-140px)] bg-gray-50">
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { isLoaded, markAsLoaded } = useLoading();
+  
+  const [messages, setMessages] = useState<Message[]>(() => {
+      try {
+          const saved = sessionStorage.getItem('news_club_chat_session');
+          return saved ? JSON.parse(saved) : [];
+      } catch (e) { return []; }
+  });
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [avatarState, setAvatarState] = useState<'idle' | 'thinking' | 'speaking' | 'error'>('idle');
+  const [isInitializing, setIsInitializing] = useState(!isLoaded('chat') && messages.length === 0);
+  
+  const [activeMode, setActiveMode] = useState<'chat' | 'live' | 'generator'>('chat');
+  const [showInteractionModal, setShowInteractionModal] = useState(false);
+  const [showTour, setShowTour] = useState(false);
+  const [showFeatureToast, setShowFeatureToast] = useState(false);
+
+  const [hasInteracted, setHasInteracted] = useState(messages.length > 0);
+  
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const chatSessionRef = useRef<Chat | null>(null);
+  const autoTriggeredRef = useRef(false);
+
+  // Check Tour Status on Mount & New Feature Discovery
+  useEffect(() => {
+      const hasSeenTour = localStorage.getItem('has_seen_ai_hub_tour');
+      const hasSeenActions = localStorage.getItem('has_seen_chat_actions_v1');
+
+      if (!hasSeenTour && !isInitializing && !searchParams.get('context')) {
+          // Delay slightly to let UI settle
+          const timer = setTimeout(() => setShowTour(true), 1000);
+          return () => clearTimeout(timer);
+      } else if (!hasSeenActions && !isInitializing) {
+          // If tour already seen, show new feature toast
+          const timer = setTimeout(() => setShowFeatureToast(true), 2500);
+          return () => clearTimeout(timer);
+      }
+  }, [isInitializing, searchParams]);
+
+  const handleCloseTour = () => {
+      setShowTour(false);
+      localStorage.setItem('has_seen_ai_hub_tour', 'true');
+      // Chain feature toast after tour
+      setTimeout(() => setShowFeatureToast(true), 1000);
+  };
+
+  const handleDismissToast = () => {
+      setShowFeatureToast(false);
+      localStorage.setItem('has_seen_chat_actions_v1', 'true');
+  };
+
+  useEffect(() => {
+      // Auto-start generator if param is set
+      if (searchParams.get('mode') === 'generator') {
+          setActiveMode('generator');
+      } else if (searchParams.get('mode') === 'voice') {
+          setActiveMode('live');
+      }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const initChat = async () => {
+        try {
+            const apiKey = getApiKey(); 
+            if (!apiKey) return;
+
+            const ai = new GoogleGenAI({ apiKey });
+            chatSessionRef.current = ai.chats.create({
+                model: 'gemini-flash-lite-latest', 
+                config: {
+                    systemInstruction: "You are a professional News Anchor AI. Summarize news concisely, use bold for key facts, and be emoji-friendly! Provide a summary, explain why it matters, and list potential impacts. If asked for Hindi headlines, provide them in Hindi text. ✨",
+                    tools: [{ googleSearch: {} }],
+                },
+            });
+        } catch (error) { 
+            console.error("Init Error", error);
+        }
+    };
+    if (!chatSessionRef.current) initChat();
+  }, []);
+
+  useEffect(() => {
+      if (isInitializing) {
+          const timer = setTimeout(() => { 
+              setIsInitializing(false); 
+              markAsLoaded('chat'); 
+          }, 1500);
+          return () => clearTimeout(timer);
+      }
+  }, [isInitializing, markAsLoaded]);
+
+  // Handle Auto-Injection from URL
+  useEffect(() => {
+      const context = searchParams.get('context');
+      const headline = searchParams.get('headline');
       
-      {/* Chat Area */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-4">
-        {/* Bot Message */}
-        <div className="flex gap-3">
-             <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">AI</div>
-             <div className="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm max-w-[80%]">
-                <p className="text-sm text-gray-700">Hello! I'm your News Assistant. I can summarize today's headlines, create charts, or explain complex topics.</p>
-             </div>
-        </div>
+      // Auto-Trigger Analysis if headline exists and hasn't been triggered yet
+      if (headline && !autoTriggeredRef.current && chatSessionRef.current) {
+          autoTriggeredRef.current = true;
+          const prompt = `Analyze this news: "${headline}" and explain its impact.`;
+          handleSend(prompt);
+      }
+  }, [searchParams, chatSessionRef.current]); 
 
-        {/* User Message */}
-        <div className="flex gap-3 flex-row-reverse">
-             <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 text-xs font-bold">ME</div>
-             <div className="bg-blue-600 p-3 rounded-2xl rounded-tr-none shadow-sm max-w-[80%] text-white">
-                <p className="text-sm">Give me an overview of the tech market today.</p>
-             </div>
-        </div>
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (messages.length > 0) {
+        sessionStorage.setItem('news_club_chat_session', JSON.stringify(messages));
+    }
+  }, [messages, isLoading, isStreaming]);
 
-        {/* Bot Gemini Storyboard Placeholder */}
-        <div className="flex gap-3">
-             <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">AI</div>
-             <div className="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm max-w-[90%] w-full border border-indigo-100">
-                <div className="mb-2 text-xs font-bold text-indigo-500 uppercase">Gemini Overview</div>
-                <div className="grid grid-cols-2 gap-2 mb-2">
-                    <div className="h-20 bg-indigo-50 rounded animate-pulse"></div>
-                    <div className="h-20 bg-indigo-50 rounded animate-pulse"></div>
+  const handleClearChat = () => {
+      if (window.confirm("Want to start a new chat? 🧹")) {
+          setMessages([]);
+          setHasInteracted(false);
+          sessionStorage.removeItem('news_club_chat_session');
+          chatSessionRef.current = null;
+          autoTriggeredRef.current = false;
+      }
+  };
+
+  const attemptSendMessage = async (text: string, attempt = 1): Promise<void> => {
+      try {
+          if (!chatSessionRef.current) {
+              const apiKey = getApiKey();
+              if (!apiKey) throw new Error("API_KEY_MISSING");
+              
+              const ai = new GoogleGenAI({ apiKey });
+              chatSessionRef.current = ai.chats.create({ 
+                  model: 'gemini-flash-lite-latest',
+                  config: {
+                      systemInstruction: "You are a professional News Anchor AI. Be expressive with emojis! ✨ Suggest 3 follow-up questions! 💡",
+                      tools: [{ googleSearch: {} }]
+                  }
+              });
+          }
+
+          const result = await chatSessionRef.current.sendMessageStream({ message: text });
+          setIsLoading(false);
+          setIsStreaming(true);
+          setAvatarState('speaking');
+
+          let accumulatedText = "";
+          
+          for await (const chunk of result) {
+              const chunkText = chunk.text;
+              if (chunkText) {
+                  accumulatedText += chunkText;
+                  setMessages(prev => {
+                      const newMsgs = [...prev];
+                      const lastMsg = newMsgs[newMsgs.length - 1];
+                      if (lastMsg.role === 'ai') {
+                          lastMsg.content = accumulatedText;
+                      }
+                      return newMsgs;
+                  });
+              }
+          }
+
+          let suggestedActions: string[] = ["Tell me more! 🗣️", "What else is trending? 🔥", "Explain it simply 👶"];
+          const lowerText = accumulatedText.toLowerCase();
+          
+          if (lowerText.includes('market') || lowerText.includes('stock')) {
+              suggestedActions = ["Stock predictions 📈", "Company insights 🏢", "Market risks? ⚠️"];
+          } else if (lowerText.includes('tech') || lowerText.includes('ai')) {
+              suggestedActions = ["Future of AI 🤖", "Tech stock news 💻", "Is it safe? 🛡️"];
+          } else if (lowerText.includes('world') || lowerText.includes('politic')) {
+              suggestedActions = ["Global impact? 🌍", "Local reactions 🏘️", "Historical context 🏛️"];
+          }
+
+          setMessages(prev => {
+              const newMsgs = [...prev];
+              const lastMsg = newMsgs[newMsgs.length - 1];
+              lastMsg.isStreaming = false;
+              lastMsg.suggestedActions = suggestedActions;
+              lastMsg.timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              return newMsgs;
+          });
+          
+          setIsStreaming(false);
+          setAvatarState('idle');
+
+      } catch (error: any) {
+          console.error(`Chat Error (Attempt ${attempt}):`, error);
+          
+          if ((error.status === 429 || error.status === 503) && attempt < 2) {
+              await delay(attempt * 1500); 
+              chatSessionRef.current = null;
+              return attemptSendMessage(text, attempt + 1);
+          }
+
+          let errorMessage = "Oops! My antennas got crossed. Let's try that again! 🔄🛰️";
+          let suggestedRetry = ["Retry ↻"];
+
+          if (error.message === "API_KEY_MISSING") {
+              errorMessage = "I seem to be missing my API Key! 🔑 Please check your configuration.";
+              suggestedRetry = [];
+          } else if (error.status === 429) {
+              errorMessage = "Whoa, too many requests! 🤯 I'm cooling down. Please wait a moment.";
+              suggestedRetry = ["Try Again", "Reset Connection"];
+          }
+
+          setMessages(prev => {
+              const newMsgs = [...prev];
+              const lastMsg = newMsgs[newMsgs.length - 1];
+              lastMsg.content = errorMessage;
+              lastMsg.isStreaming = false;
+              lastMsg.suggestedActions = suggestedRetry;
+              return newMsgs;
+          });
+          
+          setIsLoading(false); 
+          setIsStreaming(false); 
+          setAvatarState('error');
+      }
+  };
+
+  const handleSend = async (text: string) => {
+    if (!text.trim()) return;
+    
+    const isRetry = text === "Retry ↻" || text === "Try Again";
+    let messageToSend = text;
+
+    if (isRetry) {
+        const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+        if (lastUserMsg) {
+            messageToSend = lastUserMsg.content;
+        } else {
+            return; 
+        }
+    } else {
+        setHasInteracted(true);
+        const newUserMsg: Message = { 
+            id: Date.now().toString(), 
+            role: 'user', 
+            content: text, 
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+        };
+        setMessages(prev => [...prev, newUserMsg]);
+    }
+    
+    setIsLoading(true);
+    setAvatarState('thinking');
+
+    const aiMsgId = (Date.now() + 1).toString();
+    setMessages(prev => [...prev, { id: aiMsgId, role: 'ai', content: '', isStreaming: true, timestamp: 'Just now' }]);
+
+    await attemptSendMessage(messageToSend);
+  };
+
+  const handleModeSelect = (mode: 'live' | 'generator') => {
+      setActiveMode(mode);
+      setShowInteractionModal(false);
+  };
+
+  if (isInitializing) return <SmartLoader type="chat" />;
+
+  return (
+    <div className="flex flex-col h-full relative transition-colors duration-300 overflow-hidden bg-gray-50 dark:bg-[#0f172a] pb-[85px]">
+      <div className="absolute inset-0 z-0 pointer-events-none">
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
+      </div>
+
+      {/* Feature Toast */}
+      {showFeatureToast && (
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-xs px-4 animate-in slide-in-from-top-4 fade-in">
+              <Toast 
+                  type="info" 
+                  message="New: Listen, Copy & Share AI responses! 🎧" 
+                  onClose={handleDismissToast} 
+                  duration={5000}
+              />
+          </div>
+      )}
+
+      {/* Modes Overlays */}
+      {activeMode === 'live' && <VoiceMode onClose={() => setActiveMode('chat')} />}
+      {activeMode === 'generator' && <AudioGenerator onClose={() => setActiveMode('chat')} />}
+      
+      {/* Interaction Modal */}
+      <AIInteractionModal 
+        isOpen={showInteractionModal} 
+        onClose={() => setShowInteractionModal(false)}
+        onSelectMode={handleModeSelect} 
+      />
+
+      {/* New Feature Tour Overlay */}
+      {showTour && <AIHubTour onClose={handleCloseTour} />}
+
+      {/* Sticky Top Header */}
+      <div className="shrink-0 bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-xl border-b border-gray-200 dark:border-white/5 z-20">
+        <div className="px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+                <div className="relative">
+                    <div className="absolute inset-0 bg-indigo-500 rounded-full blur-lg opacity-40"></div>
+                    <InteractiveAvatar state={avatarState} size={38} />
                 </div>
-                <div className="h-4 bg-gray-100 rounded w-full mb-1"></div>
-                <div className="h-4 bg-gray-100 rounded w-2/3"></div>
-             </div>
+                <div>
+                    <h1 className="font-black text-gray-900 dark:text-white leading-none tracking-tight">AI Assistant ✨</h1>
+                    <div className="flex items-center gap-1.5 mt-1">
+                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                        <span className="text-[10px] text-indigo-600 dark:text-indigo-300 font-bold uppercase tracking-wider block">Live Intelligence 🚀</span>
+                    </div>
+                </div>
+            </div>
+            <div className="flex gap-2">
+                {/* AI Interaction Hub Trigger */}
+                <button 
+                    onClick={() => setShowInteractionModal(true)} 
+                    className={`p-2 rounded-full border transition-all relative ${showTour ? 'bg-indigo-600 text-white border-indigo-500 z-50 ring-4 ring-indigo-200 dark:ring-indigo-900' : 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100'}`} 
+                    title="AI Interactions"
+                >
+                    <AudioWaveform size={18} />
+                    {!showTour && !localStorage.getItem('has_seen_ai_hub_tour') && (
+                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-gray-900"></span>
+                    )}
+                </button>
+                <button onClick={handleClearChat} className="p-2 bg-gray-100 dark:bg-white/5 rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-gray-400" title="Clear Chat">
+                    <Trash2 size={16} />
+                </button>
+            </div>
+        </div>
+      </div>
+      
+      {/* Scrollable Message Area */}
+      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar relative z-10" ref={scrollRef}>
+        <div className="max-w-4xl mx-auto w-full pb-4">
+            {!hasInteracted && messages.length === 0 && (
+                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 animate-in zoom-in-95 duration-700">
+                    <div className="w-24 h-24 bg-gradient-to-tr from-indigo-500 to-blue-600 rounded-3xl flex items-center justify-center shadow-2xl mb-8 relative group">
+                        <Bot size={48} className="text-white drop-shadow-lg group-hover:scale-110 transition-transform" />
+                    </div>
+                    <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-4">Hey! I'm Your AI 🤖</h2>
+                    <p className="text-gray-500 dark:text-slate-400 max-w-sm mb-10 text-sm font-medium">I'm your personal news anchor. Ask me to summarize the day, analyze trends, or create a custom report! ✨📡</p>
+                    <button onClick={() => handleSend("Give me a morning briefing ☀️")} className="bg-indigo-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2 hover:scale-105 active:scale-95">
+                        <Zap size={18} className="fill-yellow-300" /> Start Daily Briefing
+                    </button>
+                </div>
+            )}
+
+            <div className="space-y-6">
+                {messages.map((msg) => (
+                    <ChatMessage key={msg.id} message={msg} onActionClick={handleSend} />
+                ))}
+                {isLoading && <ThinkingIndicator />}
+                {(isLoading || isStreaming) && (
+                    <div className="flex justify-center mt-4 sticky bottom-4 z-30">
+                        <Button 
+                            variant="danger" 
+                            size="sm" 
+                            className="rounded-full px-6 py-2 font-bold shadow-xl border-2 border-white/10" 
+                            onClick={() => {
+                                setIsLoading(false); 
+                                setIsStreaming(false); 
+                                setAvatarState('idle');
+                            }} 
+                            leftIcon={<StopCircle size={16} />}
+                        >
+                            Stop Generation
+                        </Button>
+                    </div>
+                )}
+            </div>
         </div>
       </div>
 
-      {/* Input Area */}
-      <div className="p-4 bg-white border-t border-gray-200">
-        <div className="flex gap-2 mb-3">
-            <button className="text-xs bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full border border-indigo-100 hover:bg-indigo-100 flex items-center gap-1">
-                <BarChart2 size={12} /> Generate Graph
-            </button>
-             <button className="text-xs bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full border border-indigo-100 hover:bg-indigo-100">
-                Summary
-            </button>
-        </div>
-        <div className="flex items-center gap-2">
-            <button className="p-2 text-gray-400 hover:text-indigo-600"><ImageIcon size={20} /></button>
-            <div className="flex-1 bg-gray-100 rounded-full px-4 py-2 flex items-center">
-                <input type="text" placeholder="Ask about the news..." className="bg-transparent w-full outline-none text-sm" />
-            </div>
-            <button className="p-2 text-gray-400 hover:text-indigo-600"><Mic size={20} /></button>
-            <button className="p-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700"><Send size={18} /></button>
-        </div>
+      {/* Input Bar Overlay */}
+      <div className="shrink-0 w-full z-20 relative bg-gray-50 dark:bg-[#0f172a]">
+         {!hasInteracted && !isLoading && !isStreaming && messages.length > 0 && (
+             <QuickQuestions onSelect={handleSend} />
+         )}
+         <ChatInputBar 
+            onSend={handleSend} 
+            isLoading={isLoading || isStreaming} 
+            onVoiceClick={() => setShowInteractionModal(true)} 
+         />
       </div>
     </div>
   );

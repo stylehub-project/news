@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Download, Edit2, ZoomIn, ZoomOut, Share2, Volume2, Type, Eye } from 'lucide-react';
+import { Download, Edit2, ZoomIn, ZoomOut, Share2, Type, Eye } from 'lucide-react';
 import Button from '../ui/Button';
 import { NewspaperSettings } from './NewspaperTemplate';
 
@@ -20,7 +21,6 @@ const NewspaperControls: React.FC<NewspaperControlsProps> = ({
   onZoomIn,
   onZoomOut,
   onShare,
-  onRead,
   settings,
   onSettingsChange
 }) => {
@@ -31,10 +31,10 @@ const NewspaperControls: React.FC<NewspaperControlsProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 sticky bottom-4 z-50 px-4 max-w-3xl mx-auto w-full">
         {/* Expanded Settings Panel */}
         {showSettings && (
-            <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm animate-in slide-in-from-bottom-2">
+            <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl animate-in slide-in-from-bottom-2 mb-2">
                 <div className="flex justify-between items-center mb-2">
                     <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Display Settings</span>
                     <button onClick={() => setShowSettings(false)} className="text-xs text-blue-600 dark:text-blue-400 font-bold">Done</button>
@@ -83,13 +83,6 @@ const NewspaperControls: React.FC<NewspaperControlsProps> = ({
                             >
                                 S
                             </button>
-                            <button 
-                                onClick={() => toggleSetting('font', 'dyslexic')}
-                                className={`flex-1 py-1 text-[10px] font-bold rounded ${settings.font === 'dyslexic' ? 'bg-white dark:bg-gray-600 shadow text-black dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}
-                                title="Dyslexia Friendly"
-                            >
-                                <Eye size={12} />
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -97,48 +90,42 @@ const NewspaperControls: React.FC<NewspaperControlsProps> = ({
         )}
 
         {/* Main Toolbar */}
-        <div className="flex flex-col md:flex-row gap-3 items-center justify-between bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm shrink-0 transition-colors">
-        <div className="flex gap-2 w-full md:w-auto">
-            <Button 
-                variant="secondary" 
-                size="sm" 
-                onClick={onEdit}
-                leftIcon={<Edit2 size={16} />}
-                className="dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600"
-            >
-            Edit
-            </Button>
-            <Button 
-                variant="secondary" 
-                size="sm" 
-                onClick={onRead}
-                leftIcon={<Volume2 size={16} />}
-                className="dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600"
-            >
-            Listen
-            </Button>
-            <button 
-                onClick={() => setShowSettings(!showSettings)}
-                className={`p-2 rounded-lg border transition-colors ${showSettings ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400' : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300'}`}
-                title="Appearance Settings"
-            >
-                <Type size={18} />
-            </button>
-        </div>
+        <div className="flex flex-wrap gap-2 items-center justify-between bg-white dark:bg-gray-800 p-2 md:p-3 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-2xl shrink-0 transition-colors">
+            
+            {/* Left Group */}
+            <div className="flex gap-2 shrink-0">
+                <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    onClick={onEdit}
+                    leftIcon={<Edit2 size={16} />}
+                    className="dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600 px-3 border-none bg-gray-100"
+                >
+                Edit
+                </Button>
+                <button 
+                    onClick={() => setShowSettings(!showSettings)}
+                    className={`p-2 rounded-xl border transition-colors ${showSettings ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400' : 'bg-gray-100 dark:bg-gray-700 border-transparent text-gray-600 dark:text-gray-300'}`}
+                    title="Appearance"
+                >
+                    <Type size={18} />
+                </button>
+            </div>
 
-        <div className="flex gap-2 items-center w-full md:w-auto justify-between md:justify-end">
-            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                <button onClick={onZoomOut} className="p-1.5 hover:bg-white dark:hover:bg-gray-600 rounded-md transition-colors text-gray-600 dark:text-gray-300"><ZoomOut size={16} /></button>
+            {/* Middle Group (Zoom) */}
+            <div className="hidden md:flex bg-gray-100 dark:bg-gray-700 rounded-xl p-1 shrink-0">
+                <button onClick={onZoomOut} className="p-1.5 hover:bg-white dark:hover:bg-gray-600 rounded-lg transition-colors text-gray-600 dark:text-gray-300"><ZoomOut size={16} /></button>
                 <div className="w-[1px] bg-gray-300 dark:bg-gray-600 my-1 mx-1"></div>
-                <button onClick={onZoomIn} className="p-1.5 hover:bg-white dark:hover:bg-gray-600 rounded-md transition-colors text-gray-600 dark:text-gray-300"><ZoomIn size={16} /></button>
+                <button onClick={onZoomIn} className="p-1.5 hover:bg-white dark:hover:bg-gray-600 rounded-lg transition-colors text-gray-600 dark:text-gray-300"><ZoomIn size={16} /></button>
             </div>
             
-            <div className="flex gap-2">
+            {/* Right Group (Actions) */}
+            <div className="flex gap-2 shrink-0">
                 <Button 
                     variant="secondary" 
                     size="sm" 
                     onClick={onShare}
-                    className="w-10 px-0 flex justify-center dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
+                    className="px-3 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 border-none bg-gray-100"
                 >
                     <Share2 size={16} />
                 </Button>
@@ -147,12 +134,11 @@ const NewspaperControls: React.FC<NewspaperControlsProps> = ({
                     size="sm" 
                     onClick={onDownload}
                     leftIcon={<Download size={16} />}
-                    className="bg-black hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
+                    className="bg-black hover:bg-gray-900 dark:bg-white dark:text-black dark:hover:bg-gray-200 px-4 shadow-lg rounded-xl"
                 >
-                    PDF
+                    Download PDF
                 </Button>
             </div>
-        </div>
         </div>
     </div>
   );

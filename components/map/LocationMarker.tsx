@@ -1,9 +1,9 @@
 
 import React, { useMemo } from 'react';
-import { Zap, TrendingUp, Circle, Check, DollarSign, Users, Landmark, MapPin, ArrowRight } from 'lucide-react';
+import { CloudLightning, Sun, Snowflake, Wind, Droplets, ThermometerSun, AlertTriangle, Circle, Check, Zap, Eye, CloudRain, Cloud } from 'lucide-react';
 
-export type MarkerType = 'breaking' | 'trending' | 'top' | 'general';
-export type MapPerspective = 'Standard' | 'Economic' | 'Human' | 'Political';
+export type MarkerType = 'severe' | 'warning' | 'forecast' | 'general';
+export type MapPerspective = 'Overview' | 'Temperature' | 'Precipitation' | 'Wind';
 export type DetailLevel = 'cluster' | 'region' | 'city' | 'street';
 
 interface LocationMarkerProps {
@@ -22,6 +22,9 @@ interface LocationMarkerProps {
   delay?: number;
   viewMode?: '2d' | '3d';
   perspective?: MapPerspective;
+  category?: string;
+  mapLayer?: 'satellite' | 'schematic';
+  temp?: string;
 }
 
 const LocationMarker: React.FC<LocationMarkerProps> = ({
@@ -39,12 +42,13 @@ const LocationMarker: React.FC<LocationMarkerProps> = ({
   detailLevel = 'city',
   delay = 0,
   viewMode = '3d',
-  perspective = 'Standard'
+  perspective = 'Overview',
+  category,
+  mapLayer = 'satellite',
+  temp
 }) => {
   // --- 1. Efficient Scaling & Declutter Logic ---
-  // Memoize calculations to avoid layout trashing during rapid zoom
   const { finalScale, dynamicStyles } = useMemo(() => {
-      // Base scales for hierarchy
       const levelBaseScale = {
           cluster: 3.2, 
           region: 2.0,
@@ -52,63 +56,92 @@ const LocationMarker: React.FC<LocationMarkerProps> = ({
           street: 0.5
       };
 
-      // Exponent determines visual size behavior vs Zoom:
-      // < 1.0: Marker grows visually as you zoom in (emphasize)
-      // = 1.0: Marker stays constant screen size
-      // > 1.0: Marker shrinks visually as you zoom in (declutter/reveal map)
       const scaleExponent = detailLevel === 'street' || detailLevel === 'city' ? 1.05 : 0.85;
-      
       const counterScale = levelBaseScale[detailLevel] / Math.pow(Math.max(1, zoomLevel), scaleExponent);
       
-      // Clamp values for safety
       const scale = Math.max(0.05, Math.min(counterScale, 5));
 
-      // Visual Style Guardrails
       const styles = {
-          opacity: zoomLevel > 12 ? 'opacity-90' : 'opacity-100', // Fade slightly at max zoom
+          opacity: zoomLevel > 12 ? 'opacity-90' : 'opacity-100',
           fontWeight: zoomLevel > 8 ? 'font-medium' : 'font-black',
           tracking: zoomLevel > 8 ? 'tracking-tight' : 'tracking-widest',
-          textShadow: zoomLevel < 5 ? 'drop-shadow-md' : 'drop-shadow-none' // Remove shadow at high zoom for crispness
+          textShadow: zoomLevel < 5 ? 'drop-shadow-md' : 'drop-shadow-none'
       };
 
       return { finalScale: scale, dynamicStyles: styles };
   }, [zoomLevel, detailLevel]);
 
-  // --- Perspective Styling Logic ---
+  // --- Weather Style Logic ---
   const currentStyle = useMemo(() => {
-      const base = { bg: 'bg-emerald-500', border: 'border-emerald-300', text: 'text-emerald-100', glow: 'shadow-[0_0_15px_rgba(16,185,129,0.5)]', icon: <Circle size={6} className="text-white fill-white" /> };
+      const isSchematic = mapLayer === 'schematic';
+
+      // Base Configuration
+      const base = { 
+          bg: isSchematic ? 'bg-blue-600' : 'bg-blue-500/80', 
+          border: 'border-blue-300', 
+          text: 'text-blue-100', 
+          glow: isSchematic ? 'shadow-[0_0_25px_rgba(37,99,235,0.8)]' : 'shadow-[0_0_15px_rgba(59,130,246,0.5)]', 
+          icon: <Circle size={6} className="text-white fill-white" /> 
+      };
       
-      switch (perspective) {
-          case 'Economic':
-              return { 
-                  bg: 'bg-amber-500', 
-                  border: 'border-amber-300', 
-                  text: 'text-amber-100',
-                  glow: 'shadow-[0_0_15px_rgba(245,158,11,0.5)]', 
-                  icon: <DollarSign size={10} className="text-white" /> 
-              };
-          case 'Political':
-              return { 
-                  bg: 'bg-indigo-600', 
-                  border: 'border-indigo-400',
-                  text: 'text-indigo-100', 
-                  glow: 'shadow-[0_0_15px_rgba(79,70,229,0.5)]', 
-                  icon: <Landmark size={10} className="text-white" /> 
-              };
-          case 'Human':
-              return { 
-                  bg: 'bg-rose-500', 
-                  border: 'border-rose-300', 
-                  text: 'text-rose-100',
-                  glow: 'shadow-[0_0_15px_rgba(244,63,94,0.5)]', 
-                  icon: <Users size={10} className="text-white" /> 
-              };
-          default:
-              if (type === 'breaking') return { bg: 'bg-red-600', border: 'border-red-400', text: 'text-red-100', glow: 'shadow-[0_0_20px_rgba(239,68,68,0.6)]', icon: <Zap size={10} className="text-white fill-white" /> };
-              if (type === 'trending') return { bg: 'bg-yellow-500', border: 'border-yellow-300', text: 'text-yellow-100', glow: 'shadow-[0_0_20px_rgba(234,179,8,0.6)]', icon: <TrendingUp size={10} className="text-white" /> };
-              return base;
+      // Category based overrides (Primary visual driver)
+      if (category === 'Storm' || type === 'severe') {
+          return { 
+              bg: isSchematic ? 'bg-purple-600' : 'bg-purple-600/80', 
+              border: isSchematic ? 'border-purple-200' : 'border-purple-400', 
+              text: 'text-purple-100', 
+              glow: isSchematic ? 'shadow-[0_0_30px_rgba(147,51,234,0.9)]' : 'shadow-[0_0_20px_rgba(147,51,234,0.6)]', 
+              icon: <CloudLightning size={12} className="text-white" /> 
+          };
       }
-  }, [perspective, type]);
+      if (category === 'Heat' || category === 'Drought') {
+          return { 
+              bg: isSchematic ? 'bg-orange-600' : 'bg-orange-500/80', 
+              border: 'border-orange-300', 
+              text: 'text-orange-100', 
+              glow: isSchematic ? 'shadow-[0_0_30px_rgba(249,115,22,0.9)]' : 'shadow-[0_0_20px_rgba(249,115,22,0.6)]', 
+              icon: <Sun size={12} className="text-white" /> 
+          };
+      }
+      if (category === 'Cold' || category === 'Snow') {
+          return { 
+              bg: isSchematic ? 'bg-cyan-600' : 'bg-cyan-500/80', 
+              border: 'border-cyan-300', 
+              text: 'text-cyan-100', 
+              glow: isSchematic ? 'shadow-[0_0_30px_rgba(6,182,212,0.9)]' : 'shadow-[0_0_20px_rgba(6,182,212,0.6)]', 
+              icon: <Snowflake size={12} className="text-white" /> 
+          };
+      }
+      if (category === 'Rain' || category === 'Flood') {
+          return { 
+              bg: isSchematic ? 'bg-blue-700' : 'bg-blue-600/80', 
+              border: 'border-blue-400', 
+              text: 'text-blue-100', 
+              glow: isSchematic ? 'shadow-[0_0_30px_rgba(29,78,216,0.9)]' : 'shadow-[0_0_20px_rgba(37,99,235,0.6)]', 
+              icon: <CloudRain size={12} className="text-white" /> 
+          };
+      }
+      if (category === 'Wind') {
+          return { 
+              bg: isSchematic ? 'bg-slate-600' : 'bg-slate-500/80', 
+              border: 'border-slate-300', 
+              text: 'text-slate-100', 
+              glow: isSchematic ? 'shadow-[0_0_25px_rgba(148,163,184,0.8)]' : 'shadow-[0_0_15px_rgba(100,116,139,0.5)]', 
+              icon: <Wind size={12} className="text-white" /> 
+          };
+      }
+      if (category === 'Cloud') {
+          return { 
+              bg: isSchematic ? 'bg-gray-500' : 'bg-gray-500/80', 
+              border: 'border-gray-300', 
+              text: 'text-gray-100', 
+              glow: isSchematic ? 'shadow-[0_0_25px_rgba(107,114,128,0.8)]' : 'shadow-[0_0_15px_rgba(107,114,128,0.5)]', 
+              icon: <Cloud size={12} className="text-white" /> 
+          };
+      }
+
+      return base;
+  }, [perspective, category, type, mapLayer]);
 
   // GPU Accelerated Transforms
   const transformStyle = useMemo(() => {
@@ -123,75 +156,62 @@ const LocationMarker: React.FC<LocationMarkerProps> = ({
 
   // --- Render Content Based on Hierarchy ---
   const renderContent = () => {
-      // 1. Cluster View (Orbit) - Massive Labels
+      // 1. Cluster View (Orbit)
       if (detailLevel === 'cluster') {
           return (
               <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border-2 ${currentStyle.bg} ${currentStyle.border} ${currentStyle.glow} bg-opacity-90 backdrop-blur-md backface-hidden`}>
                   <span className={`text-[8px] text-white uppercase leading-none whitespace-nowrap ${dynamicStyles.fontWeight} ${dynamicStyles.tracking} ${dynamicStyles.textShadow}`}>
                       {title}
                   </span>
-                  {isActive && <ArrowRight size={8} className="text-white animate-pulse" />}
+                  {isActive && <Eye size={8} className="text-white animate-pulse" />}
               </div>
           );
       }
 
-      // 2. Region View (State) - Bubbles
+      // 2. Region View (State) - Explicitly visible tags for countries/states
       if (detailLevel === 'region') {
           return (
-              <div className="flex flex-col items-center backface-hidden">
-                  <div className={`w-4 h-4 rounded-full border-2 ${currentStyle.bg} ${currentStyle.border} shadow-lg mb-1 flex items-center justify-center`}>
-                      <div className="w-1 h-1 bg-white rounded-full"></div>
-                  </div>
-                  <span className={`text-[6px] text-white bg-black/60 px-1.5 py-0.5 rounded backdrop-blur-sm whitespace-nowrap border border-white/10 shadow-sm uppercase ${dynamicStyles.fontWeight} ${dynamicStyles.tracking}`}>
-                      {title}
-                  </span>
-              </div>
-          );
-      }
-
-      // 3. Street View (Tactical) - Minimalist Pins
-      if (detailLevel === 'street') {
-          return (
-              <div className="flex flex-col items-center group backface-hidden">
-                  <div className={`relative flex items-center justify-center w-6 h-6 ${dynamicStyles.opacity}`}>
-                      <MapPin size={24} className={`${currentStyle.text} drop-shadow-md`} fill="currentColor" />
+              <div className="flex flex-col items-center backface-hidden group">
+                  {/* Icon Circle */}
+                  <div className={`w-8 h-8 rounded-full border-2 ${currentStyle.bg} ${currentStyle.border} ${currentStyle.glow} mb-1 flex items-center justify-center shadow-lg`}>
+                      {currentStyle.icon}
                   </div>
                   
-                  {/* Street Label - Always visible but tiny, expands on hover */}
-                  <div className={`mt-0.5 bg-white/90 text-black px-1.5 py-0.5 rounded shadow-sm border border-gray-200 transition-all duration-300 origin-top ${isActive ? 'scale-150 z-50' : 'scale-100'}`}>
-                      <p className="text-[3px] font-bold uppercase leading-none whitespace-nowrap">{title}</p>
+                  {/* Tag */}
+                  <div className="flex flex-col items-center min-w-[60px] pointer-events-none">
+                      <span className={`text-[8px] font-black text-white bg-black/70 px-2 py-1 rounded-t-md backdrop-blur-md whitespace-nowrap border-x border-t border-white/20 uppercase tracking-wider w-full text-center shadow-sm`}>
+                          {title}
+                      </span>
+                      {temp && (
+                          <span className={`text-[9px] font-bold text-black bg-white/90 px-2 py-0.5 rounded-b-md border-x border-b border-white/20 shadow-sm w-full text-center`}>
+                              {temp}
+                          </span>
+                      )}
                   </div>
-
-                  {isActive && subtitle && (
-                      <div 
-                        className="absolute top-full mt-2 bg-black/90 backdrop-blur-xl rounded-lg p-2 w-32 border border-white/20 text-left pointer-events-none z-50 origin-top animate-in zoom-in-95 duration-200"
-                        style={{ transform: 'scale(0.5)' }} // Counter-scale further for readability popup
-                      >
-                          <p className="text-[4px] text-gray-300 leading-tight line-clamp-3">{subtitle}</p>
-                      </div>
-                  )}
               </div>
           );
       }
 
-      // 4. City View (Default) - Standard Markers
+      // 3. Street/City View - High Detail
       return (
           <div className="flex flex-col items-center group backface-hidden">
-              {/* Pulse Ring */}
-              {(type === 'breaking' || isActive) && (
-                  <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-full h-full rounded-full border-2 ${type === 'breaking' ? 'border-red-500' : 'border-white'} opacity-0 animate-[ping_2s_infinite]`} style={{ transform: 'scale(1.8)' }} />
+              {/* Pulse Ring for Severe Weather */}
+              {(type === 'severe' || isActive) && (
+                  <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-full h-full rounded-full border-2 ${type === 'severe' ? 'border-red-500' : 'border-white'} opacity-0 animate-[ping_2s_infinite]`} style={{ transform: 'scale(1.8)' }} />
               )}
               
-              <div className={`relative flex items-center justify-center w-8 h-8 rounded-full border-2 shadow-xl transition-all duration-300 ${currentStyle.bg} ${currentStyle.border} ${currentStyle.glow} ${isActive ? 'ring-2 ring-white scale-110 bg-opacity-100 border-white' : 'group-hover:scale-105'} ${dynamicStyles.opacity}`}>
-                  {isCompareSelected ? <Check size={12} className="text-white" /> : currentStyle.icon}
+              <div className={`relative flex items-center justify-center w-10 h-10 rounded-full border-2 shadow-2xl transition-all duration-300 ${currentStyle.bg} ${currentStyle.border} ${currentStyle.glow} ${isActive ? 'ring-2 ring-white scale-110 bg-opacity-100 border-white' : 'group-hover:scale-105'} ${dynamicStyles.opacity}`}>
+                  {isCompareSelected ? <Check size={14} className="text-white" /> : currentStyle.icon}
               </div>
 
-              {/* Label */}
+              {/* Tag - Always show if relevant zoom or active */}
               {(zoomLevel > 3 || isActive) && (
-                  <div className={`absolute top-full mt-1.5 transition-all duration-300 ${isActive ? 'scale-110 z-50' : 'scale-100'}`}>
-                      <div className="bg-black/70 backdrop-blur-md px-2 py-1 rounded border border-white/10 shadow-lg text-center min-w-[60px]">
-                          <p className={`text-[5px] text-white uppercase leading-none whitespace-nowrap ${dynamicStyles.fontWeight} ${dynamicStyles.tracking}`}>{title}</p>
-                          {isActive && <p className="text-[4px] text-cyan-400 font-bold mt-0.5 animate-pulse">Live Update</p>}
+                  <div className={`absolute top-full mt-2 transition-all duration-300 ${isActive ? 'scale-110 z-50' : 'scale-100 z-10'} flex flex-col items-center min-w-[70px]`}>
+                      <div className="bg-black/90 backdrop-blur-md px-3 py-1.5 rounded-t-lg border-t border-x border-white/20 text-center w-full">
+                          <p className={`text-[7px] text-white uppercase leading-none whitespace-nowrap ${dynamicStyles.fontWeight} ${dynamicStyles.tracking}`}>{title}</p>
+                      </div>
+                      <div className="bg-white px-3 py-0.5 rounded-b-lg border-b border-x border-white/20 text-center w-full shadow-lg">
+                          <p className="text-[8px] font-black text-black leading-tight">{temp || category}</p>
                       </div>
                   </div>
               )}
@@ -208,24 +228,19 @@ const LocationMarker: React.FC<LocationMarkerProps> = ({
         ...transformStyle,
         transformStyle: 'preserve-3d',
         animation: `fade-in 0.5s ease-out ${delay}ms forwards`,
-        opacity: 0, // Handled by animation
-        willChange: 'transform' // Performance optimization hint
+        opacity: 0,
+        willChange: 'transform'
       }}
       onClick={(e) => { e.stopPropagation(); onClick(); }}
-      aria-label={`View news for ${title}`}
-      aria-expanded={isActive}
+      aria-label={`View weather for ${title}`}
     >
-      {/* Hit Area */}
       <div className="absolute inset-0 -m-4 bg-transparent rounded-full" />
-
-      {/* 3D Stem/Line for Floating Effect */}
       {viewMode === '3d' && detailLevel !== 'street' && (
           <div 
-            className={`absolute top-1/2 left-1/2 w-[0.5px] -translate-x-1/2 bg-gradient-to-b ${isActive ? 'from-cyan-400 h-[60px]' : 'from-white/30 h-[20px]'} to-transparent origin-top`} 
+            className={`absolute top-1/2 left-1/2 w-[0.5px] -translate-x-1/2 bg-gradient-to-b ${isActive ? 'from-white h-[60px]' : 'from-white/30 h-[20px]'} to-transparent origin-top`} 
             style={{ transform: 'rotateX(90deg) translateY(50%)' }}
           ></div>
       )}
-
       {renderContent()}
     </button>
   );

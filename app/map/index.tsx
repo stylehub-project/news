@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, Flame, ArrowLeft, Volume2, VolumeX } from 'lucide-react';
+import { Search, Flame, ArrowLeft, Volume2, VolumeX, CloudRain } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import WorldMap, { MARKERS } from '../../components/map/WorldMap';
 import MapTicker from '../../components/map/MapTicker';
@@ -25,9 +25,9 @@ const MapPage: React.FC = () => {
 
   const [filters, setFilters] = useState<MapFilters>({
       category: 'All',
-      time: 'Today',
+      time: 'Now',
       type: 'All',
-      state: 'India', // Default to India context
+      state: 'All', 
       sentiment: 'All',
       source: 'All',
       impact: 'All'
@@ -83,13 +83,15 @@ const MapPage: React.FC = () => {
                         <ArrowLeft size={20} />
                     </button>
                     <h1 className="text-lg font-black text-white tracking-widest uppercase drop-shadow-lg flex flex-col leading-none">
-                        News Map 
-                        <span className="text-red-500 text-[9px] tracking-[0.2em] font-bold animate-pulse">LIVE SATELLITE</span>
+                        Global Weather
+                        <span className="text-blue-400 text-[9px] tracking-[0.2em] font-bold animate-pulse flex items-center gap-1">
+                            <CloudRain size={8} /> LIVE RADAR
+                        </span>
                     </h1>
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {/* Audio Mode Toggle (New 10.9) */}
+                    {/* Audio Mode Toggle */}
                     <button 
                         onClick={() => setIsAudioMode(!isAudioMode)}
                         className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md border transition-all active:scale-95 ${isAudioMode ? 'bg-indigo-600 text-white border-indigo-500 shadow-[0_0_15px_rgba(79,70,229,0.5)]' : 'bg-black/40 text-gray-400 border-white/10 hover:bg-black/60'}`}
@@ -107,7 +109,7 @@ const MapPage: React.FC = () => {
                             <>
                                 <input 
                                     type="text" 
-                                    placeholder="Search..." 
+                                    placeholder="Search location..." 
                                     className="bg-transparent border-none outline-none text-white text-xs w-full placeholder:text-gray-400 font-medium"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -142,7 +144,7 @@ const MapPage: React.FC = () => {
         <div className="flex-1 w-full h-full mt-[0px] relative animate-in fade-in duration-700 bg-black">
             <WorldMap 
                 filters={filters}
-                onResetFilters={() => setFilters({ category: 'All', time: 'Today', type: 'All', state: 'India', sentiment: 'All', source: 'All', impact: 'All' })}
+                onResetFilters={() => setFilters({ category: 'All', time: 'Now', type: 'All', state: 'All', sentiment: 'All', source: 'All', impact: 'All' })}
                 showHeatmap={showHeatmap}
                 flyToLocation={flyToLocation}
                 isAudioMode={isAudioMode}

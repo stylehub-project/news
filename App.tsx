@@ -9,6 +9,7 @@ import { BookmarkProvider } from './context/BookmarkContext';
 import { NetworkProvider } from './context/NetworkContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { HistoryProvider } from './context/HistoryContext';
+import { UserProvider } from './context/UserContext';
 
 // Pages
 import SplashPage from './app/splash/index';
@@ -43,43 +44,45 @@ const App: React.FC = () => {
             <NetworkProvider>
               <NotificationProvider>
                 <HistoryProvider>
-                  <Router>
-                    <Routes>
-                      <Route element={<Layout />}>
-                        {/* Entry Routes */}
-                        <Route path="/splash" element={<SplashPage />} />
-                        <Route path="/login" element={<LoginPage />} />
-                        <Route path="/onboarding" element={<OnboardingPage />} />
+                  <UserProvider>
+                    <Router>
+                      <Routes>
+                        <Route element={<Layout />}>
+                          {/* Entry Routes */}
+                          <Route path="/splash" element={<SplashPage />} />
+                          <Route path="/login" element={<LoginPage />} />
+                          <Route path="/onboarding" element={<OnboardingPage />} />
 
-                        {/* Main App Routes */}
-                        <Route path="/" element={<HomePage />} />
-                        <Route path="/top-stories" element={<TopStoriesPage />} />
-                        <Route path="/latest" element={<LatestPage />} />
-                        <Route path="/reel" element={<ReelPage />} />
-                        
-                        {/* Categories */}
-                        <Route path="/categories" element={<CategoriesPage />} />
-                        <Route path="/categories/politics" element={<PoliticsPage />} />
-                        <Route path="/categories/technology" element={<TechPage />} />
-                        <Route path="/category/:id" element={<CategoryPage />} />
-                        
-                        <Route path="/search" element={<SearchPage />} />
-                        <Route path="/news/:id" element={<DetailsPage />} />
-                        <Route path="/map" element={<MapPage />} />
-                        <Route path="/ai-chat" element={<ChatPage />} />
-                        <Route path="/newspaper" element={<NewspaperPage />} />
-                        <Route path="/profile" element={<ProfilePage />} />
-                        <Route path="/settings" element={<SettingsPage />} />
-                        <Route path="/bookmarks" element={<BookmarksPage />} />
-                        <Route path="/notifications" element={<NotificationsPage />} />
-                        <Route path="/history" element={<HistoryPage />} />
-                        <Route path="/admin" element={<AdminPage />} />
-                        
-                        {/* Fallback to Splash instead of Home for a fresh feel, or Home for dev convenience */}
-                        <Route path="*" element={<Navigate to="/splash" replace />} />
-                      </Route>
-                    </Routes>
-                  </Router>
+                          {/* Main App Routes */}
+                          <Route path="/" element={<HomePage />} />
+                          <Route path="/top-stories" element={<TopStoriesPage />} />
+                          <Route path="/latest" element={<LatestPage />} />
+                          <Route path="/reel" element={<ReelPage />} />
+                          
+                          {/* Categories */}
+                          <Route path="/categories" element={<CategoriesPage />} />
+                          <Route path="/categories/politics" element={<PoliticsPage />} />
+                          <Route path="/categories/technology" element={<TechPage />} />
+                          <Route path="/category/:id" element={<CategoryPage />} />
+                          
+                          <Route path="/search" element={<SearchPage />} />
+                          <Route path="/news/:id" element={<DetailsPage />} />
+                          <Route path="/map" element={<MapPage />} />
+                          <Route path="/ai-chat" element={<ChatPage />} />
+                          <Route path="/newspaper" element={<NewspaperPage />} />
+                          <Route path="/profile" element={<ProfilePage />} />
+                          <Route path="/settings" element={<SettingsPage />} />
+                          <Route path="/bookmarks" element={<BookmarksPage />} />
+                          <Route path="/notifications" element={<NotificationsPage />} />
+                          <Route path="/history" element={<HistoryPage />} />
+                          <Route path="/admin" element={<AdminPage />} />
+                          
+                          {/* Fallback to Splash instead of Home for a fresh feel, or Home for dev convenience */}
+                          <Route path="*" element={<Navigate to="/splash" replace />} />
+                        </Route>
+                      </Routes>
+                    </Router>
+                  </UserProvider>
                 </HistoryProvider>
               </NotificationProvider>
             </NetworkProvider>

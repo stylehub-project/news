@@ -1,11 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import { Sparkles, X } from 'lucide-react';
 
 const INSIGHTS = [
-    "Unusual spike in Tech news detected in Western Europe.",
-    "Sentiment is trending negative in coastal regions.",
-    "Environmental coverage has increased by 40% today.",
-    "High engagement detected on Policy updates."
+    "Unusual heat patterns detected in Southern Hemisphere.",
+    "Storm intensity increasing by 20% in Atlantic region.",
+    "Air quality dropping rapidly in urban centers.",
+    "High pressure system stabilizing over Northern Europe."
 ];
 
 const MapSmartInsights: React.FC = () => {
@@ -13,14 +14,12 @@ const MapSmartInsights: React.FC = () => {
   const [insight, setInsight] = useState(INSIGHTS[0]);
 
   useEffect(() => {
-    // Show first insight after a delay
     const initialTimer = setTimeout(() => setShow(true), 4000);
     return () => clearTimeout(initialTimer);
   }, []);
 
   useEffect(() => {
     if (!show) return;
-    // Auto hide after 6 seconds
     const hideTimer = setTimeout(() => setShow(false), 6000);
     return () => clearTimeout(hideTimer);
   }, [show]);

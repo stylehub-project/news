@@ -69,6 +69,7 @@ const ChatPage: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatSessionRef = useRef<Chat | null>(null);
   const autoTriggeredRef = useRef(false);
+  const shouldAutoPlayRef = useRef(false);
 
   // Check Tour Status on Mount & New Feature Discovery
   useEffect(() => {
@@ -142,6 +143,11 @@ const ChatPage: React.FC = () => {
   useEffect(() => {
       const context = searchParams.get('context');
       const headline = searchParams.get('headline');
+      const autoSpeak = searchParams.get('autoSpeak') === 'true';
+      
+      if (autoSpeak) {
+          shouldAutoPlayRef.current = true;
+      }
       
       // Auto-Trigger Analysis if headline exists and hasn't been triggered yet
       if (headline && !autoTriggeredRef.current && chatSessionRef.current) {
@@ -223,6 +229,12 @@ const ChatPage: React.FC = () => {
               lastMsg.isStreaming = false;
               lastMsg.suggestedActions = suggestedActions;
               lastMsg.timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              
+              // Apply Auto Play if requested
+              if (shouldAutoPlayRef.current) {
+                  lastMsg.autoPlay = true;
+                  shouldAutoPlayRef.current = false;
+              }
               return newMsgs;
           });
           

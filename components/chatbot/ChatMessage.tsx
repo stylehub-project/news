@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { User, ExternalLink, ArrowRight, Flag, Info, CheckCircle2, Wand2, Volume2, StopCircle, Copy, Share2, Check, Loader2 } from 'lucide-react';
+import { User, ExternalLink, ArrowRight, Flag, CheckCircle2, Volume2, StopCircle, Copy, Share2, Check, Loader2, Wand2 } from 'lucide-react';
 import { GoogleGenAI, Modality } from "@google/genai";
 import HighlightReadingMode from '../HighlightReadingMode';
 import StoryboardAttachment, { StoryboardData } from './StoryboardAttachment';
@@ -25,6 +25,7 @@ export interface Message {
   sources?: Array<{ name: string; url: string }>;
   suggestedActions?: string[];
   isStreaming?: boolean;
+  autoPlay?: boolean; // New property for auto-speaking
 }
 
 interface ChatMessageProps {
@@ -76,6 +77,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
   // Audio Context Refs
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const hasAutoPlayedRef = useRef(false);
 
   // Cleanup audio on unmount
   useEffect(() => {
@@ -89,6 +91,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
     };
   }, []);
 
+  // Auto-play effect
+  useEffect(() => {
+      if (message.autoPlay && !message.isStreaming && !isSpeaking && !isGeneratingAudio && !hasAutoPlayedRef.current) {
+          hasAutoPlayedRef.current = true;
+          // Small delay to ensure UI is ready
+          setTimeout(() => playTTS(), 500);
+      }
+  }, [message.autoPlay, message.isStreaming]);
+
   const handleReport = () => {
       setIsReported(true);
       onReport?.(message.id);
@@ -101,9 +112,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
       }
   };
 
-  const handleReadAloud = async (e: React.MouseEvent) => {
-      e.stopPropagation();
-      
+  const playTTS = async () => {
       // Stop Playback
       if (isSpeaking) {
           if (sourceRef.current) {
@@ -119,13 +128,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
       setAiState('thinking');
 
       try {
+          // @ts-ignore
           const apiKey = (window as any).process?.env?.API_KEY || (import.meta as any).env?.VITE_API_KEY;
           if (!apiKey) throw new Error("API Key not available");
 
           const ai = new GoogleGenAI({ apiKey });
           
-          // Clean text slightly to avoid reading markdown symbols literally if desired,
-          // though Gemini TTS is usually smart enough.
           const cleanText = message.content.replace(/\*/g, '');
 
           const response = await ai.models.generateContent({
@@ -181,6 +189,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onActionClick, onRep
       } finally {
           setIsGeneratingAudio(false);
       }
+  };
+
+  const handleReadAloud = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      playTTS();
   };
 
   const handleCopy = (e: React.MouseEvent) => {

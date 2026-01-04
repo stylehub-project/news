@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Lightbulb, Info, Globe, BrainCircuit } from 'lucide-react';
 
@@ -18,7 +19,7 @@ const FACTS = {
   ],
   ai: [
     "AI can process reading summaries 1000x faster than humans.",
-    "Gemini uses advanced reasoning to check facts in real-time.",
+    "The system uses advanced reasoning to check facts in real-time.",
     "Generative AI can create custom images for any headline.",
     "Neural networks are inspired by the human brain's structure."
   ],

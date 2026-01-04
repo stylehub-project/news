@@ -224,7 +224,13 @@ const HomePage: React.FC = () => {
             <div className="relative z-10 flex items-center justify-between mt-auto pt-4">
                 <p className="text-xs text-gray-400 font-medium">{articles.length} Stories Available</p>
                 <button 
-                    onClick={() => navigate('/ai-chat?mode=generator')}
+                    onClick={() => {
+                        if (articles.length > 0) {
+                            navigate(`/ai-chat?context=daily_brief&headline=${encodeURIComponent(articles[0].title)}&autoSpeak=true`);
+                        } else {
+                            navigate('/ai-chat?mode=generator');
+                        }
+                    }}
                     className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:scale-105 active:scale-95 transition-transform"
                 >
                     <Mic size={14} /> {t.speak_news}

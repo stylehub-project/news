@@ -4,7 +4,7 @@ import { BrainCircuit } from 'lucide-react';
 
 const FACTS = [
     "Did you know? The first printed newspaper appeared in 1605.",
-    "Gemini can summarize 1,000 words in under 2 seconds.",
+    "AI can summarize 1,000 words in under 2 seconds.",
     "Reading news reduces anxiety compared to watching it.",
     "90% of the world's data was created in the last two years.",
     "The most read newspaper in history is the Yomiuri Shimbun."

@@ -9,6 +9,7 @@ import Toast, { ToastType } from '../../components/ui/Toast';
 import { fetchNewsFeed } from '../../utils/aiService';
 import { useLanguage } from '../../context/LanguageContext';
 import { useBookmark } from '../../context/BookmarkContext';
+import { ArrowDown, SkipForward, ArrowRight, ArrowLeft } from 'lucide-react';
 
 const TopStoriesPage = () => {
   const navigate = useNavigate();
@@ -22,6 +23,9 @@ const TopStoriesPage = () => {
   
   // AI Preview State
   const [previewArticleId, setPreviewArticleId] = useState<string | null>(null);
+  
+  // Programmatic Swipe State (for Desktop/Wheel)
+  const [swipeTrigger, setSwipeTrigger] = useState<'left' | 'right' | null>(null);
   
   // Throttle wheel events
   const lastWheelTime = useRef(0);
@@ -40,6 +44,25 @@ const TopStoriesPage = () => {
       loadStories(filter);
   }, [contentLanguage]);
 
+  // Keyboard Support
+  useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+          if (loading || articles.length === 0) return;
+          
+          if (e.key === 'ArrowRight') {
+              setSwipeTrigger('right'); // Share
+          } else if (e.key === 'ArrowLeft') {
+              setSwipeTrigger('left'); // Save
+          } else if (e.key === 'ArrowDown' || e.key === ' ') {
+              e.preventDefault();
+              setSwipeTrigger('left'); // Default next action (Save & Next)
+          }
+      };
+
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [loading, articles.length]);
+
   const handleFilterChange = (newFilter: string) => {
       setFilter(newFilter);
       loadStories(newFilter);
@@ -47,9 +70,12 @@ const TopStoriesPage = () => {
 
   // Advances the stack
   const handleSwipe = (direction: 'left' | 'right') => {
+      // Clear trigger state
+      setSwipeTrigger(null);
+      // Advance stack
       setTimeout(() => {
           setCurrentIndex(prev => (prev + 1) % articles.length);
-      }, 200); 
+      }, 50); // Short delay to allow animation cleanup
   };
 
   // Mouse wheel support for desktop
@@ -58,9 +84,9 @@ const TopStoriesPage = () => {
       if (now - lastWheelTime.current < 500) return; // Throttle 500ms
 
       if (e.deltaY > 50) {
-          // Scroll Down -> Next Story
+          // Scroll Down -> Trigger Left Swipe (Save & Next logic or just Next)
           lastWheelTime.current = now;
-          handleSwipe('left');
+          setSwipeTrigger('left');
       }
   };
 
@@ -112,10 +138,15 @@ const TopStoriesPage = () => {
       setPreviewArticleId(id);
   };
 
+  const handleNext = () => {
+      // Trigger a left swipe programmatically to go to next
+      setSwipeTrigger('left');
+  };
+
   const currentArticleData = articles.find(a => a.id === previewArticleId);
 
   return (
-    <div className="h-full bg-gray-50 dark:bg-black flex flex-col relative overflow-hidden">
+    <div className="h-full bg-gray-50 dark:bg-black flex flex-col relative overflow-hidden transition-colors duration-300">
       
       {toast.show && (
           <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] animate-in fade-in slide-in-from-top-4 w-auto">
@@ -182,6 +213,7 @@ const TopStoriesPage = () => {
                                 onShare={handleShare}
                                 onAIExplain={handleAIExplain}
                                 onLongPress={handleLongPress}
+                                programmaticSwipe={swipeTrigger}
                             />
                           );
                       } else if (index === (currentIndex + 1) % articles.length) {
@@ -208,11 +240,18 @@ const TopStoriesPage = () => {
           )}
       </div>
       
-      <div className="absolute bottom-20 w-full flex justify-center gap-2 z-10 pointer-events-none">
-          <span className="text-[10px] text-gray-400 bg-white/80 dark:bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm shadow-sm border border-gray-200 dark:border-gray-800 animate-pulse">
-              Swipe Left to Save • Right to Share
-          </span>
-      </div>
+      {/* Floating Next Button - Moved to LEFT to avoid AI button overlap */}
+      {articles.length > 0 && (
+          <div className="absolute bottom-28 left-6 z-30">
+              <button 
+                onClick={handleNext}
+                className="w-14 h-14 bg-black dark:bg-white text-white dark:text-black rounded-full shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all border-2 border-white/20 dark:border-black/10"
+                title="Next Story"
+              >
+                  <ArrowRight size={28} strokeWidth={3} />
+              </button>
+          </div>
+      )}
     </div>
   );
 };
