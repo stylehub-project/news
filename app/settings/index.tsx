@@ -3,17 +3,25 @@ import React, { useState, useEffect } from 'react';
 import PageHeader from '../../components/PageHeader';
 import { User, Bell, Globe, Moon, Database, Link as LinkIcon, LogOut, Check, Wifi, Trash2, PieChart, ShieldAlert, Smartphone, Zap, Bookmark, BrainCircuit, Activity, Sparkles, Clock, Sliders, TrendingUp, PauseCircle, PlayCircle, RefreshCw, EyeOff, Shield, ShieldCheck } from 'lucide-react';
 import ThemeSwitcher from '../../components/ThemeSwitcher';
-import LanguageSwitcher from '../../components/LanguageSwitcher';
 import Button from '../../components/ui/Button';
 import Toast from '../../components/ui/Toast';
 import { useNetwork } from '../../context/NetworkContext';
 import { useNotification, NotificationPreferences } from '../../context/NotificationContext';
 import { useHistory } from '../../context/HistoryContext';
+import { useLanguage } from '../../context/LanguageContext';
+
+const LANGUAGES = [
+    { code: 'en', label: 'English' },
+    { code: 'hi', label: 'Hindi' },
+    { code: 'es', label: 'Spanish' },
+    { code: 'fr', label: 'French' },
+];
 
 const SettingsPage: React.FC = () => {
   const { isLowData, lowDataPreference, setLowDataPreference, dataUsage, clearCache } = useNetwork();
   const { preferences, updatePreference, triggerTestNotification, pauseNotifications, resumeNotifications, resetPersonalization } = useNotification();
   const { isPaused, togglePause, clearHistory } = useHistory();
+  const { appLanguage, setAppLanguage } = useLanguage();
   
   const [showToast, setShowToast] = useState<{show: boolean, msg: string, type: 'success' | 'info'}>({ show: false, msg: '', type: 'success' });
   const [pausedTimeRemaining, setPausedTimeRemaining] = useState('');
@@ -292,7 +300,22 @@ const SettingsPage: React.FC = () => {
                 <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                     <Globe size={14} /> Language
                 </h2>
-                <LanguageSwitcher />
+                {/* Inline Language Selector for Better Visibility */}
+                <div className="flex bg-gray-100 dark:bg-gray-700/50 p-1 rounded-xl">
+                    {LANGUAGES.map((lang) => (
+                        <button
+                            key={lang.code}
+                            onClick={() => setAppLanguage(lang.code as any)}
+                            className={`flex-1 py-2 px-1 rounded-lg text-xs font-medium transition-all ${
+                                appLanguage === lang.code 
+                                ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-300 shadow-sm' 
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                            }`}
+                        >
+                            {lang.label}
+                        </button>
+                    ))}
+                </div>
              </div>
         </section>
 

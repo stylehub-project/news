@@ -67,7 +67,7 @@ const ProfilePage: React.FC = () => {
             
             {/* Cinematic Avatar Composition */}
             <div 
-                className="relative w-36 h-36 mb-6 group cursor-pointer"
+                className="relative w-36 h-36 mb-2 group cursor-pointer"
                 onClick={() => fileInputRef.current?.click()}
             >
                 {/* Hidden File Input */}
@@ -113,6 +113,9 @@ const ProfilePage: React.FC = () => {
                     </div>
                 </div>
             </div>
+            
+            {/* Added Helper Text */}
+            <p className="text-[10px] text-gray-400 mb-6 font-medium tracking-wide">Tap photo to change</p>
 
             {/* Editable Name */}
             <div className="flex items-center gap-2">

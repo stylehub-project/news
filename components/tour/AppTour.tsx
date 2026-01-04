@@ -1,14 +1,15 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useTour } from '../../context/TourContext';
-import { X, ChevronRight, Sparkles, Check, ArrowRight, BrainCircuit, Play, Volume2, VolumeX, ShieldCheck } from 'lucide-react';
+import { useTour, TourLanguage } from '../../context/TourContext';
+import { X, ChevronRight, Sparkles, Check, ArrowRight, BrainCircuit, Play, Volume2, VolumeX, ShieldCheck, Globe } from 'lucide-react';
 import Button from '../ui/Button';
 
 const AppTour: React.FC = () => {
-  const { runTour, activeTourId, currentStepIndex, setCurrentStepIndex, steps, startTour, endTour, hasSeenTour } = useTour();
+  const { runTour, activeTourId, currentStepIndex, setCurrentStepIndex, steps, startTour, endTour, hasSeenTour, tourLanguage, setTourLanguage } = useTour();
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [showAIGuide, setShowAIGuide] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   
   // Voice State
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
@@ -48,13 +49,22 @@ const AppTour: React.FC = () => {
     } else {
         setTargetRect(null);
     }
-  }, [runTour, currentStepIndex, steps, isVoiceEnabled]);
+  }, [runTour, currentStepIndex, steps, isVoiceEnabled, tourLanguage]); // Re-run when language changes
 
   const speakText = (text: string) => {
       if (!window.speechSynthesis) return;
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.rate = 1.1;
+      
+      // Set Voice Language
+      switch (tourLanguage) {
+          case 'hi': u.lang = 'hi-IN'; break;
+          case 'es': u.lang = 'es-ES'; break;
+          case 'fr': u.lang = 'fr-FR'; break;
+          default: u.lang = 'en-US'; break;
+      }
+      
+      u.rate = 1.0;
       window.speechSynthesis.speak(u);
   };
 
@@ -76,6 +86,12 @@ const AppTour: React.FC = () => {
   const handleStartMainTour = () => {
       setShowWelcomeModal(false);
       startTour('main_v3');
+  };
+
+  const changeLanguage = (lang: TourLanguage) => {
+      setTourLanguage(lang);
+      setIsLangMenuOpen(false);
+      // Voice will reactively update via useEffect
   };
 
   // --- WELCOME MODAL ---
@@ -136,6 +152,8 @@ const AppTour: React.FC = () => {
     ? { bottom: window.innerHeight - targetRect.top + padding, left: 16, right: 16 }
     : { top: targetRect.bottom + padding, left: 16, right: 16 };
 
+  const langLabels = { en: 'English', hi: 'Hindi', es: 'Español', fr: 'Français' };
+
   return (
     <div className="fixed inset-0 z-[100] pointer-events-auto overflow-hidden">
       {/* Dimmed Overlay */}
@@ -160,13 +178,40 @@ const AppTour: React.FC = () => {
         className="absolute bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl p-5 rounded-2xl shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 max-w-sm mx-auto border border-white/20 dark:border-gray-700"
         style={tooltipStyle}
       >
-        <div className="flex justify-between items-start mb-3">
+        <div className="flex justify-between items-start mb-3 relative">
             <div className="flex items-center gap-2">
                 <span className="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
                     {activeTourId === 'main_v3' ? `Step ${currentStepIndex + 1}/${steps.length}` : 'Quick Tip'}
                 </span>
             </div>
+            
             <div className="flex items-center gap-1">
+                {/* Language Selector */}
+                <div className="relative">
+                    <button 
+                        onClick={() => setIsLangMenuOpen(!isLangMenuOpen)}
+                        className="p-1.5 rounded-full text-gray-400 hover:text-indigo-500 transition-colors flex items-center gap-1"
+                        title="Tour Language"
+                    >
+                        <Globe size={16} />
+                        <span className="text-[10px] font-bold uppercase">{tourLanguage}</span>
+                    </button>
+                    
+                    {isLangMenuOpen && (
+                        <div className="absolute right-0 top-8 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 p-1 w-32 z-50 animate-in fade-in zoom-in-95">
+                            {(Object.keys(langLabels) as TourLanguage[]).map((lang) => (
+                                <button
+                                    key={lang}
+                                    onClick={() => changeLanguage(lang)}
+                                    className={`w-full text-left px-3 py-2 text-xs font-bold rounded-lg transition-colors ${tourLanguage === lang ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                                >
+                                    {langLabels[lang]}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
                 {/* Voice Toggle */}
                 <button 
                     onClick={() => {
@@ -175,11 +220,12 @@ const AppTour: React.FC = () => {
                         else window.speechSynthesis.cancel();
                     }}
                     className={`p-1.5 rounded-full transition-colors ${isVoiceEnabled ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                    title="Voice Guide"
                 >
                     {isVoiceEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
                 </button>
                 
-                <button onClick={() => { window.speechSynthesis.cancel(); endTour(); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1">
+                <button onClick={() => { window.speechSynthesis.cancel(); endTour(); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 ml-1">
                     <X size={18} />
                 </button>
             </div>
