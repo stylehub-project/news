@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, Settings, Bookmark, Share2, Type, Sparkles, Highlighter, ArrowDown, BrainCircuit } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Settings, Bookmark, Share2, Type, Sparkles, Highlighter, ArrowDown, BrainCircuit, MapPin } from 'lucide-react';
 import HighlightReadingMode from '../../components/HighlightReadingMode';
 import Sheet from '../../components/ui/Sheet';
 import { useBookmark } from '../../context/BookmarkContext';
@@ -32,12 +32,13 @@ const DetailsPage: React.FC = () => {
   const articleId = id || MOCK_ARTICLE.id;
   const isSaved = isBookmarked(articleId);
   const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   // Reader State
   const [isReading, setIsReading] = useState(false);
   const [theme, setTheme] = useState<'light' | 'sepia' | 'dark'>('light');
   const [fontFamily, setFontFamily] = useState<'serif' | 'sans' | 'mono'>('serif');
-  const [fontSize, setFontSize] = useState(16);
+  const [fontSize, setFontSize] = useState(18);
   const [speed, setSpeed] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
   const [isHighlightEnabled, setIsHighlightEnabled] = useState(false);
@@ -60,6 +61,7 @@ const DetailsPage: React.FC = () => {
           setMemoryContext(status);
       }
 
+      // Check if there is a specifically saved scroll position > 0
       if (historyItem && historyItem.scrollPosition && historyItem.scrollPosition > 50) {
           setResumePoint(historyItem.scrollPosition);
           // If came from "Continue Reading" card, auto scroll
@@ -73,19 +75,18 @@ const DetailsPage: React.FC = () => {
       }
   }, [articleId, getHistoryItem, searchParams, checkReadStatus]);
 
-  // 15.1 Scroll Tracking
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-      const target = e.currentTarget;
-      const scrollPos = target.scrollTop;
-      const height = target.scrollHeight - target.clientHeight;
-      const progress = Math.round((scrollPos / height) * 100);
-
-      // Debounce logic is implicitly handled by React state batching often, 
-      // but for context updates, it's better to debounce in the context or here.
-      // We will rely on the context's internal logic or simple timeout here.
-      if (Math.abs((progress % 5)) === 0) { // Update every 5%
-          // 15.8 Passing Category for Context Awareness
+  const handleSetStopPoint = () => {
+      if (containerRef.current) {
+          const scrollPos = containerRef.current.scrollTop;
+          const height = containerRef.current.scrollHeight - containerRef.current.clientHeight;
+          const progress = Math.round((scrollPos / height) * 100);
+          
+          // Save progress with current scroll position
           trackProgress(articleId, 'article', MOCK_ARTICLE.title, progress, scrollPos, undefined, undefined, MOCK_ARTICLE.category);
+          
+          setResumePoint(scrollPos);
+          setToastMessage("Stop Point Saved 📍");
+          setShowToast(true);
       }
   };
 
@@ -129,20 +130,20 @@ const DetailsPage: React.FC = () => {
           imageUrl: MOCK_ARTICLE.imageUrl,
           timeAgo: MOCK_ARTICLE.timeAgo
       });
+      setToastMessage(isSaved ? "Removed from Saved" : "Article Saved");
       setShowToast(true);
   };
 
   // Dynamic Content Component to handle highlights
   const RenderedContent = useMemo(() => {
-    if (!isHighlightEnabled) return MOCK_ARTICLE.content;
     return MOCK_ARTICLE.content;
-  }, [isHighlightEnabled]);
+  }, []);
 
   return (
     <div className={`h-full flex flex-col ${themes[theme]} transition-colors duration-300 relative`}>
       {showToast && (
           <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50">
-              <Toast type="success" message={isSaved ? "Article Saved" : "Removed from Saved"} onClose={() => setShowToast(false)} />
+              <Toast type="success" message={toastMessage} onClose={() => setShowToast(false)} />
           </div>
       )}
 
@@ -154,7 +155,7 @@ const DetailsPage: React.FC = () => {
                 className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-full shadow-xl font-bold text-xs hover:scale-105 active:scale-95 transition-all"
               >
                   <ArrowDown size={14} className="animate-bounce" />
-                  Resume from where you left off
+                  Resume from Stop Point
               </button>
           </div>
       )}
@@ -191,7 +192,6 @@ const DetailsPage: React.FC = () => {
       <div 
         ref={containerRef}
         className="flex-1 overflow-y-auto p-5 pb-32 max-w-2xl mx-auto w-full custom-scrollbar scroll-smooth relative"
-        onScroll={handleScroll}
       >
         {/* 15.4 AI Memory Banner */}
         {memoryContext && (
@@ -224,16 +224,18 @@ const DetailsPage: React.FC = () => {
             <span>5 min read</span>
         </div>
 
-        {/* 8.1 Reading Mode Layout */}
+        {/* 8.1 Reading Mode Layout - Explicit font size applied here */}
         <div className={`relative ${fonts[fontFamily]}`} style={{ fontSize: `${fontSize}px`, lineHeight: '1.8' }}>
             
-            {/* 15.2 Visual Marker Logic */}
+            {/* Visual Marker Logic */}
             {resumePoint && (
                 <div 
-                    className="absolute w-full border-t-2 border-dashed border-indigo-400 opacity-50 flex items-center" 
-                    style={{ top: `${resumePoint - 100}px` }} // Offset slightly to account for header/padding
+                    className="absolute w-full border-t-2 border-dashed border-red-500 opacity-70 flex items-center" 
+                    style={{ top: `${resumePoint - 120}px` }} // visual offset
                 >
-                    <span className="bg-indigo-400 text-white text-[9px] px-1 rounded-r font-bold uppercase">Resume Point</span>
+                    <span className="bg-red-500 text-white text-[9px] px-1 rounded-r font-bold uppercase flex items-center gap-1">
+                        <MapPin size={8} fill="currentColor"/> Stop Point
+                    </span>
                 </div>
             )}
 
@@ -264,6 +266,17 @@ const DetailsPage: React.FC = () => {
 
       {/* 8.2 Controls (Floating) */}
       <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-4 px-5 py-2.5 rounded-full shadow-2xl z-40 border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}>
+         {/* Set Stop Point Button */}
+         <button 
+            onClick={handleSetStopPoint}
+            className="text-xs font-bold w-8 flex flex-col items-center gap-0.5 text-gray-500 hover:text-red-500 transition-colors"
+            title="Set Bookmark Here"
+         >
+            <MapPin size={18} />
+         </button>
+
+         <div className="w-[1px] h-6 bg-gray-200 dark:bg-gray-700"></div>
+
          <button 
             onClick={() => setSpeed(prev => prev === 2 ? 0.5 : prev + 0.5)}
             className="text-xs font-bold w-8 text-center"
@@ -319,7 +332,7 @@ const DetailsPage: React.FC = () => {
                     <input 
                         type="range" 
                         min="14" 
-                        max="24" 
+                        max="32" 
                         value={fontSize} 
                         onChange={(e) => setFontSize(parseInt(e.target.value))}
                         className="flex-1 accent-blue-600 h-2 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"

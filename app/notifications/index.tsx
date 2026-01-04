@@ -44,19 +44,21 @@ const NotificationsPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black pb-24 transition-colors duration-300">
-      <PageHeader 
-        title="Notifications" 
-        showBack 
-        action={
-            <div className="flex gap-2">
-                <button onClick={markAllAsRead} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full" title="Mark all read"><Check size={18} /></button>
-                <button onClick={clearAll} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full" title="Clear all"><Trash2 size={18} /></button>
-            </div>
-        }
-      />
+    <div className="h-full bg-gray-50 dark:bg-black transition-colors duration-300 flex flex-col overflow-hidden">
+      <div className="shrink-0">
+        <PageHeader 
+            title="Notifications" 
+            showBack 
+            action={
+                <div className="flex gap-2">
+                    <button onClick={markAllAsRead} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full" title="Mark all read"><Check size={18} /></button>
+                    <button onClick={clearAll} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full" title="Clear all"><Trash2 size={18} /></button>
+                </div>
+            }
+        />
+      </div>
       
-      <div className="p-4">
+      <div className="flex-1 overflow-y-auto p-4 pb-24">
         {/* Filter Tabs */}
         <div className="mb-6 overflow-x-auto pb-2 scrollbar-hide">
             <div className="flex gap-2">

@@ -105,7 +105,7 @@ const TopStoriesPage = () => {
           timeAgo: article.timeAgo,
           description: article.description
       });
-      setToast({ show: true, msg: 'Story Saved 🔖', type: 'success' });
+      setToast({ show: true, msg: 'Story Bookmarked 🔖', type: 'success' });
   };
 
   const handleShare = async (id: string) => {

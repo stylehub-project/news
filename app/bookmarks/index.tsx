@@ -57,17 +57,19 @@ const BookmarksPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black pb-24 transition-colors">
-      <PageHeader 
-        title="Saved for Later" 
-        action={
-            bookmarks.length > 0 && (
-                <button onClick={handleClearAll} className="text-xs font-bold text-red-500 hover:text-red-600 px-2 py-1">
-                    Clear All
-                </button>
-            )
-        }
-      />
+    <div className="h-full bg-gray-50 dark:bg-black transition-colors flex flex-col overflow-hidden">
+      <div className="shrink-0">
+        <PageHeader 
+            title="Saved for Later" 
+            action={
+                bookmarks.length > 0 && (
+                    <button onClick={handleClearAll} className="text-xs font-bold text-red-500 hover:text-red-600 px-2 py-1">
+                        Clear All
+                    </button>
+                )
+            }
+        />
+      </div>
 
       {showToast && (
           <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
@@ -75,27 +77,27 @@ const BookmarksPage: React.FC = () => {
           </div>
       )}
 
-      {/* AI Actions */}
-      <div className="p-4 pb-2 grid grid-cols-2 gap-3">
-          <button 
-            onClick={handleAIAnalysis}
-            disabled={bookmarks.length === 0}
-            className="flex items-center justify-center gap-2 p-3 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-xl text-white shadow-lg active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
-          >
-              <Sparkles size={16} className="text-yellow-300" />
-              <span className="text-xs font-bold">Summarize All</span>
-          </button>
-          <button 
-            onClick={handleAudioBrief}
-            className="flex items-center justify-center gap-2 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-200 shadow-sm active:scale-95 transition-all"
-          >
-              <Headphones size={16} className="text-pink-500" />
-              <span className="text-xs font-bold">Audio Brief</span>
-          </button>
-      </div>
+      {/* Fixed Top Controls */}
+      <div className="shrink-0 z-30 bg-gray-50/95 dark:bg-black/95 backdrop-blur-md px-4 py-2 space-y-3 transition-colors border-b border-gray-100 dark:border-gray-800">
+          {/* AI Actions */}
+          <div className="grid grid-cols-2 gap-3">
+              <button 
+                onClick={handleAIAnalysis}
+                disabled={bookmarks.length === 0}
+                className="flex items-center justify-center gap-2 p-3 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-xl text-white shadow-lg active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+              >
+                  <Sparkles size={16} className="text-yellow-300" />
+                  <span className="text-xs font-bold">Summarize All</span>
+              </button>
+              <button 
+                onClick={handleAudioBrief}
+                className="flex items-center justify-center gap-2 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-200 shadow-sm active:scale-95 transition-all"
+              >
+                  <Headphones size={16} className="text-pink-500" />
+                  <span className="text-xs font-bold">Audio Brief</span>
+              </button>
+          </div>
 
-      {/* Controls & Search */}
-      <div className="sticky top-[57px] z-30 bg-gray-50/95 dark:bg-black/95 backdrop-blur-md px-4 py-2 space-y-3 transition-colors">
           {/* Search */}
           <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -130,8 +132,8 @@ const BookmarksPage: React.FC = () => {
           </div>
       </div>
 
-      {/* Content List */}
-      <div className="p-4 space-y-3 min-h-[300px]">
+      {/* Content List - Scrollable */}
+      <div className="flex-1 overflow-y-auto p-4 pb-24 space-y-3">
         {filteredBookmarks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-400 opacity-60">
                 <Bookmark size={48} className="mb-4 stroke-1" />
@@ -151,14 +153,14 @@ const BookmarksPage: React.FC = () => {
                 />
             ))
         )}
-      </div>
-
-      {/* Privacy Footer */}
-      <div className="text-center pb-8 pt-4 opacity-40">
-          <div className="flex items-center justify-center gap-1.5 text-[10px] text-gray-500 font-medium">
-              <ShieldCheck size={12} />
-              <span>Stored securely on this device</span>
-          </div>
+        
+        {/* Privacy Footer inside Scroll */}
+        <div className="text-center pt-8 pb-4 opacity-40">
+            <div className="flex items-center justify-center gap-1.5 text-[10px] text-gray-500 font-medium">
+                <ShieldCheck size={12} />
+                <span>Stored securely on this device</span>
+            </div>
+        </div>
       </div>
     </div>
   );

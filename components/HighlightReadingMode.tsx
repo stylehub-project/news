@@ -109,7 +109,7 @@ const HighlightReadingMode: React.FC<HighlightReadingModeProps> = ({
   }[theme];
 
   return (
-    <div className="leading-relaxed transition-all duration-300 font-serif md:font-sans text-lg text-justify">
+    <div className="leading-relaxed transition-all duration-300 font-serif md:font-sans text-justify" style={{ fontSize: 'inherit' }}>
       {words.map((word, i) => {
          // Only highlight non-whitespace tokens
          const isCurrent = i === wordIndex && word.trim().length > 0;
