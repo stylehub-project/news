@@ -93,7 +93,8 @@ const getHeadline = (category: string, seed: number, isHindi: boolean) => {
 
 export const fetchNewsFeed = async (page: number, filters: any) => {
   const language = filters.language || 'English';
-  const cacheKey = `feed_${filters.category}_${filters.sort}_${page}_${language}`;
+  // Include searchField in cache key to differentiate filtered searches
+  const cacheKey = `feed_${filters.category}_${filters.sort}_${page}_${language}_${filters.searchField || 'all'}`;
 
   const cachedData = cacheService.get(cacheKey);
   if (!navigator.onLine && cachedData) {
@@ -112,9 +113,18 @@ export const fetchNewsFeed = async (page: number, filters: any) => {
     const ai = new GoogleGenAI({ apiKey });
     
     const topic = filters.category === 'All' ? 'latest global news' : `${filters.category} news`;
+    const searchField = filters.searchField || 'General';
+
+    // Enhance prompt based on the specific filter selected
+    let filterInstruction = "";
+    if (searchField === 'Headlines') filterInstruction = `Ensure the keywords '${filters.category}' appear specifically in the HEADLINE.`;
+    else if (searchField === 'Description') filterInstruction = `Ensure the articles have details or descriptions related to '${filters.category}', even if the headline is broader.`;
+    else if (searchField === 'Source') filterInstruction = `Find news specifically from the source/publisher '${filters.category}' or related entities.`;
+    else if (searchField === 'Topics') filterInstruction = `Find news strictly about the topic '${filters.category}'.`;
 
     const filterContext = `
       Focus on: ${filters.filter || 'General'}
+      Specific Search Field Constraint: ${searchField} - ${filterInstruction}
       Region: ${filters.state || 'Global'}
       Sort by: ${filters.sort || 'Latest'}
       Output Language: ${language}
