@@ -142,7 +142,8 @@ const HomePage: React.FC = () => {
   }, [isLoading, hasMore, isFetchingMore]);
 
   const handleCardClick = (id: string) => {
-      navigate(`/news/${id}`);
+      const article = articles.find(a => a.id === id) || recommendedArticles.find(a => a.id === id);
+      navigate(`/news/${id}`, { state: { article } });
   };
 
   if (isLoading) {

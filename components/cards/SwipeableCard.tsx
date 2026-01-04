@@ -22,6 +22,7 @@ interface SwipeableCardProps {
   onSave?: (id: string) => void;
   onShare?: (id: string) => void;
   onLongPress?: (id: string) => void;
+  onRead?: (id: string) => void; // New prop for reading
   programmaticSwipe?: 'left' | 'right' | null;
 }
 
@@ -34,6 +35,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
     onSave,
     onShare,
     onLongPress,
+    onRead,
     programmaticSwipe
 }) => {
   const navigate = useNavigate();
@@ -140,7 +142,8 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
 
   const handleCardClick = (e: React.MouseEvent) => {
       if (Math.abs(offset) < 5 && !isLongPressRef.current) {
-          navigate(`/news/${data.id}`);
+          if (onRead) onRead(data.id);
+          else navigate(`/news/${data.id}`);
       }
   };
 
@@ -264,7 +267,11 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
                     </button>
 
                     <button 
-                        onClick={(e) => { e.stopPropagation(); navigate(`/news/${data.id}`); }}
+                        onClick={(e) => { 
+                            e.stopPropagation(); 
+                            if (onRead) onRead(data.id); 
+                            else navigate(`/news/${data.id}`); 
+                        }}
                         className="col-span-2 bg-white text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors active:scale-95 shadow-lg"
                     >
                         Read Story <ChevronRight size={16} />

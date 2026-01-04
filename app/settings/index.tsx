@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import PageHeader from '../../components/PageHeader';
-import { User, Bell, Globe, Moon, Database, Link as LinkIcon, LogOut, Check, Wifi, Trash2, PieChart, ShieldAlert, Smartphone, Zap, Bookmark, BrainCircuit, Activity, Sparkles, Clock, Sliders, TrendingUp, PauseCircle, PlayCircle, RefreshCw, EyeOff, Shield, ShieldCheck } from 'lucide-react';
+import { User, Bell, Globe, Moon, Database, Link as LinkIcon, LogOut, Check, Wifi, Trash2, PieChart, ShieldAlert, Smartphone, Zap, Bookmark, BrainCircuit, Activity, Sparkles, Clock, Sliders, TrendingUp, PauseCircle, PlayCircle, RefreshCw, EyeOff, Shield, ShieldCheck, FileText } from 'lucide-react';
 import ThemeSwitcher from '../../components/ThemeSwitcher';
 import Button from '../../components/ui/Button';
 import Toast from '../../components/ui/Toast';
@@ -21,7 +21,7 @@ const SettingsPage: React.FC = () => {
   const { isLowData, lowDataPreference, setLowDataPreference, dataUsage, clearCache } = useNetwork();
   const { preferences, updatePreference, triggerTestNotification, pauseNotifications, resumeNotifications, resetPersonalization } = useNotification();
   const { isPaused, togglePause, clearHistory } = useHistory();
-  const { appLanguage, setAppLanguage } = useLanguage();
+  const { appLanguage, setAppLanguage, contentLanguage, setContentLanguage } = useLanguage();
   
   const [showToast, setShowToast] = useState<{show: boolean, msg: string, type: 'success' | 'info'}>({ show: false, msg: '', type: 'success' });
   const [pausedTimeRemaining, setPausedTimeRemaining] = useState('');
@@ -296,11 +296,11 @@ const SettingsPage: React.FC = () => {
                 <ThemeSwitcher />
              </div>
              
+             {/* App Language Selector */}
              <div className="space-y-2 pt-2 border-t border-gray-50 dark:border-gray-700">
                 <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                    <Globe size={14} /> Language
+                    <Globe size={14} /> App Language
                 </h2>
-                {/* Inline Language Selector for Better Visibility */}
                 <div className="flex bg-gray-100 dark:bg-gray-700/50 p-1 rounded-xl">
                     {LANGUAGES.map((lang) => (
                         <button
@@ -309,6 +309,28 @@ const SettingsPage: React.FC = () => {
                             className={`flex-1 py-2 px-1 rounded-lg text-xs font-medium transition-all ${
                                 appLanguage === lang.code 
                                 ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-300 shadow-sm' 
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                            }`}
+                        >
+                            {lang.label}
+                        </button>
+                    ))}
+                </div>
+             </div>
+
+             {/* News Content Language Selector */}
+             <div className="space-y-2 pt-2 border-t border-gray-50 dark:border-gray-700">
+                <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <FileText size={14} /> News Content Language
+                </h2>
+                <div className="flex bg-gray-100 dark:bg-gray-700/50 p-1 rounded-xl">
+                    {LANGUAGES.map((lang) => (
+                        <button
+                            key={lang.code}
+                            onClick={() => setContentLanguage(lang.code as any)}
+                            className={`flex-1 py-2 px-1 rounded-lg text-xs font-medium transition-all ${
+                                contentLanguage === lang.code 
+                                ? 'bg-white dark:bg-gray-600 text-green-600 dark:text-green-300 shadow-sm' 
                                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                             }`}
                         >

@@ -155,6 +155,11 @@ const TopStoriesPage = () => {
       }
   };
 
+  const handleReadStory = (id: string) => {
+      const article = articles.find(a => a.id === id);
+      navigate(`/news/${id}`, { state: { article } });
+  };
+
   const handleLongPress = (id: string) => {
       setPreviewArticleId(id);
   };
@@ -237,6 +242,7 @@ const TopStoriesPage = () => {
                                 onShare={handleShare}
                                 onAIExplain={handleAIExplain}
                                 onLongPress={handleLongPress}
+                                onRead={() => handleReadStory(article.id)} // Pass specific read handler
                                 programmaticSwipe={swipeTrigger}
                             />
                           );

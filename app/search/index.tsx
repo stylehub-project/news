@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
-import { Search, X, Filter, SlidersHorizontal, FileText, User, Tag, Globe, Image as ImageIcon, Layout } from 'lucide-react';
+import { Search, X, Filter, SlidersHorizontal, FileText, User, Tag, Globe, Image as ImageIcon, Layout, AlignLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import NewsCardBasic from '../../components/cards/NewsCardBasic';
+import AIAnalysisCard from '../../components/cards/AIAnalysisCard';
 import SearchLoadingState from '../../components/loaders/SearchLoadingState';
-import { fetchNewsFeed } from '../../utils/aiService';
+import { fetchNewsFeed, fetchTopicOverview } from '../../utils/aiService';
 import { useLanguage } from '../../context/LanguageContext';
 
 const SearchPage = () => {
@@ -15,13 +16,16 @@ const SearchPage = () => {
     const [results, setResults] = useState<any[]>([]);
     const [hasSearched, setHasSearched] = useState(false);
     
+    // AI Overview State
+    const [aiOverview, setAiOverview] = useState<{ summary: string, keyPoints: string[], tags: string[] } | null>(null);
+    
     // Filter State
     const [activeFilter, setActiveFilter] = useState('All');
 
     const FILTERS = [
         { id: 'All', label: 'All', icon: Layout },
         { id: 'Headlines', label: 'Headlines', icon: FileText },
-        { id: 'Description', label: 'Details', icon: AlignLeftIcon }, // Custom Icon below
+        { id: 'Description', label: 'Details', icon: AlignLeft }, 
         { id: 'Source', label: 'Sources', icon: Globe },
         { id: 'Topics', label: 'Topics', icon: Tag },
     ];
@@ -32,10 +36,17 @@ const SearchPage = () => {
         setIsSearching(true);
         setHasSearched(true);
         setResults([]); // Clear previous
+        setAiOverview(null); // Clear previous AI overview
         
         try {
             const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
             
+            // If "Details" (Description) filter is active, fetch a topic overview first
+            if (filterType === 'Description') {
+                const overview = await fetchTopicOverview(searchTerm, langName);
+                setAiOverview(overview);
+            }
+
             // Pass the filter type to the AI/API service
             const data = await fetchNewsFeed(1, { 
                 category: searchTerm, 
@@ -68,13 +79,16 @@ const SearchPage = () => {
     };
 
     const handleCardClick = (id: string) => {
-        navigate(`/news/${id}`);
+        // Find the article object to pass state
+        const article = results.find(r => r.id === id);
+        navigate(`/news/${id}`, { state: { article } });
     };
 
     const clearSearch = () => {
         setQuery('');
         setHasSearched(false);
         setResults([]);
+        setAiOverview(null);
     };
 
     return (
@@ -143,13 +157,25 @@ const SearchPage = () => {
                             </div>
                         )}
 
-                        {hasSearched && results.length === 0 && (
+                        {hasSearched && results.length === 0 && !aiOverview && (
                             <div className="flex flex-col items-center justify-center h-[50vh] text-gray-500">
                                 <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-full mb-3">
                                     <SlidersHorizontal size={24} />
                                 </div>
                                 <p className="font-bold">No results found for "{query}".</p>
                                 <p className="text-xs mt-1">Try changing the filter or keyword.</p>
+                            </div>
+                        )}
+
+                        {/* AI Overview Card (Shown if 'Details' filter was used) */}
+                        {aiOverview && (
+                            <div className="animate-in fade-in slide-in-from-top-4 mb-6">
+                                <AIAnalysisCard 
+                                    summary={aiOverview.summary}
+                                    keyPoints={aiOverview.keyPoints}
+                                    tags={aiOverview.tags}
+                                    onExplain={() => navigate(`/ai-chat?topic=${encodeURIComponent(query)}`)}
+                                />
                             </div>
                         )}
 
@@ -171,24 +197,5 @@ const SearchPage = () => {
         </div>
     )
 };
-
-// Helper Icon
-const AlignLeftIcon = ({ size, className }: { size?: number, className?: string }) => (
-    <svg 
-        width={size} 
-        height={size} 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke="currentColor" 
-        strokeWidth="2" 
-        strokeLinecap="round" 
-        strokeLinejoin="round" 
-        className={className}
-    >
-        <line x1="21" y1="6" x2="3" y2="6"></line>
-        <line x1="15" y1="12" x2="3" y2="12"></line>
-        <line x1="17" y1="18" x2="3" y2="18"></line>
-    </svg>
-);
 
 export default SearchPage;

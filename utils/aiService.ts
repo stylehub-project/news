@@ -199,6 +199,92 @@ export const fetchNewsFeed = async (page: number, filters: any) => {
   }
 };
 
+export const fetchFullArticle = async (title: string, language: string = 'English') => {
+    const cacheKey = `article_full_${title}_${language}`;
+    const cached = cacheService.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+        const apiKey = getApiKey();
+        if (!apiKey) throw new Error("No Key");
+
+        const ai = new GoogleGenAI({ apiKey });
+        const prompt = `
+            Write a full, detailed news article based on the headline: "${title}".
+            Language: ${language}.
+            Tone: Professional, journalistic, objective.
+            Length: Approximately 400 words.
+            Structure:
+            - Engaging Lead Paragraph
+            - Key Details and Facts
+            - Background Context
+            - Quotes (simulate expert opinions)
+            - Future Implications
+            
+            Return ONLY the article text. Use markdown for formatting (bold for key terms, new lines for paragraphs).
+        `;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt
+        });
+
+        const text = response.text || "Content unavailable.";
+        cacheService.set(cacheKey, text);
+        return text;
+    } catch (e) {
+        return "We could not retrieve the full article at this time. Please try again later or check your connection.";
+    }
+};
+
+export const fetchTopicOverview = async (topic: string, language: string = 'English') => {
+    const cacheKey = `topic_overview_${topic}_${language}`;
+    const cached = cacheService.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+        const apiKey = getApiKey();
+        if (!apiKey) throw new Error("No Key");
+
+        const ai = new GoogleGenAI({ apiKey });
+        const prompt = `
+            Provide a comprehensive overview and analysis of the topic: "${topic}".
+            Language: ${language}.
+            Output strictly as JSON:
+            {
+                "summary": "A concise 2-3 sentence executive summary.",
+                "keyPoints": ["Point 1", "Point 2", "Point 3"],
+                "tags": ["Tag1", "Tag2", "Tag3"]
+            }
+        `;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt,
+            config: { tools: [{ googleSearch: {} }] }
+        });
+
+        const text = response.text || "";
+        const cleanText = text.replace(/```json|```/g, '').trim();
+        const jsonStart = cleanText.indexOf('{');
+        const jsonEnd = cleanText.lastIndexOf('}');
+        
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+            const jsonStr = cleanText.substring(jsonStart, jsonEnd + 1);
+            const data = JSON.parse(jsonStr);
+            cacheService.set(cacheKey, data);
+            return data;
+        }
+        throw new Error("Invalid JSON");
+    } catch (e) {
+        return {
+            summary: "Detailed overview unavailable. Please try a different search term.",
+            keyPoints: [],
+            tags: []
+        };
+    }
+};
+
 export const modifyText = async (text: string, instruction: string) => {
     const cacheKey = `mod_${text.substring(0, 20)}_${instruction}`;
     const cached = cacheService.get(cacheKey);

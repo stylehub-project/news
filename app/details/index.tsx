@@ -1,35 +1,32 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, Settings, Bookmark, Share2, Type, Sparkles, Highlighter, ArrowDown, BrainCircuit, MapPin } from 'lucide-react';
+import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
+import { ArrowLeft, Play, Pause, Settings, Bookmark, Share2, Type, Sparkles, Highlighter, ArrowDown, BrainCircuit, MapPin, RefreshCw } from 'lucide-react';
 import HighlightReadingMode from '../../components/HighlightReadingMode';
 import Sheet from '../../components/ui/Sheet';
 import { useBookmark } from '../../context/BookmarkContext';
 import { useHistory } from '../../context/HistoryContext';
 import Toast from '../../components/ui/Toast';
-
-const MOCK_ARTICLE = {
-  id: '1',
-  title: "The Future of AI: Beyond Generative Models",
-  author: "Dr. Sarah Connors",
-  source: "TechDaily",
-  content: "Artificial Intelligence has evolved rapidly over the past decade. From simple rule-based systems to complex neural networks, the journey has been transformative. Today, we stand on the brink of a new era: General Purpose AI.\n\nUnlike its predecessors, which were designed for specific tasks, modern AI aims to understand context, reason through problems, and adapt to new situations without explicit retraining. This shift promises to revolutionize industries ranging from healthcare to transportation.\n\nHowever, with great power comes great responsibility. The ethical implications of autonomous systems are vast. We must consider bias, privacy, and the socio-economic impact of automation. As we move forward, a balanced approach—prioritizing human well-being alongside technological advancement—is crucial.",
-  category: "Technology",
-  imageUrl: "https://picsum.photos/800/600",
-  timeAgo: "2h ago"
-};
-
-const KEY_TERMS = ["Artificial Intelligence", "General Purpose AI", "neural networks", "ethical implications", "automation", "technological advancement"];
+import { fetchFullArticle } from '../../utils/aiService';
+import { useLanguage } from '../../context/LanguageContext';
 
 const DetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const { isBookmarked, toggleBookmark } = useBookmark();
   const { trackProgress, getHistoryItem, checkReadStatus } = useHistory();
+  const { contentLanguage } = useLanguage();
   
-  // Logic to handle variable IDs from mock data vs URL
-  const articleId = id || MOCK_ARTICLE.id;
+  // Logic to handle passed state vs URL ID
+  const passedArticle = location.state?.article;
+  const articleId = id || (passedArticle?.id) || 'unknown';
+  
+  const [articleData, setArticleData] = useState<any>(passedArticle || null);
+  const [fullContent, setFullContent] = useState<string>("");
+  const [isLoadingContent, setIsLoadingContent] = useState(false);
+
   const isSaved = isBookmarked(articleId);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -50,6 +47,25 @@ const DetailsPage: React.FC = () => {
   
   // 15.4 AI Memory State
   const [memoryContext, setMemoryContext] = useState<{ seen: boolean; progress: number; isUpdated: boolean } | null>(null);
+
+  // Load Content Logic
+  useEffect(() => {
+      const loadContent = async () => {
+          if (!articleData) return; // Should handle missing data gracefully or redirect
+
+          // If we have passed full content (rare), use it.
+          // Otherwise, generate/fetch full article based on title/description.
+          setIsLoadingContent(true);
+          const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
+          const generatedContent = await fetchFullArticle(articleData.title, langName);
+          setFullContent(generatedContent);
+          setIsLoadingContent(false);
+      };
+
+      if (articleData && !fullContent) {
+          loadContent();
+      }
+  }, [articleData, contentLanguage]);
 
   // 15.1 Load Resume Point & Check History
   useEffect(() => {
@@ -81,8 +97,10 @@ const DetailsPage: React.FC = () => {
           const height = containerRef.current.scrollHeight - containerRef.current.clientHeight;
           const progress = Math.round((scrollPos / height) * 100);
           
-          // Save progress with current scroll position
-          trackProgress(articleId, 'article', MOCK_ARTICLE.title, progress, scrollPos, undefined, undefined, MOCK_ARTICLE.category);
+          if (articleData) {
+              // Save progress with current scroll position
+              trackProgress(articleId, 'article', articleData.title, progress, scrollPos, undefined, undefined, articleData.category);
+          }
           
           setResumePoint(scrollPos);
           setToastMessage("Stop Point Saved 📍");
@@ -102,8 +120,10 @@ const DetailsPage: React.FC = () => {
 
   // 15.11 Track AI Explanation Interaction
   const handleExplain = () => {
-      trackProgress(articleId, 'article', MOCK_ARTICLE.title, memoryContext?.progress || 0, resumePoint || 0, { hasExplained: true }, undefined, MOCK_ARTICLE.category);
-      navigate(`/ai-chat?context=article&headline=${encodeURIComponent(MOCK_ARTICLE.title)}`);
+      if (articleData) {
+          trackProgress(articleId, 'article', articleData.title, memoryContext?.progress || 0, resumePoint || 0, { hasExplained: true }, undefined, articleData.category);
+          navigate(`/ai-chat?context=article&headline=${encodeURIComponent(articleData.title)}`);
+      }
   };
 
   // Theme Styles
@@ -122,22 +142,30 @@ const DetailsPage: React.FC = () => {
   const handleToggleRead = () => setIsReading(!isReading);
 
   const handleSave = () => {
-      toggleBookmark({
-          id: articleId,
-          title: MOCK_ARTICLE.title,
-          source: MOCK_ARTICLE.source,
-          category: MOCK_ARTICLE.category,
-          imageUrl: MOCK_ARTICLE.imageUrl,
-          timeAgo: MOCK_ARTICLE.timeAgo
-      });
-      setToastMessage(isSaved ? "Removed from Saved" : "Article Saved");
-      setShowToast(true);
+      if (articleData) {
+          toggleBookmark({
+              id: articleId,
+              title: articleData.title,
+              source: articleData.source,
+              category: articleData.category,
+              imageUrl: articleData.imageUrl,
+              timeAgo: articleData.timeAgo
+          });
+          setToastMessage(isSaved ? "Removed from Saved" : "Article Saved");
+          setShowToast(true);
+      }
   };
 
-  // Dynamic Content Component to handle highlights
-  const RenderedContent = useMemo(() => {
-    return MOCK_ARTICLE.content;
-  }, []);
+  if (!articleData) {
+      return (
+          <div className="flex items-center justify-center h-full bg-gray-50 dark:bg-black text-gray-500">
+              <div className="text-center">
+                  <p className="mb-4">Article not found.</p>
+                  <button onClick={() => navigate(-1)} className="text-blue-600 font-bold">Go Back</button>
+              </div>
+          </div>
+      );
+  }
 
   return (
     <div className={`h-full flex flex-col ${themes[theme]} transition-colors duration-300 relative`}>
@@ -213,15 +241,15 @@ const DetailsPage: React.FC = () => {
         )}
 
         <h1 className={`${fonts[fontFamily]} text-2xl md:text-3xl font-black mb-2 leading-tight`}>
-          {MOCK_ARTICLE.title}
+          {articleData.title}
         </h1>
         
         <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-6 ${theme === 'sepia' ? 'text-[#8a6e57]' : 'text-gray-500'}`}>
-            <span className="text-blue-500">{MOCK_ARTICLE.source}</span>
+            <span className="text-blue-500">{articleData.source}</span>
             <span>•</span>
-            <span>{MOCK_ARTICLE.author}</span>
+            <span>{articleData.timeAgo}</span>
             <span>•</span>
-            <span>5 min read</span>
+            <span>{isLoadingContent ? 'Calculating...' : '4 min read'}</span>
         </div>
 
         {/* 8.1 Reading Mode Layout - Explicit font size applied here */}
@@ -239,29 +267,26 @@ const DetailsPage: React.FC = () => {
                 </div>
             )}
 
-            <HighlightReadingMode 
-                text={RenderedContent}
-                isPlaying={isReading}
-                speed={speed}
-                theme={theme}
-                onComplete={() => setIsReading(false)}
-            />
-        </div>
-
-        {isHighlightEnabled && (
-            <div className="mt-8 p-4 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl">
-                <h4 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase mb-3 flex items-center gap-2">
-                    <Sparkles size={14} /> Key Entities Detected
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                    {KEY_TERMS.map(term => (
-                        <span key={term} className="px-2 py-1 bg-white dark:bg-gray-800 border border-blue-100 dark:border-blue-800 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-300">
-                            {term}
-                        </span>
-                    ))}
+            {isLoadingContent ? (
+                <div className="space-y-4 animate-pulse">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                    <div className="flex items-center gap-2 text-indigo-500 mt-4 text-sm font-bold">
+                        <RefreshCw className="animate-spin" size={16} /> Retrieving full report...
+                    </div>
                 </div>
-            </div>
-        )}
+            ) : (
+                <HighlightReadingMode 
+                    text={fullContent}
+                    isPlaying={isReading}
+                    speed={speed}
+                    theme={theme}
+                    onComplete={() => setIsReading(false)}
+                />
+            )}
+        </div>
       </div>
 
       {/* 8.2 Controls (Floating) */}
