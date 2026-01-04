@@ -215,6 +215,7 @@ const FloatingFeedback: React.FC = () => {
     <>
         {/* Floating Button Container */}
         <div 
+            id="floating-feedback-btn" 
             ref={buttonRef}
             className={`absolute z-[100] transition-all duration-500 ease-out cursor-grab active:cursor-grabbing touch-none ${positionClasses} ${isIdle && !showIntro ? 'opacity-40 translate-x-[-10px] scale-90 blur-[0.5px] hover:opacity-100 hover:translate-x-0 hover:scale-100 hover:blur-0' : 'opacity-100 scale-100'}`}
             style={style}

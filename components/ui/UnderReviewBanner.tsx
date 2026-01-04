@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
-import { AlertTriangle, X, Clock, Bell } from 'lucide-react';
+import { AlertTriangle, X, Bell } from 'lucide-react';
 
 interface UnderReviewBannerProps {
-  featureName: string;
+  featureName?: string;
 }
 
 const UnderReviewBanner: React.FC<UnderReviewBannerProps> = ({ featureName }) => {
@@ -13,47 +13,38 @@ const UnderReviewBanner: React.FC<UnderReviewBannerProps> = ({ featureName }) =>
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-20 left-4 right-4 z-40 animate-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-gray-900/95 backdrop-blur-xl text-white p-4 rounded-2xl shadow-2xl border border-yellow-500/30 relative overflow-hidden">
-        
-        {/* Background Stripe */}
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-500 to-orange-500"></div>
+    <div className="fixed bottom-20 left-4 right-4 z-40 animate-in slide-in-from-bottom-4 duration-700 pointer-events-auto">
+      <div className="bg-gray-100/95 dark:bg-gray-800/95 backdrop-blur-md text-gray-800 dark:text-gray-200 p-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 relative overflow-hidden">
         
         <button 
             onClick={() => setIsVisible(false)}
-            className="absolute top-3 right-3 text-gray-400 hover:text-white p-1"
+            className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-100 p-1 transition-colors"
         >
             <X size={16} />
         </button>
 
-        <div className="flex gap-4">
-            <div className="shrink-0 mt-1">
-                <div className="p-2 bg-yellow-500/20 rounded-full text-yellow-400 border border-yellow-500/20 animate-pulse">
-                    <AlertTriangle size={20} />
+        <div className="flex gap-3">
+            <div className="shrink-0 mt-0.5">
+                <div className="p-1.5 bg-gray-200 dark:bg-gray-700 rounded-full text-gray-500 dark:text-gray-400">
+                    <AlertTriangle size={16} />
                 </div>
             </div>
             
             <div className="flex-1 pr-4">
-                <h4 className="font-bold text-sm mb-1 flex items-center gap-2">
-                    Under Review & Development
-                    <span className="bg-yellow-500 text-black text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider">Beta</span>
-                </h4>
-                <p className="text-xs text-gray-300 leading-relaxed mb-3">
-                    The <span className="font-bold text-white">{featureName}</span> section is currently being enhanced by our AI team. It will be ready soon.
+                <p className="text-xs font-medium leading-relaxed mb-3">
+                    ⚠️ This feature is under review and development. It will be available soon. You’ll be notified once it’s ready.
                 </p>
                 
                 <button 
                     onClick={() => setIsNotified(true)}
                     disabled={isNotified}
-                    className={`text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${isNotified ? 'bg-green-600 text-white' : 'bg-white text-black hover:bg-gray-200'}`}
+                    className={`text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${isNotified ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-50'}`}
                 >
                     {isNotified ? (
-                        <>
-                            <Clock size={12} /> You will be notified
-                        </>
+                        "We'll notify you"
                     ) : (
                         <>
-                            <Bell size={12} /> Notify when ready
+                            <Bell size={12} /> Notify me
                         </>
                     )}
                 </button>

@@ -272,6 +272,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
                     
                     <div className="flex flex-col gap-2">
                         <button 
+                            id="card-save-btn" // Targeted by Micro-Tour
                             onClick={(e) => { e.stopPropagation(); onSave?.(data.id); }}
                             className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white rounded-xl flex-1 flex items-center justify-center shadow-sm active:scale-95 transition-all"
                             title="Save"

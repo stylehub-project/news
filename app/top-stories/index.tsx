@@ -11,11 +11,14 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useBookmark } from '../../context/BookmarkContext';
 import { ArrowDown, SkipForward, ArrowRight, ArrowLeft } from 'lucide-react';
 import UnderReviewBanner from '../../components/ui/UnderReviewBanner';
+import { useTour } from '../../context/TourContext';
 
 const TopStoriesPage = () => {
   const navigate = useNavigate();
   const { contentLanguage } = useLanguage();
   const { toggleBookmark } = useBookmark();
+  const { hasSeenTour, startTour } = useTour();
+  
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -44,6 +47,23 @@ const TopStoriesPage = () => {
   useEffect(() => {
       loadStories(filter);
   }, [contentLanguage]);
+
+  // Micro-Tour Check
+  useEffect(() => {
+      if (!loading && articles.length > 0 && !hasSeenTour('top_stories_micro')) {
+          const timer = setTimeout(() => {
+              startTour('top_stories_micro', [
+                  {
+                      targetId: 'card-save-btn',
+                      title: 'Save for Later',
+                      content: 'Tap here or swipe left to bookmark interesting stories for offline reading.',
+                      aiGuide: 'Your saved stories help the AI learn your interests.'
+                  }
+              ]);
+          }, 1500);
+          return () => clearTimeout(timer);
+      }
+  }, [loading, articles, hasSeenTour]);
 
   // Keyboard Support
   useEffect(() => {

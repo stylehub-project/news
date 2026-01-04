@@ -18,7 +18,7 @@ const BottomNav: React.FC = () => {
   const navItems = [
     { id: 'nav-home', icon: Home, label: t.home, path: '/' },
     { id: 'nav-categories', icon: Grid, label: t.categories, path: '/categories' },
-    { id: 'nav-all-news', icon: Layers, label: 'All News', path: '/reel' }, // Renamed from Reel, kept path
+    { id: 'nav-all-news', icon: Layers, label: 'All News', path: '/reel' }, // Renamed from Reel
     { id: 'nav-ai-chat', icon: MessageSquare, label: t.ai_chat, path: '/ai-chat' },
     { id: 'nav-profile', icon: User, label: t.profile, path: '/profile' },
   ];
@@ -28,7 +28,7 @@ const BottomNav: React.FC = () => {
       {navItems.map((item) => (
         <Link
           key={item.path}
-          id={item.id} // Added ID for Tour
+          id={item.id} // Added ID for Tour targeting
           to={item.path}
           className={`flex flex-col items-center justify-center w-full py-2 transition-all duration-300 relative group ${
             isActive(item.path) 
