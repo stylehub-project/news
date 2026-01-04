@@ -221,9 +221,10 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ onClose }) => {
                     speechConfig: {
                         voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } },
                     },
+                    tools: [{ googleSearch: {} }], // Enable search tool
                     inputAudioTranscription: {}, 
                     outputAudioTranscription: {},
-                    systemInstruction: "You are a concise, professional, and friendly news anchor assistant.",
+                    systemInstruction: "You are a concise, professional, and friendly news anchor assistant. You have access to Google Search. Use it to provide real-time updates, search for today's top headlines, and give detailed overviews when asked about current events.",
                 },
                 callbacks: {
                     onopen: async () => {

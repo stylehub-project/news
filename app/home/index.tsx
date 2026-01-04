@@ -33,9 +33,10 @@ const HomePage: React.FC = () => {
   const { isOnline, lastSyncTime } = useNetwork();
   const { getLastActive, getRecommendations, getTimeContext } = useHistory();
   
+  // Only show full loading screen if Home hasn't been loaded in this session yet
   const [isLoading, setIsLoading] = useState(!isLoaded('home'));
   const [articles, setArticles] = useState<any[]>([]);
-  const [recommendedArticles, setRecommendedArticles] = useState<any[]>([]); // 15.8 Recs
+  const [recommendedArticles, setRecommendedArticles] = useState<any[]>([]); 
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
@@ -58,8 +59,8 @@ const HomePage: React.FC = () => {
   const recommendation = useMemo(() => getRecommendations(), [getRecommendations]);
 
   // Initial Load
-  const loadContent = async (reset = false) => {
-        if (reset) setIsLoading(true);
+  const loadContent = async (showLoader = false) => {
+        if (showLoader) setIsLoading(true);
         const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
         
         // Main Feed
@@ -76,7 +77,7 @@ const HomePage: React.FC = () => {
             setRecommendedArticles(recNews.slice(0, 3)); // Top 3
         }
 
-        if (reset) {
+        if (showLoader) {
             setTimeout(() => {
                 setIsLoading(false);
                 markAsLoaded('home');
@@ -85,13 +86,15 @@ const HomePage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadContent(true);
-  }, [contentLanguage]); // Reload if language changes or first mount
+    // Only trigger full load animation if not loaded yet
+    const needsLoader = !isLoaded('home');
+    loadContent(needsLoader);
+  }, [contentLanguage]); 
 
   // Silent Background Sync Effect (Prompt 13.7)
   useEffect(() => {
-      if (isOnline && articles.length > 0) {
-          // Check if we need to refresh (simple check against lastSyncTime)
+      // Only sync if already loaded to avoid double fetching on mount
+      if (isOnline && isLoaded('home') && articles.length > 0) {
           setShowSyncBadge(true);
           loadContent(false).then(() => {
               setTimeout(() => setShowSyncBadge(false), 2000);
