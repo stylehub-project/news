@@ -21,11 +21,13 @@ const NotificationBanner: React.FC = () => {
       setIsVisible(true);
       setTranslateX(0);
       setOpacity(1);
-      // Auto-dismiss standard notifications after 6s, but keep Breaking/AI/Digests longer
+      // Auto-dismiss standard notifications after 6s unless listening
       const duration = ['breaking', 'ai', 'digest'].includes(latestNotification.type) ? 8000 : 6000;
+      
       const timer = setTimeout(() => {
-          handleClose();
+          if (!isSpeaking) handleClose();
       }, duration);
+      
       return () => clearTimeout(timer);
     }
   }, [latestNotification]);
@@ -50,7 +52,6 @@ const NotificationBanner: React.FC = () => {
       handleClose();
   };
 
-  // 14.7 Chatbot Integration
   const handleAskAI = (e: React.MouseEvent) => {
       e.stopPropagation();
       if (latestNotification) {
@@ -60,7 +61,6 @@ const NotificationBanner: React.FC = () => {
       }
   };
 
-  // 14.12 Less Like This
   const handleLessLikeThis = (e: React.MouseEvent) => {
       e.stopPropagation();
       if (latestNotification) {
@@ -76,14 +76,26 @@ const NotificationBanner: React.FC = () => {
           window.speechSynthesis.cancel();
           setIsSpeaking(false);
       } else {
+          // Stop any other audio first
+          window.speechSynthesis.cancel();
+          
           const insightText = latestNotification.data?.aiInsight ? ` Insight: ${latestNotification.data.aiInsight}` : '';
           const digestText = latestNotification.data?.digestItems ? ` Top stories: ${latestNotification.data.digestItems.join('. ')}` : '';
           
           const u = new SpeechSynthesisUtterance(`${latestNotification.type === 'breaking' ? 'Breaking News.' : ''} ${latestNotification.title}. ${latestNotification.body}. ${insightText} ${digestText}`);
           u.rate = 1.1;
-          u.onend = () => setIsSpeaking(false);
+          
+          u.onstart = () => setIsSpeaking(true);
+          
+          u.onend = () => {
+              setIsSpeaking(false);
+              // Auto dismiss after listening is complete
+              setTimeout(handleClose, 500); 
+          };
+          
+          u.onerror = () => setIsSpeaking(false);
+
           window.speechSynthesis.speak(u);
-          setIsSpeaking(true);
       }
   };
 
@@ -117,13 +129,11 @@ const NotificationBanner: React.FC = () => {
 
   if (!latestNotification) return null;
 
-  // 14.9 Low Data Visual Mode (Strip gradients/shadows if low data)
   const isLowData = latestNotification.isLowData;
 
   // Visual Styles based on Type
   const getStyles = (type: NotificationType) => {
       if (isLowData) {
-          // Minimalist Flat Styles for Low Data
           return {
               container: 'bg-white dark:bg-gray-800 border-l-4 border-gray-500 shadow-lg text-gray-900 dark:text-white',
               icon: <Info size={18} className="text-gray-500" />,
@@ -208,14 +218,12 @@ const NotificationBanner: React.FC = () => {
                     </div>
                     <div className="flex flex-col">
                         <span className="text-[10px] font-black uppercase tracking-widest opacity-80">{style.label}</span>
-                        {/* 14.12 "Why you're seeing this" context */}
                         {latestNotification.data?.context && !isLowData && (
                             <span className="text-[9px] opacity-70 leading-none">{latestNotification.data.context}</span>
                         )}
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    {/* 14.12 Less Like This */}
                     <button onClick={handleLessLikeThis} className="text-current opacity-60 hover:opacity-100 transition-opacity" title="Less like this">
                         <ThumbsDown size={14} />
                     </button>
@@ -230,7 +238,6 @@ const NotificationBanner: React.FC = () => {
                 <h3 className="font-bold text-base leading-tight mb-1 group-hover:underline decoration-2 underline-offset-2">{latestNotification.title}</h3>
                 <p className="text-xs font-medium opacity-90 line-clamp-2 leading-relaxed">{latestNotification.body}</p>
                 
-                {/* 14.6 Daily Digest List */}
                 {latestNotification.data?.digestItems && (
                     <ul className="mt-2 space-y-1">
                         {latestNotification.data.digestItems.slice(0, 3).map((item, i) => (
@@ -242,7 +249,6 @@ const NotificationBanner: React.FC = () => {
                     </ul>
                 )}
 
-                {/* 14.4 AI Insight Context */}
                 {latestNotification.data?.aiInsight && (
                     <div className="mt-2 pt-2 border-t border-white/20">
                         <p className="text-[10px] font-bold opacity-80 flex items-start gap-1">
@@ -262,7 +268,6 @@ const NotificationBanner: React.FC = () => {
                     Read <ArrowRight size={12} />
                 </button>
                 
-                {/* 14.7 Chatbot Integrated Action - Hidden in Low Data */}
                 {!isLowData && (
                     <button 
                         onClick={handleAskAI}
@@ -275,7 +280,7 @@ const NotificationBanner: React.FC = () => {
                 <button 
                     onClick={handleListen}
                     className="w-10 flex items-center justify-center rounded-lg bg-black/10 hover:bg-black/20 text-current transition-colors"
-                    title="Listen to summary"
+                    title="Listen"
                 >
                     {isSpeaking ? <Volume2 size={16} className="animate-pulse" /> : <Play size={16} className="ml-0.5" />}
                 </button>

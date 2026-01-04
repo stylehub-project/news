@@ -9,6 +9,7 @@ import { useLoading } from '../../context/LoadingContext';
 import { fetchNewsFeed } from '../../utils/aiService';
 import { useLanguage } from '../../context/LanguageContext';
 import { useHistory } from '../../context/HistoryContext';
+import UnderReviewBanner from '../../components/ui/UnderReviewBanner';
 
 const ReelPage: React.FC = () => {
   const navigate = useNavigate();
@@ -163,6 +164,9 @@ const ReelPage: React.FC = () => {
   return (
     <div className="h-full w-full bg-black relative font-sans">
       
+      {/* Feature Under Review Banner */}
+      <UnderReviewBanner featureName="All News (Reels)" />
+
       {/* 15.2 Resuming Indicator */}
       {isResuming && (
           <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-black/80 text-white px-4 py-1 rounded-full text-xs font-bold animate-pulse border border-white/20">

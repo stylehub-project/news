@@ -7,6 +7,7 @@ import MapTicker from '../../components/map/MapTicker';
 import SmartLoader from '../../components/loaders/SmartLoader';
 import { useLoading } from '../../context/LoadingContext';
 import MapFilterPanel, { MapFilters } from '../../components/map/MapFilterPanel';
+import UnderReviewBanner from '../../components/ui/UnderReviewBanner';
 
 export type WeatherLayerType = 'Rain' | 'Temp' | 'Wind' | 'Storm' | 'Snow' | 'Heat';
 
@@ -84,6 +85,9 @@ const MapPage: React.FC = () => {
   return (
     <div className="relative w-full h-full bg-black overflow-hidden flex flex-col pb-[70px] transition-colors duration-300">
         
+        {/* Under Review Banner */}
+        <UnderReviewBanner featureName="Live Map" />
+
         {/* W1/W2 Top Bar & Layer Selector */}
         <div className="absolute top-0 left-0 right-0 z-30 pointer-events-none flex flex-col">
              <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/90 via-black/50 to-transparent pointer-events-auto">

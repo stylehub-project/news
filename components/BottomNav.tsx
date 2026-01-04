@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { Home, Grid, PlaySquare, MessageSquare, User } from 'lucide-react';
+import { Home, Grid, Layers, MessageSquare, User } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { translations } from '../utils/translations';
@@ -15,11 +16,11 @@ const BottomNav: React.FC = () => {
   };
 
   const navItems = [
-    { icon: Home, label: t.home, path: '/' },
-    { icon: Grid, label: t.categories, path: '/categories' },
-    { icon: PlaySquare, label: t.news, path: '/reel' },
-    { icon: MessageSquare, label: t.ai_chat, path: '/ai-chat' },
-    { icon: User, label: t.profile, path: '/profile' },
+    { id: 'nav-home', icon: Home, label: t.home, path: '/' },
+    { id: 'nav-categories', icon: Grid, label: t.categories, path: '/categories' },
+    { id: 'nav-all-news', icon: Layers, label: 'All News', path: '/reel' }, // Renamed from Reel, kept path
+    { id: 'nav-ai-chat', icon: MessageSquare, label: t.ai_chat, path: '/ai-chat' },
+    { id: 'nav-profile', icon: User, label: t.profile, path: '/profile' },
   ];
 
   return (
@@ -27,6 +28,7 @@ const BottomNav: React.FC = () => {
       {navItems.map((item) => (
         <Link
           key={item.path}
+          id={item.id} // Added ID for Tour
           to={item.path}
           className={`flex flex-col items-center justify-center w-full py-2 transition-all duration-300 relative group ${
             isActive(item.path) 

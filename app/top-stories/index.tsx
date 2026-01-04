@@ -10,6 +10,7 @@ import { fetchNewsFeed } from '../../utils/aiService';
 import { useLanguage } from '../../context/LanguageContext';
 import { useBookmark } from '../../context/BookmarkContext';
 import { ArrowDown, SkipForward, ArrowRight, ArrowLeft } from 'lucide-react';
+import UnderReviewBanner from '../../components/ui/UnderReviewBanner';
 
 const TopStoriesPage = () => {
   const navigate = useNavigate();
@@ -148,6 +149,9 @@ const TopStoriesPage = () => {
   return (
     <div className="h-full bg-gray-50 dark:bg-black flex flex-col relative overflow-hidden transition-colors duration-300">
       
+      {/* Under Review Banner */}
+      <UnderReviewBanner featureName="Headlines Feed" />
+
       {toast.show && (
           <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] animate-in fade-in slide-in-from-top-4 w-auto">
               <Toast 
