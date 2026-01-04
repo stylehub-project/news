@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTour } from '../../context/TourContext';
-import { X, ChevronRight, Sparkles, Check, ArrowRight, BrainCircuit, Play, Volume2, VolumeX } from 'lucide-react';
+import { X, ChevronRight, Sparkles, Check, ArrowRight, BrainCircuit, Play, Volume2, VolumeX, ShieldCheck } from 'lucide-react';
 import Button from '../ui/Button';
 
 const AppTour: React.FC = () => {
@@ -91,9 +91,15 @@ const AppTour: React.FC = () => {
               </div>
               
               <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">Welcome to<br/>News Club</h2>
-              <p className="text-gray-500 dark:text-gray-300 mb-8 text-lg font-medium leading-relaxed">
+              <p className="text-gray-500 dark:text-gray-300 mb-6 text-lg font-medium leading-relaxed">
                 Your AI-powered news universe.<br/>Smart, personalized, and live.
               </p>
+
+              {/* Privacy Trust Badge */}
+              <div className="mb-8 flex items-center justify-center gap-2 text-xs font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 py-1.5 px-3 rounded-full border border-green-200 dark:border-green-800">
+                  <ShieldCheck size={14} />
+                  <span>No login required. Your data stays on your device.</span>
+              </div>
               
               <div className="space-y-3">
                 <Button 
