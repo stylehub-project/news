@@ -1,6 +1,7 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
-type LanguageCode = 'en' | 'hi';
+type LanguageCode = 'en' | 'hi' | 'es' | 'fr';
 
 interface LanguageContextType {
   appLanguage: LanguageCode;
@@ -13,11 +14,20 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [appLanguage, setAppLanguageState] = useState<LanguageCode>(() => {
-      return (localStorage.getItem('app_language') as LanguageCode) || 'en';
+      const saved = localStorage.getItem('app_language') as LanguageCode;
+      // Validate saved language is supported
+      if (['en', 'hi', 'es', 'fr'].includes(saved)) {
+          return saved;
+      }
+      return 'en';
   });
   
   const [contentLanguage, setContentLanguageState] = useState<LanguageCode>(() => {
-      return (localStorage.getItem('content_language') as LanguageCode) || 'en';
+      const saved = localStorage.getItem('content_language') as LanguageCode;
+      if (['en', 'hi', 'es', 'fr'].includes(saved)) {
+          return saved;
+      }
+      return 'en';
   });
 
   const setAppLanguage = (lang: LanguageCode) => {

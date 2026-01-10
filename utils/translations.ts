@@ -1,3 +1,4 @@
+
 export const translations = {
   en: {
     // Nav
@@ -80,7 +81,89 @@ export const translations = {
     news_content: "समाचार सामग्री",
     content_desc: "लेख, रील्स, ऑडियो",
     log_out: "लॉग आउट",
+  },
+  es: {
+    // Nav
+    home: "Inicio",
+    categories: "Categorías",
+    news: "Noticias",
+    ai_chat: "Chat IA",
+    profile: "Perfil",
+    
+    // Navbar
+    ask_ai: "Preguntar a IA",
+    
+    // Home
+    daily_briefing: "Resumen Diario",
+    todays_highlights: "Destacados de Hoy",
+    speak_news: "Escuchar Noticias",
+    latest_feed: "Últimas Noticias",
+    news_around_you: "Noticias Cerca de Ti",
+    explore_map: "Explora noticias de última hora en el mapa en vivo.",
+    
+    // Features
+    ai_analysis: "Análisis IA",
+    headlines: "Titulares",
+    reels: "Reels",
+    chatbot: "Chatbot",
+    newspaper: "Periódico",
+    map_news: "Noticias Mapa",
+    saved: "Guardados",
+    read_mode: "Modo Lectura",
+
+    // Profile
+    my_profile: "Mi Perfil",
+    early_adopter: "Usuario Pionero",
+    account_settings: "Configuración de Cuenta",
+    appearance: "Apariencia",
+    language_preferences: "Preferencias de Idioma",
+    app_interface: "Interfaz de la App",
+    interface_desc: "Botones, Menús, Configuración",
+    news_content: "Contenido de Noticias",
+    content_desc: "Artículos, Reels, Audio",
+    log_out: "Cerrar Sesión",
+  },
+  fr: {
+    // Nav
+    home: "Accueil",
+    categories: "Catégories",
+    news: "Actualités",
+    ai_chat: "Chat IA",
+    profile: "Profil",
+    
+    // Navbar
+    ask_ai: "Demander à l'IA",
+    
+    // Home
+    daily_briefing: "Briefing Quotidien",
+    todays_highlights: "Points Forts du Jour",
+    speak_news: "Écouter l'Actualité",
+    latest_feed: "Dernières Actualités",
+    news_around_you: "Actualités Autour de Vous",
+    explore_map: "Explorez les dernières nouvelles sur la carte en direct.",
+    
+    // Features
+    ai_analysis: "Analyse IA",
+    headlines: "Gros Titres",
+    reels: "Reels",
+    chatbot: "Chatbot",
+    newspaper: "Journal",
+    map_news: "Carte Info",
+    saved: "Enregistré",
+    read_mode: "Mode Lecture",
+
+    // Profile
+    my_profile: "Mon Profil",
+    early_adopter: "Utilisateur Précoce",
+    account_settings: "Paramètres du Compte",
+    appearance: "Apparence",
+    language_preferences: "Préférences de Langue",
+    app_interface: "Interface de l'App",
+    interface_desc: "Boutons, Menus, Paramètres",
+    news_content: "Contenu des Actualités",
+    content_desc: "Articles, Reels, Audio",
+    log_out: "Se Déconnecter",
   }
 };
 
-export type LanguageCode = 'en' | 'hi';
+export type LanguageCode = 'en' | 'hi' | 'es' | 'fr';

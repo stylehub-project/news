@@ -4,10 +4,13 @@ import { MessageSquarePlus, Send, Bug, Lightbulb, MessageSquare, X, Info } from 
 import Modal from './ui/Modal';
 import Button from './ui/Button';
 import Toast from './ui/Toast';
+import { useTour } from '../context/TourContext';
 
 type FeedbackType = 'bug' | 'feature' | 'remark';
 
 const FloatingFeedback: React.FC = () => {
+  const { hasSeenTour } = useTour();
+  
   // Position State
   const [position, setPosition] = useState<{ x: number, y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -30,11 +33,14 @@ const FloatingFeedback: React.FC = () => {
   // --- Intro Guide Logic ---
   useEffect(() => {
       const hasSeenIntro = localStorage.getItem('has_seen_feedback_intro');
-      if (!hasSeenIntro) {
+      const mainTourCompleted = hasSeenTour('main_v3');
+
+      // Only show feedback intro if they haven't seen it AND they HAVE completed the main tour
+      if (!hasSeenIntro && mainTourCompleted) {
           const timer = setTimeout(() => setShowIntro(true), 2000); // Show after 2s
           return () => clearTimeout(timer);
       }
-  }, []);
+  }, [hasSeenTour]);
 
   const dismissIntro = () => {
       setShowIntro(false);

@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { Camera, Settings, ShieldCheck, Zap, Globe, Smartphone, BookOpen, RotateCcw, Clock, Bookmark, Edit2, Check, HelpCircle } from 'lucide-react';
+import { Camera, Settings, ShieldCheck, Zap, Globe, Smartphone, BookOpen, RotateCcw, Clock, Bookmark, Edit2, Check, HelpCircle, LogOut, FileText } from 'lucide-react';
 import PageHeader from '../../components/PageHeader';
 import ThemeSwitcher from '../../components/ThemeSwitcher';
 import { useLanguage } from '../../context/LanguageContext';
@@ -10,9 +10,16 @@ import { useTour } from '../../context/TourContext';
 import { translations } from '../../utils/translations';
 import { useNavigate } from 'react-router-dom';
 
+const LANGUAGES = [
+    { code: 'en', label: 'English', native: 'English' },
+    { code: 'hi', label: 'Hindi', native: 'हिन्दी' },
+    { code: 'es', label: 'Spanish', native: 'Español' },
+    { code: 'fr', label: 'French', native: 'Français' },
+];
+
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { appLanguage, setAppLanguage, contentLanguage, setContentLanguage } = useLanguage();
+  const { appLanguage, setContentLanguage, contentLanguage } = useLanguage();
   const { user, updateUser } = useUser();
   const { bookmarks } = useBookmark();
   const { resetAllTours } = useTour();
@@ -50,8 +57,11 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleRestartTour = () => {
-      if (window.confirm("Restart the onboarding tour?")) {
-          resetAllTours();
+      if (window.confirm("Restart the guided tour? This will reset tour progress and take you to the home screen.")) {
+          // Clear the tour completion record
+          localStorage.removeItem('nc_completed_tours');
+          // Force a reload to the root path to re-trigger the Welcome Modal/Tour initialization
+          window.location.href = '/'; 
       }
   };
 
@@ -201,24 +211,46 @@ const ProfilePage: React.FC = () => {
                 </div>
             </div>
             
+            {/* Theme Switcher */}
             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-3 transition-colors">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">{t.appearance}</span>
                 <ThemeSwitcher />
             </div>
 
+            {/* Content Language Preferences - UPDATED to focus on Content Language */}
             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-4 transition-colors">
-                 <span className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1 block">{t.language_preferences}</span>
-                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg">
-                            <Smartphone size={18} />
-                        </div>
-                        <div>
-                            <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{t.app_interface}</p>
-                            <p className="text-[10px] text-gray-500">{t.interface_desc}</p>
-                        </div>
+                 <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg">
+                        <FileText size={18} />
                     </div>
-                    {/* ... (Language toggle code remains same) ... */}
+                    <div>
+                        <p className="text-sm font-bold text-gray-800 dark:text-gray-200">News Content Language</p>
+                        <p className="text-[10px] text-gray-500">Select language for articles & feeds</p>
+                    </div>
+                 </div>
+                 
+                 <div className="grid grid-cols-2 gap-2">
+                    {LANGUAGES.map((lang) => (
+                        <button
+                            key={lang.code}
+                            onClick={() => {
+                                setContentLanguage(lang.code as any);
+                            }}
+                            className={`flex flex-col items-start p-3 rounded-lg border transition-all ${
+                                contentLanguage === lang.code 
+                                ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
+                                : 'bg-gray-50 dark:bg-gray-700/50 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'
+                            }`}
+                        >
+                            <div className="flex justify-between w-full">
+                                <span className={`text-xs font-bold ${contentLanguage === lang.code ? 'text-green-700 dark:text-green-300' : 'text-gray-700 dark:text-gray-300'}`}>
+                                    {lang.label}
+                                </span>
+                                {contentLanguage === lang.code && <Check size={14} className="text-green-600 dark:text-green-400" />}
+                            </div>
+                            <span className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">{lang.native}</span>
+                        </button>
+                    ))}
                  </div>
             </div>
 
@@ -229,6 +261,16 @@ const ProfilePage: React.FC = () => {
                 <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-xl"><RotateCcw size={20}/></div>
                     <span className="font-bold">Reset App</span>
+                </div>
+            </div>
+
+            <div 
+                onClick={() => navigate('/login')}
+                className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between text-gray-500 hover:text-gray-900 dark:hover:text-white cursor-pointer transition-all"
+            >
+                <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-xl"><LogOut size={20}/></div>
+                    <span className="font-bold">Log Out</span>
                 </div>
             </div>
         </div>
