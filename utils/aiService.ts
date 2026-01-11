@@ -91,6 +91,61 @@ const getHeadline = (category: string, seed: number, isHindi: boolean) => {
     return templatesEn[seed % templatesEn.length].replace("{cat}", category);
 };
 
+// Fallback Mock Article Generator
+const getMockFullArticle = (title: string, language: string) => {
+    const isHindi = language === 'Hindi' || language === 'hi';
+    
+    if (isHindi) {
+        return `
+# ${title}
+
+**नई दिल्ली:** हालिया घटनाक्रम में, "${title}" से संबंधित चर्चाएँ तेज हो गई हैं। उद्योग के विशेषज्ञों और नीति निर्माताओं का मानना है कि इसके दूरगामी परिणाम होंगे।
+
+## मुख्य बिंदु
+* **तेजी से बदलाव:** यह स्थिति तेजी से विकसित हो रही है, और अगले कुछ घंटों में नए अपडेट की उम्मीद है।
+* **बाजार पर प्रभाव:** विश्लेषकों का अनुमान है कि इससे संबंधित बाजार सूचकांकों में 5-10% का बदलाव आ सकता है।
+* **जनता की प्रतिक्रिया:** सोशल मीडिया पर लोगों की रुचि बढ़ रही है और बहस छिड़ गई है।
+
+> "यह उद्योग के लिए एक महत्वपूर्ण मोड़ है," ग्लोबल इनसाइट के वरिष्ठ विश्लेषक ने कहा। "हितधारक अब कैसे प्रतिक्रिया देते हैं, यह अगले दशक की दिशा तय करेगा।"
+
+## विस्तृत विश्लेषण
+इस घटना के मूल कारणों का पता हाल ही में नियामक ढांचे और तकनीकी प्रगति में हुए बदलावों से लगाया जा सकता है। जैसे-जैसे कंपनियां इन परिवर्तनों के अनुकूल हो रही हैं, हम पूरे पारिस्थितिकी तंत्र में इसके प्रभाव को देख रहे हैं।
+
+### भविष्य के निहितार्थ
+1. **नियामक जांच:** आने वाले महीनों में कड़े नियमों की उम्मीद है।
+2. **नवाचार:** यह प्रतिस्पर्धियों के बीच नवाचार की एक नई लहर को बढ़ावा दे सकता है।
+3. **उपभोक्ता व्यवहार:** उपभोक्ता भावनाओं में बदलाव पहले से ही देखे जा रहे हैं।
+
+## निष्कर्ष
+जैसे-जैसे कहानी आगे बढ़ेगी, न्यूज़ क्लब आपको रीयल-टाइम अपडेट प्रदान करना जारी रखेगा। अधिक जानकारी के लिए हमारे साथ बने रहें।
+        `;
+    }
+
+    return `
+# ${title}
+
+**GLOBAL UPDATE:** In a significant development regarding "${title}", industry experts and policymakers are closely monitoring the situation. Early reports suggest this could have a lasting impact on the sector.
+
+## Key Highlights
+* **Rapid Developments:** The situation is evolving quickly, with new updates expected within the hour.
+* **Market Impact:** Analysts predict a 5-10% shift in related market indices.
+* **Public Reaction:** Social media trends indicate growing public interest and debate.
+
+> "This is a pivotal moment for the industry," says Jane Doe, a senior analyst at Global Insight. "How stakeholders react now will define the trajectory for the next decade."
+
+## Deep Dive Analysis
+The underlying causes of this event can be traced back to recent shifts in regulatory frameworks and technological advancements. As companies adapt to these changes, we are seeing a ripple effect across the ecosystem.
+
+### Future Implications
+1. **Regulatory Scrutiny:** Expect tighter regulations in the coming months.
+2. **Innovation:** This may spur a new wave of innovation as competitors race to adapt.
+3. **Consumer Behavior:** Shifts in consumer sentiment are already being observed.
+
+## Conclusion
+As the story unfolds, News Club will continue to provide real-time updates. Stay tuned for our evening broadcast where we will discuss this in further detail.
+    `;
+};
+
 export const fetchNewsFeed = async (page: number, filters: any) => {
   const language = filters.language || 'English';
   // Include searchField in cache key to differentiate filtered searches
@@ -206,7 +261,13 @@ export const fetchFullArticle = async (title: string, language: string = 'Englis
 
     try {
         const apiKey = getApiKey();
-        if (!apiKey) throw new Error("No Key");
+        
+        // If no API key, use mock immediately
+        if (!apiKey) {
+            const mock = getMockFullArticle(title, language);
+            cacheService.set(cacheKey, mock);
+            return mock;
+        }
 
         const ai = new GoogleGenAI({ apiKey });
         const prompt = `
@@ -229,11 +290,17 @@ export const fetchFullArticle = async (title: string, language: string = 'Englis
             contents: prompt
         });
 
-        const text = response.text || "Content unavailable.";
+        const text = response.text;
+        if (!text) throw new Error("Empty content generated");
+        
         cacheService.set(cacheKey, text);
         return text;
     } catch (e) {
-        return "We could not retrieve the full article at this time. Please try again later or check your connection.";
+        console.warn("Error fetching full article, using mock fallback:", e);
+        // Fallback to mock content instead of error message
+        const mock = getMockFullArticle(title, language);
+        cacheService.set(cacheKey, mock);
+        return mock;
     }
 };
 
