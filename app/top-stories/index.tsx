@@ -17,7 +17,7 @@ const TopStoriesPage = () => {
   const navigate = useNavigate();
   const { contentLanguage } = useLanguage();
   const { toggleBookmark } = useBookmark();
-  const { hasSeenTour, startTour } = useTour();
+  const { hasSeenTour, startTour, runTour } = useTour();
   
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,8 +31,9 @@ const TopStoriesPage = () => {
   // Programmatic Swipe State (for Desktop/Wheel)
   const [swipeTrigger, setSwipeTrigger] = useState<'left' | 'right' | null>(null);
   
-  // Throttle wheel events
+  // Locks
   const lastWheelTime = useRef(0);
+  const tourStartedRef = useRef(false);
 
   const loadStories = async (selectedFilter = 'All') => {
       setLoading(true);
@@ -46,11 +47,13 @@ const TopStoriesPage = () => {
 
   useEffect(() => {
       loadStories(filter);
-  }, [contentLanguage]);
+  }, [contentLanguage]); // Only reload when language changes, not on every render
 
-  // Micro-Tour Check
+  // Micro-Tour Check - Fixed Loop
   useEffect(() => {
-      if (!loading && articles.length > 0 && !hasSeenTour('top_stories_micro')) {
+      // Only start if not loading, has data, hasn't seen tour, and not already running/started in this session
+      if (!loading && articles.length > 0 && !hasSeenTour('top_stories_micro') && !tourStartedRef.current && !runTour) {
+          tourStartedRef.current = true;
           const timer = setTimeout(() => {
               startTour('top_stories_micro', [
                   {
@@ -63,7 +66,7 @@ const TopStoriesPage = () => {
           }, 1500);
           return () => clearTimeout(timer);
       }
-  }, [loading, articles, hasSeenTour]);
+  }, [loading, articles, hasSeenTour, runTour]);
 
   // Keyboard Support
   useEffect(() => {
@@ -85,6 +88,7 @@ const TopStoriesPage = () => {
   }, [loading, articles.length]);
 
   const handleFilterChange = (newFilter: string) => {
+      if (filter === newFilter) return;
       setFilter(newFilter);
       loadStories(newFilter);
   };

@@ -6,6 +6,7 @@ import PageHeader from '../../components/PageHeader';
 import CategoryCard from '../../components/cards/CategoryCard';
 import Sheet from '../../components/ui/Sheet';
 import Button from '../../components/ui/Button';
+import { useLanguage } from '../../context/LanguageContext';
 
 const CATEGORIES = [
     { id: 'world', label: 'World', icon: <Globe size={24} />, gradient: 'bg-gradient-to-br from-blue-500 to-indigo-600', trending: true },
@@ -20,8 +21,22 @@ const CATEGORIES = [
     { id: 'travel', label: 'Travel', icon: <Plane size={24} />, gradient: 'bg-gradient-to-br from-yellow-400 to-amber-500' },
 ];
 
+const CATEGORY_TRANSLATIONS: Record<string, Record<string, string>> = {
+    world: { en: 'World', hi: 'दुनिया', es: 'Mundo', fr: 'Monde' },
+    politics: { en: 'Politics', hi: 'राजनीति', es: 'Política', fr: 'Politique' },
+    business: { en: 'Business', hi: 'व्यापार', es: 'Negocios', fr: 'Affaires' },
+    technology: { en: 'Technology', hi: 'प्रौद्योगिकी', es: 'Tecnología', fr: 'Technologie' },
+    science: { en: 'Science', hi: 'विज्ञान', es: 'Ciencia', fr: 'Science' },
+    sports: { en: 'Sports', hi: 'खेल', es: 'Deportes', fr: 'Sports' },
+    entertainment: { en: 'Entertainment', hi: 'मनोरंजन', es: 'Entretenimiento', fr: 'Divertissement' },
+    environment: { en: 'Environment', hi: 'पर्यावरण', es: 'Medio Ambiente', fr: 'Environnement' },
+    health: { en: 'Health', hi: 'स्वास्थ्य', es: 'Salud', fr: 'Santé' },
+    travel: { en: 'Travel', hi: 'यात्रा', es: 'Viajes', fr: 'Voyage' },
+};
+
 const CategoriesPage = () => {
     const navigate = useNavigate();
+    const { contentLanguage } = useLanguage();
     const [previewCategory, setPreviewCategory] = useState<string | null>(null);
 
     const handleCategoryClick = (id: string) => {
@@ -36,6 +51,7 @@ const CategoriesPage = () => {
     };
 
     const selectedCategory = CATEGORIES.find(c => c.id === previewCategory);
+    const selectedLabel = selectedCategory ? (CATEGORY_TRANSLATIONS[selectedCategory.id]?.[contentLanguage] || selectedCategory.label) : '';
 
     return (
         <div className="h-full overflow-y-auto bg-gray-50 dark:bg-black pb-24 transition-colors duration-300">
@@ -52,6 +68,7 @@ const CategoriesPage = () => {
                         <div key={cat.id} style={{ animationDelay: `${index * 50}ms` }} className="animate-in fade-in slide-in-from-bottom-2 fill-mode-backwards">
                             <CategoryCard
                                 {...cat}
+                                label={CATEGORY_TRANSLATIONS[cat.id]?.[contentLanguage] || cat.label}
                                 onClick={handleCategoryClick}
                                 onLongPress={handleLongPress}
                             />
@@ -61,7 +78,7 @@ const CategoriesPage = () => {
             </div>
 
             {/* Long Press AI Sheet */}
-            <Sheet isOpen={!!previewCategory} onClose={() => setPreviewCategory(null)} title={selectedCategory?.label}>
+            <Sheet isOpen={!!previewCategory} onClose={() => setPreviewCategory(null)} title={selectedLabel}>
                 <div className="space-y-5 pb-4">
                     {/* Header Card */}
                     <div className={`p-5 rounded-2xl ${selectedCategory?.gradient} text-white shadow-xl relative overflow-hidden`}>
@@ -75,7 +92,7 @@ const CategoriesPage = () => {
                                 </div>
                                 <span className="text-xs font-bold uppercase tracking-wider">Live Trend Analysis</span>
                             </div>
-                            <h3 className="text-lg font-bold leading-tight mb-2">Why is {selectedCategory?.label} trending?</h3>
+                            <h3 className="text-lg font-bold leading-tight mb-2">Why is {selectedLabel} trending?</h3>
                             <p className="text-sm font-medium leading-relaxed opacity-90">
                                 High volume of breaking stories detected in the last 4 hours. 
                                 Key themes include <span className="font-bold border-b border-white/30">Innovation</span>, <span className="font-bold border-b border-white/30">Global Policy</span>, and <span className="font-bold border-b border-white/30">Market Shifts</span>.
@@ -115,7 +132,7 @@ const CategoriesPage = () => {
                             fullWidth 
                             variant="secondary"
                             onClick={() => {
-                                navigate(`/ai-chat?topic=${encodeURIComponent(selectedCategory?.label || '')}`);
+                                navigate(`/ai-chat?topic=${encodeURIComponent(selectedLabel || '')}`);
                                 setPreviewCategory(null);
                             }}
                             leftIcon={<MessageSquare size={16} />}

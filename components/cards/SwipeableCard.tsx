@@ -78,6 +78,9 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
   // --- Touch Handlers ---
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    // Only handle touch on the card itself, not if buttons are pressed
+    if ((e.target as HTMLElement).closest('button')) return;
+
     e.stopPropagation(); // Prevent parent scrolling/swiping
     setDragStart(e.touches[0].clientX);
     setIsDragging(true);
@@ -141,7 +144,8 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
-      if (Math.abs(offset) < 5 && !isLongPressRef.current) {
+      // Only trigger if not dragging significantly and not long pressing
+      if (Math.abs(offset) < 5 && !isLongPressRef.current && !(e.target as HTMLElement).closest('button')) {
           if (onRead) onRead(data.id);
           else navigate(`/news/${data.id}`);
       }
@@ -159,7 +163,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
         transition: isDragging ? 'none' : 'all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)',
         cursor: 'grab',
         boxShadow: `0 20px 50px rgba(0,0,0,${0.2 + Math.abs(offset)/1000})`,
-        touchAction: 'none' 
+        touchAction: 'pan-y' // Allow vertical scroll, horizontal is handled by JS
       } as React.CSSProperties;
     } else if (next) {
       const scale = 0.95 + (Math.abs(offset) / 5000); 
@@ -188,7 +192,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
       style={{ perspective: '1000px' }}
     >
       <div 
-        className="w-full h-full relative max-h-[600px] touch-none"
+        className="w-full h-full relative max-h-[600px]"
         style={getStyles()}
         onTouchStart={active ? handleTouchStart : undefined}
         onTouchMove={active ? handleTouchMove : undefined}
@@ -230,7 +234,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
             </div>
 
             {/* Metadata */}
-            <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10">
+            <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10 pointer-events-none">
                 <span className="bg-blue-600/90 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm">
                     {data.category || 'News'}
                 </span>
@@ -241,23 +245,23 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
 
             {/* Content */}
             <div className="absolute bottom-0 left-0 w-full p-6 text-white z-10 flex flex-col justify-end h-3/4 bg-gradient-to-t from-black via-black/70 to-transparent">
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-3 pointer-events-none">
                     <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center overflow-hidden">
                         <img src={`https://ui-avatars.com/api/?name=${data.source}&background=random`} className="w-full h-full" alt="Source" />
                     </div>
                     <span className="text-sm font-bold opacity-90">{data.source}</span>
                 </div>
 
-                <h2 className="text-2xl font-black leading-tight mb-3 line-clamp-3 drop-shadow-md">
+                <h2 className="text-2xl font-black leading-tight mb-3 line-clamp-3 drop-shadow-md pointer-events-none">
                     {data.title}
                 </h2>
                 
-                <p className="text-sm text-gray-200 line-clamp-2 mb-6 opacity-90 font-medium">
+                <p className="text-sm text-gray-200 line-clamp-2 mb-6 opacity-90 font-medium pointer-events-none">
                     {data.description}
                 </p>
 
-                {/* Primary Action Buttons - Now with Explicit Controls */}
-                <div className="grid grid-cols-4 gap-2 relative z-20 pointer-events-auto">
+                {/* Primary Action Buttons - IMPORTANT: High z-index and pointer-events-auto */}
+                <div className="grid grid-cols-4 gap-2 relative z-30 pointer-events-auto">
                     <button 
                         onClick={(e) => { e.stopPropagation(); onLongPress?.(data.id); }}
                         className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white rounded-xl flex items-center justify-center shadow-lg active:scale-95 transition-all"
@@ -279,16 +283,16 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
                     
                     <div className="flex flex-col gap-2">
                         <button 
-                            id="card-save-btn" // Targeted by Micro-Tour
+                            id="card-save-btn" 
                             onClick={(e) => { e.stopPropagation(); onSave?.(data.id); }}
-                            className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white rounded-xl flex-1 flex items-center justify-center shadow-sm active:scale-95 transition-all"
+                            className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white rounded-xl flex-1 flex items-center justify-center shadow-sm active:scale-95 transition-all h-10"
                             title="Save"
                         >
                             <Bookmark size={16} />
                         </button>
                         <button 
                             onClick={(e) => { e.stopPropagation(); onShare?.(data.id); }}
-                            className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white rounded-xl flex-1 flex items-center justify-center shadow-sm active:scale-95 transition-all"
+                            className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white rounded-xl flex-1 flex items-center justify-center shadow-sm active:scale-95 transition-all h-10"
                             title="Share"
                         >
                             <Share2 size={16} />
