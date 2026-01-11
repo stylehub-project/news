@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { Camera, Settings, ShieldCheck, Zap, Globe, Smartphone, BookOpen, RotateCcw, Clock, Bookmark, Edit2, Check, HelpCircle, LogOut, FileText } from 'lucide-react';
+import { Camera, Settings, ShieldCheck, Zap, Globe, Smartphone, BookOpen, RotateCcw, Clock, Bookmark, Edit2, Check, HelpCircle, LogOut, FileText, Layout, Type } from 'lucide-react';
 import PageHeader from '../../components/PageHeader';
 import ThemeSwitcher from '../../components/ThemeSwitcher';
 import { useLanguage } from '../../context/LanguageContext';
@@ -19,7 +19,7 @@ const LANGUAGES = [
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { appLanguage, setContentLanguage, contentLanguage } = useLanguage();
+  const { appLanguage, setAppLanguage, contentLanguage, setContentLanguage } = useLanguage();
   const { user, updateUser } = useUser();
   const { bookmarks } = useBookmark();
   const { resetAllTours } = useTour();
@@ -58,9 +58,9 @@ const ProfilePage: React.FC = () => {
 
   const handleRestartTour = () => {
       if (window.confirm("Restart the guided tour? This will reset tour progress and take you to the home screen.")) {
-          // Clear the tour completion record
+          // Clear tour history explicitly
           localStorage.removeItem('nc_completed_tours');
-          // Force a reload to the root path to re-trigger the Welcome Modal/Tour initialization
+          // Force hard reload to home to re-trigger Welcome Modal
           window.location.href = '/'; 
       }
   };
@@ -217,41 +217,78 @@ const ProfilePage: React.FC = () => {
                 <ThemeSwitcher />
             </div>
 
-            {/* Content Language Preferences - UPDATED to focus on Content Language */}
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-4 transition-colors">
-                 <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg">
-                        <FileText size={18} />
-                    </div>
-                    <div>
-                        <p className="text-sm font-bold text-gray-800 dark:text-gray-200">News Content Language</p>
-                        <p className="text-[10px] text-gray-500">Select language for articles & feeds</p>
-                    </div>
-                 </div>
+            {/* Language Preferences Container */}
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-6 transition-colors">
                  
-                 <div className="grid grid-cols-2 gap-2">
-                    {LANGUAGES.map((lang) => (
-                        <button
-                            key={lang.code}
-                            onClick={() => {
-                                setContentLanguage(lang.code as any);
-                            }}
-                            className={`flex flex-col items-start p-3 rounded-lg border transition-all ${
-                                contentLanguage === lang.code 
-                                ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
-                                : 'bg-gray-50 dark:bg-gray-700/50 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'
-                            }`}
-                        >
-                            <div className="flex justify-between w-full">
-                                <span className={`text-xs font-bold ${contentLanguage === lang.code ? 'text-green-700 dark:text-green-300' : 'text-gray-700 dark:text-gray-300'}`}>
-                                    {lang.label}
-                                </span>
-                                {contentLanguage === lang.code && <Check size={14} className="text-green-600 dark:text-green-400" />}
-                            </div>
-                            <span className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">{lang.native}</span>
-                        </button>
-                    ))}
+                 {/* 1. App Interface Language */}
+                 <div>
+                     <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg">
+                            <Layout size={18} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{t.app_interface}</p>
+                            <p className="text-[10px] text-gray-500">{t.interface_desc}</p>
+                        </div>
+                     </div>
+                     
+                     <div className="grid grid-cols-2 gap-2">
+                        {LANGUAGES.map((lang) => (
+                            <button
+                                key={`app-${lang.code}`}
+                                onClick={() => setAppLanguage(lang.code as any)}
+                                className={`flex flex-col items-start p-2.5 rounded-lg border transition-all ${
+                                    appLanguage === lang.code 
+                                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' 
+                                    : 'bg-gray-50 dark:bg-gray-700/50 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'
+                                }`}
+                            >
+                                <div className="flex justify-between w-full">
+                                    <span className={`text-xs font-bold ${appLanguage === lang.code ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300'}`}>
+                                        {lang.label}
+                                    </span>
+                                    {appLanguage === lang.code && <Check size={14} className="text-blue-600 dark:text-blue-400" />}
+                                </div>
+                            </button>
+                        ))}
+                     </div>
                  </div>
+
+                 {/* 2. News Content Language */}
+                 <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                     <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg">
+                            <FileText size={18} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{t.news_content}</p>
+                            <p className="text-[10px] text-gray-500">{t.content_desc}</p>
+                        </div>
+                     </div>
+                     
+                     <div className="grid grid-cols-2 gap-2">
+                        {LANGUAGES.map((lang) => (
+                            <button
+                                key={`content-${lang.code}`}
+                                onClick={() => setContentLanguage(lang.code as any)}
+                                className={`flex flex-col items-start p-2.5 rounded-lg border transition-all ${
+                                    contentLanguage === lang.code 
+                                    ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
+                                    : 'bg-gray-50 dark:bg-gray-700/50 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'
+                                }`}
+                            >
+                                <div className="flex justify-between w-full">
+                                    <span className={`text-xs font-bold ${contentLanguage === lang.code ? 'text-green-700 dark:text-green-300' : 'text-gray-700 dark:text-gray-300'}`}>
+                                        {lang.label}
+                                    </span>
+                                    {contentLanguage === lang.code && <Check size={14} className="text-green-600 dark:text-green-400" />}
+                                </div>
+                                <span className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">{lang.native}</span>
+                            </button>
+                        ))}
+                     </div>
+                 </div>
+
             </div>
 
             <div 
@@ -270,7 +307,7 @@ const ProfilePage: React.FC = () => {
             >
                 <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-xl"><LogOut size={20}/></div>
-                    <span className="font-bold">Log Out</span>
+                    <span className="font-bold">{t.log_out}</span>
                 </div>
             </div>
         </div>
