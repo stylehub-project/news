@@ -73,9 +73,7 @@ const TopStoriesPage = () => {
       const tourId = 'top_stories_micro';
       if (!loading && articles.length > 0 && !hasSeenTour(tourId) && !tourStartedRef.current && !runTour) {
           tourStartedRef.current = true;
-          // IMPORTANT: To prevent loop, we can assume it will be shown and mark seen, 
-          // or rely on TourContext to handle it properly. 
-          // Here we use a timer to start it.
+          // IMPORTANT: To prevent loop, we use a timer and ref check
           const timer = setTimeout(() => {
               startTour(tourId, [
                   {
