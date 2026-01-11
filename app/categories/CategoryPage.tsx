@@ -23,6 +23,17 @@ const SUB_TOPICS: Record<string, string[]> = {
     'Sports': ['Cricket', 'Football', 'Olympics', 'Tennis', 'Motorsport'],
 };
 
+// Map language code to API parameter name
+const getLanguageParam = (code: string) => {
+    const map: Record<string, string> = {
+        'en': 'English',
+        'hi': 'Hindi',
+        'es': 'Spanish',
+        'fr': 'French'
+    };
+    return map[code] || 'English';
+};
+
 // --- AI Insight Component ---
 const AICategoryInsight = ({ category, subTopic }: { category: string, subTopic: string }) => {
     const [insight, setInsight] = useState<{summary: string, keywords: string[]} | null>(null);
@@ -222,7 +233,7 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ staticId }) => {
       const loadSmartFeed = async () => {
           setLoadingState('init');
           setArticles([]);
-          const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
+          const langName = getLanguageParam(contentLanguage);
           
           // Use sub-topic if selected for more specific results
           const queryCategory = activeSubTopic === 'All' ? title : `${activeSubTopic} ${title}`;
@@ -275,7 +286,7 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ staticId }) => {
   // --- Infinite Scroll ---
   const loadMore = async () => {
       if (loadingState !== 'complete') return;
-      const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
+      const langName = getLanguageParam(contentLanguage);
       const nextPage = page + 1;
       const queryCategory = activeSubTopic === 'All' ? title : `${activeSubTopic} ${title}`;
       const moreNews = await fetchNewsFeed(nextPage, { category: queryCategory, sort: 'Latest', language: langName });

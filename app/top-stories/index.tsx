@@ -13,6 +13,17 @@ import { ArrowDown, SkipForward, ArrowRight, ArrowLeft } from 'lucide-react';
 import UnderReviewBanner from '../../components/ui/UnderReviewBanner';
 import { useTour } from '../../context/TourContext';
 
+// Map language code to API parameter name
+const getLanguageParam = (code: string) => {
+    const map: Record<string, string> = {
+        'en': 'English',
+        'hi': 'Hindi',
+        'es': 'Spanish',
+        'fr': 'French'
+    };
+    return map[code] || 'English';
+};
+
 const TopStoriesPage = () => {
   const navigate = useNavigate();
   const { contentLanguage } = useLanguage();
@@ -34,28 +45,39 @@ const TopStoriesPage = () => {
   // Locks
   const lastWheelTime = useRef(0);
   const tourStartedRef = useRef(false);
+  const dataLoadedRef = useRef(false);
 
-  const loadStories = async (selectedFilter = 'All') => {
+  const loadStories = async (selectedFilter = 'All', force = false) => {
+      // Avoid re-fetching if we already have data and not forcing
+      if (!force && dataLoadedRef.current && articles.length > 0 && selectedFilter === filter) return;
+
       setLoading(true);
-      const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
+      const langName = getLanguageParam(contentLanguage);
       // Fetch data with specific sort for Top Headlines
       const news = await fetchNewsFeed(1, { category: selectedFilter, sort: 'Top', language: langName });
+      
       setArticles(news);
+      dataLoadedRef.current = true;
       setLoading(false);
       setCurrentIndex(0);
   };
 
   useEffect(() => {
-      loadStories(filter);
-  }, [contentLanguage]); // Only reload when language changes, not on every render
+      // Force reload only when filter or language changes
+      loadStories(filter, true);
+  }, [contentLanguage, filter]); 
 
   // Micro-Tour Check - Fixed Loop
   useEffect(() => {
       // Only start if not loading, has data, hasn't seen tour, and not already running/started in this session
-      if (!loading && articles.length > 0 && !hasSeenTour('top_stories_micro') && !tourStartedRef.current && !runTour) {
+      const tourId = 'top_stories_micro';
+      if (!loading && articles.length > 0 && !hasSeenTour(tourId) && !tourStartedRef.current && !runTour) {
           tourStartedRef.current = true;
+          // IMPORTANT: To prevent loop, we can assume it will be shown and mark seen, 
+          // or rely on TourContext to handle it properly. 
+          // Here we use a timer to start it.
           const timer = setTimeout(() => {
-              startTour('top_stories_micro', [
+              startTour(tourId, [
                   {
                       targetId: 'card-save-btn',
                       title: 'Save for Later',
@@ -90,7 +112,7 @@ const TopStoriesPage = () => {
   const handleFilterChange = (newFilter: string) => {
       if (filter === newFilter) return;
       setFilter(newFilter);
-      loadStories(newFilter);
+      // loadStories is triggered by useEffect on filter change
   };
 
   // Advances the stack
@@ -267,7 +289,7 @@ const TopStoriesPage = () => {
                   {articles.length === 0 && (
                       <div className="text-center text-gray-500 mt-20">
                           <p>No stories found. Try refreshing.</p>
-                          <button onClick={() => loadStories()} className="mt-4 text-blue-600 font-bold">Refresh</button>
+                          <button onClick={() => loadStories(filter, true)} className="mt-4 text-blue-600 font-bold">Refresh</button>
                       </div>
                   )}
               </div>
