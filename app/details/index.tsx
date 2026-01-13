@@ -7,7 +7,7 @@ import Sheet from '../../components/ui/Sheet';
 import { useBookmark } from '../../context/BookmarkContext';
 import { useHistory } from '../../context/HistoryContext';
 import Toast from '../../components/ui/Toast';
-import { fetchFullArticle } from '../../utils/aiService';
+import { fetchFullArticle, getArticleById } from '../../utils/aiService';
 import { useLanguage } from '../../context/LanguageContext';
 
 const DetailsPage: React.FC = () => {
@@ -21,13 +21,14 @@ const DetailsPage: React.FC = () => {
   
   // Logic to handle passed state vs URL ID
   const passedArticle = location.state?.article;
-  const articleId = id || (passedArticle?.id) || 'unknown';
   
   const [articleData, setArticleData] = useState<any>(passedArticle || null);
   const [fullContent, setFullContent] = useState<string>("");
   const [isLoadingContent, setIsLoadingContent] = useState(false);
 
+  const articleId = id || (articleData?.id) || 'unknown';
   const isSaved = isBookmarked(articleId);
+  
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
@@ -48,15 +49,21 @@ const DetailsPage: React.FC = () => {
   // 15.4 AI Memory State
   const [memoryContext, setMemoryContext] = useState<{ seen: boolean; progress: number; isUpdated: boolean } | null>(null);
 
+  // Recovery Logic for Refresh
+  useEffect(() => {
+      if (!articleData && id) {
+          const recovered = getArticleById(id);
+          setArticleData(recovered);
+      }
+  }, [articleData, id]);
+
   // Load Content Logic
   useEffect(() => {
       const loadContent = async () => {
-          if (!articleData) return; // Should handle missing data gracefully or redirect
+          if (!articleData) return;
 
-          // If we have passed full content (rare), use it.
-          // Otherwise, generate/fetch full article based on title/description.
           setIsLoadingContent(true);
-          const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
+          const langName = contentLanguage === 'hi' ? 'Hindi' : contentLanguage === 'es' ? 'Spanish' : contentLanguage === 'fr' ? 'French' : 'English';
           const generatedContent = await fetchFullArticle(articleData.title, langName);
           setFullContent(generatedContent);
           setIsLoadingContent(false);
@@ -69,6 +76,8 @@ const DetailsPage: React.FC = () => {
 
   // 15.1 Load Resume Point & Check History
   useEffect(() => {
+      if (!articleId || articleId === 'unknown') return;
+
       const historyItem = getHistoryItem(articleId);
       const shouldResume = searchParams.get('resume') === 'true';
       const status = checkReadStatus(articleId);
@@ -156,12 +165,13 @@ const DetailsPage: React.FC = () => {
       }
   };
 
+  // Wait for recovery
   if (!articleData) {
       return (
           <div className="flex items-center justify-center h-full bg-gray-50 dark:bg-black text-gray-500">
               <div className="text-center">
-                  <p className="mb-4">Article not found.</p>
-                  <button onClick={() => navigate(-1)} className="text-blue-600 font-bold">Go Back</button>
+                  <RefreshCw className="animate-spin mb-4 mx-auto text-blue-600" size={32} />
+                  <p className="mb-4">Loading article...</p>
               </div>
           </div>
       );
