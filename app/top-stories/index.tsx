@@ -1,313 +1,321 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Play, Plus, ChevronRight, Globe, ShieldCheck, Clock, Calendar, Sparkles } from 'lucide-react';
 import PageHeader from '../../components/PageHeader';
-import SwipeableCard from '../../components/cards/SwipeableCard';
-import AIQuickPreviewSheet from '../../components/cards/AIQuickPreviewSheet';
 import SmartLoader from '../../components/loaders/SmartLoader';
-import Toast, { ToastType } from '../../components/ui/Toast';
+import FloatingAudioPlayer from '../../components/player/FloatingAudioPlayer';
+import SourceUploadSheet from '../../components/upload/SourceUploadSheet';
+import HighlightReadingMode from '../../components/HighlightReadingMode';
 import { fetchNewsFeed } from '../../utils/aiService';
+import { ParsedNews } from '../../utils/sourceParser';
+import { useHistory } from '../../context/HistoryContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { useBookmark } from '../../context/BookmarkContext';
-import { ArrowDown, SkipForward, ArrowRight, ArrowLeft } from 'lucide-react';
-import UnderReviewBanner from '../../components/ui/UnderReviewBanner';
-import { useTour } from '../../context/TourContext';
 
-// Map language code to API parameter name
-const getLanguageParam = (code: string) => {
-    const map: Record<string, string> = {
-        'en': 'English',
-        'hi': 'Hindi',
-        'es': 'Spanish',
-        'fr': 'French'
-    };
-    return map[code] || 'English';
-};
+const CATEGORIES = [
+    "Top News", "National", "International", "Politics", "Business", 
+    "Economy", "Technology", "Science", "Health", "Sports", "Entertainment"
+];
 
-const TopStoriesPage = () => {
+const TopStoriesPage: React.FC = () => {
   const navigate = useNavigate();
+  const { trackProgress } = useHistory();
   const { contentLanguage } = useLanguage();
-  const { toggleBookmark } = useBookmark();
-  const { hasSeenTour, startTour, runTour } = useTour();
   
-  const [articles, setArticles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [filter, setFilter] = useState('All');
-  const [toast, setToast] = useState<{show: boolean, msg: string, type: ToastType}>({ show: false, msg: '', type: 'success' });
+  // Data State
+  const [activeCategory, setActiveCategory] = useState("Top News");
+  const [isLoading, setIsLoading] = useState(true);
+  const [newsData, setNewsData] = useState<any[]>([]);
   
-  // AI Preview State
-  const [previewArticleId, setPreviewArticleId] = useState<string | null>(null);
-  
-  // Programmatic Swipe State (for Desktop/Wheel)
-  const [swipeTrigger, setSwipeTrigger] = useState<'left' | 'right' | null>(null);
-  
-  // Locks
-  const lastWheelTime = useRef(0);
-  const tourStartedRef = useRef(false);
-  const dataLoadedRef = useRef(false);
+  // Interaction State
+  const [activeArticle, setActiveArticle] = useState<any | null>(null);
+  const [isPlayerOpen, setIsPlayerOpen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
-  const loadStories = async (selectedFilter = 'All', force = false) => {
-      // Avoid re-fetching if we already have data and not forcing
-      if (!force && dataLoadedRef.current && articles.length > 0 && selectedFilter === filter) return;
+  useEffect(() => {
+      loadNews(activeCategory);
+  }, [activeCategory, contentLanguage]);
 
-      setLoading(true);
-      const langName = getLanguageParam(contentLanguage);
-      // Fetch data with specific sort for Top Headlines
-      const news = await fetchNewsFeed(1, { category: selectedFilter, sort: 'Top', language: langName });
-      
-      setArticles(news);
-      dataLoadedRef.current = true;
-      setLoading(false);
-      setCurrentIndex(0);
+  const loadNews = async (category: string) => {
+      setIsLoading(true);
+      const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
+      // Mapping "Top News" to "All" for API
+      const apiCat = category === "Top News" ? "All" : category;
+      const data = await fetchNewsFeed(1, { category: apiCat, sort: 'Top', language: langName });
+      setNewsData(data);
+      setIsLoading(false);
   };
 
-  useEffect(() => {
-      // Force reload only when filter or language changes
-      loadStories(filter, true);
-  }, [contentLanguage, filter]); 
+  const handleArticleClick = (article: any) => {
+      setActiveArticle(article);
+      trackProgress(article.id, 'article', article.title, 10);
+  };
 
-  // Micro-Tour Check - Fixed Loop
-  useEffect(() => {
-      // Only start if not loading, has data, hasn't seen tour, and not already running/started in this session
-      const tourId = 'top_stories_micro';
-      if (!loading && articles.length > 0 && !hasSeenTour(tourId) && !tourStartedRef.current && !runTour) {
-          tourStartedRef.current = true;
-          // IMPORTANT: To prevent loop, we use a timer and ref check
-          const timer = setTimeout(() => {
-              startTour(tourId, [
-                  {
-                      targetId: 'card-save-btn',
-                      title: 'Save for Later',
-                      content: 'Tap here or swipe left to bookmark interesting stories for offline reading.',
-                      aiGuide: 'Your saved stories help the AI learn your interests.'
-                  }
-              ]);
-          }, 1500);
-          return () => clearTimeout(timer);
-      }
-  }, [loading, articles, hasSeenTour, runTour]);
+  const handlePlayNews = () => {
+      setIsPlayerOpen(true);
+      setIsPlaying(true);
+  };
 
-  // Keyboard Support
-  useEffect(() => {
-      const handleKeyDown = (e: KeyboardEvent) => {
-          if (loading || articles.length === 0) return;
-          
-          if (e.key === 'ArrowRight') {
-              setSwipeTrigger('right'); // Share
-          } else if (e.key === 'ArrowLeft') {
-              setSwipeTrigger('left'); // Save
-          } else if (e.key === 'ArrowDown' || e.key === ' ') {
-              e.preventDefault();
-              setSwipeTrigger('left'); // Default next action (Save & Next)
-          }
+  const handleUserSource = (parsed: ParsedNews) => {
+      // Create a temporary article object from the parsed user content
+      const userArticle = {
+          id: `user-${Date.now()}`,
+          title: parsed.headline,
+          description: parsed.fullText, 
+          source: "User Upload",
+          timeAgo: "Just now",
+          category: parsed.category,
+          imageUrl: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=800&auto=format&fit=crop",
+          isUserSource: true,
+          reliability: parsed.reliability
       };
-
-      window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [loading, articles.length]);
-
-  const handleFilterChange = (newFilter: string) => {
-      if (filter === newFilter) return;
-      setFilter(newFilter);
-      // loadStories is triggered by useEffect on filter change
+      setActiveArticle(userArticle);
   };
 
-  // Advances the stack
-  const handleSwipe = (direction: 'left' | 'right') => {
-      // Clear trigger state
-      setSwipeTrigger(null);
-      // Advance stack
-      setTimeout(() => {
-          setCurrentIndex(prev => (prev + 1) % articles.length);
-      }, 50); // Short delay to allow animation cleanup
+  // --- Render Functions ---
+
+  const renderTopNewsFocus = () => {
+      if (!newsData.length) return null;
+      const topStory = newsData[0];
+
+      return (
+          <div className="mb-8 animate-in fade-in slide-in-from-bottom-2 duration-500" onClick={() => handleArticleClick(topStory)}>
+              <div className="flex items-center gap-2 mb-3">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                  </span>
+                  <h2 className="text-xs font-black text-red-500 uppercase tracking-widest">Breaking Headlines</h2>
+              </div>
+              
+              <div className="group cursor-pointer">
+                  <h1 className="text-2xl md:text-4xl font-black text-gray-900 dark:text-white leading-[1.1] mb-4 group-hover:text-blue-600 transition-colors">
+                      {topStory.title}
+                  </h1>
+                  
+                  <div className="relative aspect-[16/9] rounded-2xl overflow-hidden mb-5 shadow-2xl border border-gray-100 dark:border-gray-800">
+                      <img 
+                        src={topStory.imageUrl} 
+                        alt={topStory.title} 
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                      
+                      <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
+                          <div className="flex gap-2">
+                              <span className="text-white text-[10px] font-bold bg-blue-600 px-2 py-1 rounded shadow-lg uppercase tracking-wide">
+                                  {topStory.category || "General"}
+                              </span>
+                          </div>
+                          <button className="bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-full p-2 hover:bg-white hover:text-black transition-all">
+                              <Play size={16} fill="currentColor" />
+                          </button>
+                      </div>
+                  </div>
+
+                  <div className="flex items-start gap-4">
+                      <div className="w-1 bg-gray-200 dark:bg-gray-800 h-12 rounded-full mt-1"></div>
+                      <p className="text-gray-600 dark:text-gray-300 font-medium leading-relaxed line-clamp-3 text-sm md:text-base">
+                          {topStory.description}
+                      </p>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 mt-4 text-xs text-gray-400 font-bold uppercase tracking-wider">
+                      <span>{topStory.source}</span>
+                      <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
+                      <span>{topStory.timeAgo}</span>
+                  </div>
+              </div>
+          </div>
+      );
   };
 
-  // Mouse wheel support for desktop
-  const handleWheel = (e: React.WheelEvent) => {
-      const now = Date.now();
-      if (now - lastWheelTime.current < 500) return; // Throttle 500ms
+  const renderCategoryList = () => {
+      // Skip first item if we showed it in Top Focus
+      const listItems = activeCategory === 'Top News' ? newsData.slice(1) : newsData;
 
-      if (e.deltaY > 50) {
-          // Scroll Down -> Trigger Left Swipe (Save & Next logic or just Next)
-          lastWheelTime.current = now;
-          setSwipeTrigger('left');
-      }
+      return (
+          <div className="space-y-4">
+              {listItems.map((item, idx) => (
+                  <div 
+                    key={idx} 
+                    className="flex gap-4 p-4 bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm cursor-pointer hover:shadow-md transition-all active:scale-[0.98] group"
+                    onClick={() => handleArticleClick(item)}
+                  >
+                      <div className="flex-1 flex flex-col justify-between">
+                          <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                                      {item.category || activeCategory}
+                                  </span>
+                                  <span className="text-[9px] text-gray-400 font-medium">{item.timeAgo}</span>
+                              </div>
+                              <h3 className="text-sm font-bold text-gray-900 dark:text-white leading-snug line-clamp-3 mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                  {item.title}
+                              </h3>
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] text-gray-500 font-medium">
+                              <Globe size={10} /> {item.source}
+                          </div>
+                      </div>
+                      <div className="w-24 h-24 shrink-0 rounded-xl overflow-hidden bg-gray-200 relative">
+                          <img src={item.imageUrl} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                      </div>
+                  </div>
+              ))}
+          </div>
+      );
   };
 
-  // --- Interaction Handlers ---
+  // --- Reading Mode View (In-Place) ---
 
-  const handleSave = (id: string) => {
-      const article = articles.find(a => a.id === id);
-      if (!article) return;
+  if (activeArticle) {
+      return (
+          <div className="h-full bg-white dark:bg-black overflow-y-auto pb-32 animate-in slide-in-from-right-8 duration-300">
+              <div className="sticky top-0 z-40 bg-white/90 dark:bg-black/90 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 px-4 py-3 flex items-center justify-between">
+                  <button onClick={() => { setActiveArticle(null); setIsPlayerOpen(false); setIsPlaying(false); }} className="flex items-center gap-1 text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors">
+                      <ChevronRight className="rotate-180" size={18} /> Back
+                  </button>
+                  <div className="flex gap-2">
+                      <button onClick={() => setPlaybackSpeed(s => s === 1 ? 1.5 : 1)} className="px-3 py-1.5 rounded-full text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                          {playbackSpeed}x
+                      </button>
+                      <button onClick={handlePlayNews} className="bg-black dark:bg-white text-white dark:text-black px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-2 shadow-lg hover:scale-105 active:scale-95 transition-all">
+                          <Play size={12} fill="currentColor" /> Listen
+                      </button>
+                  </div>
+              </div>
 
-      toggleBookmark({
-          id: article.id,
-          title: article.title,
-          source: article.source,
-          category: article.category,
-          imageUrl: article.imageUrl,
-          timeAgo: article.timeAgo,
-          description: article.description
-      });
-      setToast({ show: true, msg: 'Story Bookmarked 🔖', type: 'success' });
-  };
+              <div className="p-6 max-w-2xl mx-auto">
+                  <div className="flex items-center gap-2 mb-4">
+                      <span className="text-blue-600 dark:text-blue-400 font-black tracking-widest text-xs uppercase bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">
+                          {activeArticle.category || "News"}
+                      </span>
+                      <span className="text-gray-400 text-xs font-mono">{activeArticle.timeAgo}</span>
+                  </div>
 
-  const handleShare = async (id: string) => {
-      const article = articles.find(a => a.id === id);
-      if (!article) return;
+                  <h1 className="text-2xl md:text-4xl font-black text-gray-900 dark:text-white mb-6 leading-tight">
+                      {activeArticle.title}
+                  </h1>
 
-      if (navigator.share) {
-          try {
-              await navigator.share({
-                  title: article.title,
-                  text: article.description,
-                  url: window.location.href
-              });
-          } catch (e) {}
-      } else {
-          setToast({ show: true, msg: 'Link copied to clipboard 🔗', type: 'success' });
-          navigator.clipboard.writeText(window.location.href);
-      }
-  };
+                  {activeArticle.isUserSource && (
+                      <div className="mb-8 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800">
+                          <div className="flex items-center gap-2 mb-2 text-indigo-700 dark:text-indigo-300 font-bold text-xs uppercase">
+                              <ShieldCheck size={14} /> AI Source Analysis
+                          </div>
+                          <p className="text-xs text-indigo-900 dark:text-indigo-100 leading-relaxed">
+                              Reliability Score: <span className="font-bold">{activeArticle.reliability || "Pending"}</span>. 
+                              This content was parsed and verified by our AI engine from your uploaded source.
+                          </p>
+                      </div>
+                  )}
 
-  const handleAIExplain = (id: string) => {
-      const article = articles.find(a => a.id === id);
-      if (article) {
-          // Navigate to Chatbot with auto-inject context
-          navigate(`/ai-chat?context=article&headline=${encodeURIComponent(article.title)}&id=${id}`);
-      }
-  };
+                  {/* AI Generated Context - usually this would be dynamic */}
+                  <div className="mb-8 pl-4 border-l-4 border-gray-200 dark:border-gray-800">
+                      <p className="text-lg leading-loose text-gray-800 dark:text-gray-300 font-serif italic">
+                          {activeArticle.description}
+                      </p>
+                  </div>
 
-  const handleReadStory = (id: string) => {
-      const article = articles.find(a => a.id === id);
-      navigate(`/news/${id}`, { state: { article } });
-  };
+                  {/* Reading Mode Component for Body */}
+                  <div className="text-lg leading-loose text-gray-800 dark:text-gray-200 font-serif">
+                      <HighlightReadingMode 
+                          text={activeArticle.description} // In a real app, this would be the full body content
+                          isPlaying={isPlaying}
+                          speed={playbackSpeed}
+                          theme="light" // Dynamic theme could be passed here
+                          onComplete={() => setIsPlaying(false)}
+                      />
+                  </div>
+              </div>
 
-  const handleLongPress = (id: string) => {
-      setPreviewArticleId(id);
-  };
+              {isPlayerOpen && (
+                  <FloatingAudioPlayer 
+                      isPlaying={isPlaying}
+                      onTogglePlay={() => setIsPlaying(!isPlaying)}
+                      onClose={() => { setIsPlayerOpen(false); setIsPlaying(false); }}
+                      speed={playbackSpeed}
+                      onSpeedChange={setPlaybackSpeed}
+                      progress={35} 
+                      title={activeArticle.title}
+                  />
+              )}
+          </div>
+      );
+  }
 
-  const handleNext = () => {
-      // Trigger a left swipe programmatically to go to next
-      setSwipeTrigger('left');
-  };
-
-  const currentArticleData = articles.find(a => a.id === previewArticleId);
+  // --- Main Dashboard View ---
 
   return (
-    <div className="h-full bg-gray-50 dark:bg-black flex flex-col relative overflow-hidden transition-colors duration-300">
+    <div className="h-full bg-gray-50 dark:bg-black overflow-y-auto transition-colors duration-300 pb-20">
       
-      {/* Under Review Banner */}
-      <UnderReviewBanner featureName="Headlines Feed" />
-
-      {toast.show && (
-          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] animate-in fade-in slide-in-from-top-4 w-auto">
-              <Toast 
-                  type={toast.type} 
-                  message={toast.msg} 
-                  onClose={() => setToast(prev => ({ ...prev, show: false }))} 
-              />
-          </div>
-      )}
-
-      {/* Long Press Preview Sheet */}
-      <AIQuickPreviewSheet 
-        isOpen={!!previewArticleId}
-        onClose={() => setPreviewArticleId(null)}
-        article={currentArticleData}
-        onFullAnalysis={() => {
-            if (previewArticleId) {
-                setPreviewArticleId(null);
-                handleAIExplain(previewArticleId);
+      {/* Headlines Hub Header */}
+      <div className="bg-white dark:bg-gray-900 pb-2 shadow-sm relative z-10">
+          <PageHeader 
+            title="Today's Briefing" 
+            showBack={false}
+            action={
+                <button 
+                    onClick={() => setUploadOpen(true)}
+                    className="flex items-center gap-1.5 bg-gray-900 dark:bg-white text-white dark:text-black px-3 py-1.5 rounded-full text-xs font-bold border border-transparent active:scale-95 transition-all shadow-md"
+                >
+                    <Plus size={14} /> <span className="hidden xs:inline">Add Source</span>
+                </button>
             }
-        }}
-      />
+          />
+          
+          <div className="px-4 mt-3 mb-2 flex items-center justify-between text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              <span className="flex items-center gap-1">
+                  <Calendar size={12} /> {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
+              </span>
+              <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                  <Globe size={12} /> Global Edition
+              </span>
+          </div>
 
-      <div className="absolute top-0 left-0 w-full z-20">
-          <PageHeader title="Top Headlines" showBack />
-          {/* Filter Bar */}
-          <div className="px-4 py-2 flex gap-2 overflow-x-auto scrollbar-hide bg-white/80 dark:bg-black/80 backdrop-blur-sm border-b border-gray-100 dark:border-gray-800">
-              {['All', 'Tech', 'Politics', 'Business', 'Science'].map(f => (
+          {/* Categories Horizontal Scroll */}
+          <div className="flex gap-2 overflow-x-auto px-4 pb-3 pt-1 scrollbar-hide">
+              {CATEGORIES.map(cat => (
                   <button
-                    key={f}
-                    onClick={() => handleFilterChange(f)}
-                    className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
-                        filter === f 
-                        ? 'bg-black text-white dark:bg-white dark:text-black' 
-                        : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                    key={cat}
+                    onClick={() => setActiveCategory(cat)}
+                    className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
+                        activeCategory === cat 
+                        ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white shadow-md transform scale-105' 
+                        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-gray-300'
                     }`}
                   >
-                      {f}
+                      {cat}
                   </button>
               ))}
           </div>
       </div>
 
-      <div 
-        className="flex-1 relative w-full h-full flex items-center justify-center p-4 pt-24 pb-24 overflow-hidden focus:outline-none"
-        onWheel={handleWheel}
-      >
-          {loading ? (
+      <div className="p-4 max-w-3xl mx-auto">
+          {isLoading ? (
               <SmartLoader type="headlines" />
           ) : (
-              <div className="relative w-full max-w-md h-full max-h-[650px] flex items-center justify-center">
-                  {articles.length > 0 && articles.map((article, index) => {
-                      // Logic for Stack (Nest) Animation
-                      // Only render current and next one for performance
-                      if (index === currentIndex) {
-                          return (
-                            <SwipeableCard 
-                                key={article.id} 
-                                data={article} 
-                                active={true} 
-                                onSwipe={handleSwipe}
-                                onSave={handleSave}
-                                onShare={handleShare}
-                                onAIExplain={handleAIExplain}
-                                onLongPress={handleLongPress}
-                                onRead={() => handleReadStory(article.id)} // Pass specific read handler
-                                programmaticSwipe={swipeTrigger}
-                            />
-                          );
-                      } else if (index === (currentIndex + 1) % articles.length) {
-                          return (
-                            <SwipeableCard 
-                                key={article.id} 
-                                data={article} 
-                                active={false} 
-                                next={true} 
-                                onSwipe={handleSwipe}
-                            />
-                          );
-                      }
-                      return null;
-                  })}
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  {/* Master View for Top News Tab */}
+                  {activeCategory === 'Top News' && renderTopNewsFocus()}
                   
-                  {articles.length === 0 && (
-                      <div className="text-center text-gray-500 mt-20">
-                          <p>No stories found. Try refreshing.</p>
-                          <button onClick={() => loadStories(filter, true)} className="mt-4 text-blue-600 font-bold">Refresh</button>
-                      </div>
-                  )}
+                  {/* Standard News List */}
+                  {renderCategoryList()}
               </div>
           )}
       </div>
-      
-      {/* Floating Next Button - Moved to LEFT to avoid AI button overlap */}
-      {articles.length > 0 && (
-          <div className="absolute bottom-28 left-6 z-30">
-              <button 
-                onClick={handleNext}
-                className="w-14 h-14 bg-black dark:bg-white text-white dark:text-black rounded-full shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all border-2 border-white/20 dark:border-black/10"
-                title="Next Story"
-              >
-                  <ArrowRight size={28} strokeWidth={3} />
-              </button>
-          </div>
-      )}
+
+      {/* Upload Sheet */}
+      <SourceUploadSheet 
+        isOpen={uploadOpen} 
+        onClose={() => setUploadOpen(false)} 
+        onAnalyzed={handleUserSource}
+      />
     </div>
   );
 };
 
 export default TopStoriesPage;
+    
