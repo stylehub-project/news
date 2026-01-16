@@ -5,7 +5,7 @@ import { X, ChevronRight, Sparkles, Check, ArrowRight, BrainCircuit, Play, Volum
 import Button from '../ui/Button';
 
 const AppTour: React.FC = () => {
-  const { runTour, activeTourId, currentStepIndex, setCurrentStepIndex, steps, startTour, endTour, hasSeenTour, tourLanguage, setTourLanguage } = useTour();
+  const { runTour, activeTourId, currentStepIndex, setCurrentStepIndex, steps, startTour, endTour, markTourSeen, hasSeenTour, tourLanguage, setTourLanguage } = useTour();
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [showAIGuide, setShowAIGuide] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
@@ -22,7 +22,7 @@ const AppTour: React.FC = () => {
           const timer = setTimeout(() => setShowWelcomeModal(true), 3500); // Wait for splash
           return () => clearTimeout(timer);
       }
-  }, []);
+  }, [hasSeenTour]);
 
   // Update target position
   useEffect(() => {
@@ -79,7 +79,7 @@ const AppTour: React.FC = () => {
 
   const handleSkip = () => {
       window.speechSynthesis.cancel();
-      endTour();
+      markTourSeen('main_v3'); // Explicitly mark as seen
       setShowWelcomeModal(false);
   };
 

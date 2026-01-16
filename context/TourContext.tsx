@@ -16,6 +16,7 @@ interface TourContextType {
   activeTourId: string | null;
   startTour: (tourId: string, customSteps?: TourStep[]) => void;
   endTour: () => void;
+  markTourSeen: (tourId: string) => void; // New method
   currentStepIndex: number;
   setCurrentStepIndex: (index: number) => void;
   steps: TourStep[];
@@ -202,12 +203,16 @@ export const TourProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const endTour = () => {
     setRunTour(false);
     if (activeTourId) {
-        setCompletedTours(prev => {
-            if (!prev.includes(activeTourId)) return [...prev, activeTourId];
-            return prev;
-        });
+        markTourSeen(activeTourId);
     }
     setActiveTourId(null);
+  };
+
+  const markTourSeen = (tourId: string) => {
+      setCompletedTours(prev => {
+          if (!prev.includes(tourId)) return [...prev, tourId];
+          return prev;
+      });
   };
 
   const hasSeenTour = (tourId: string) => completedTours.includes(tourId);
@@ -228,6 +233,7 @@ export const TourProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       activeTourId,
       startTour, 
       endTour,
+      markTourSeen,
       currentStepIndex, 
       setCurrentStepIndex,
       steps,
