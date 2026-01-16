@@ -19,6 +19,7 @@ const MapPage: React.FC = () => {
   const navigate = useNavigate();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
+  const isMountedRef = useRef(true);
   
   // Chat State
   const [chatOpen, setChatOpen] = useState(false);
@@ -35,31 +36,31 @@ const MapPage: React.FC = () => {
   // MOCK DATA (from Map 2 source)
   const MOCK_NEWS = [
     {
-        id: 1, title: "Major Climate Summit Begins in Paris", summary: "World leaders gather to discuss urgent climate action targets for 2030, focusing on renewable energy transitions.",
+        id: "1", title: "Major Climate Summit Begins in Paris", summary: "World leaders gather to discuss urgent climate action targets for 2030, focusing on renewable energy transitions.",
         type: "breaking", location: { lat: 48.8566, lng: 2.3522 }, source: "Global News", timestamp: "10 mins ago",
         image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&q=80&w=300"
     },
     {
-        id: 2, title: "Tech Giant Unveils Quantum Processor", summary: "Silicon Valley sees the reveal of the first commercial-grade quantum processor in San Francisco.",
+        id: "2", title: "Tech Giant Unveils Quantum Processor", summary: "Silicon Valley sees the reveal of the first commercial-grade quantum processor in San Francisco.",
         type: "trending", location: { lat: 37.7749, lng: -122.4194 }, source: "TechDaily", timestamp: "2 hours ago",
         image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=300"
     },
     {
-        id: 3, title: "Historic Peace Treaty Signed", summary: "A landmark agreement has been reached in Geneva, promising stability for the region.",
+        id: "3", title: "Historic Peace Treaty Signed", summary: "A landmark agreement has been reached in Geneva, promising stability for the region.",
         type: "normal", location: { lat: 46.2044, lng: 6.1432 }, source: "World Peace Org", timestamp: "1 hour ago", image: null
     },
     {
-        id: 4, title: "New Coral Reef Discovered", summary: "Validating marine biodiversity efforts, a massive new reef system was found off the coast of Australia.",
+        id: "4", title: "New Coral Reef Discovered", summary: "Validating marine biodiversity efforts, a massive new reef system was found off the coast of Australia.",
         type: "normal", location: { lat: -16.9186, lng: 145.7781 }, source: "Cairns Post", timestamp: "5 hours ago",
         image: "https://images.unsplash.com/photo-1546026423-cc4642628d2b?auto=format&fit=crop&q=80&w=300"
     },
     {
-        id: 5, title: "Volcanic Activity detected", summary: "Mount Etna shows signs of increased activity, geologists are monitoring the situation closely.",
+        id: "5", title: "Volcanic Activity detected", summary: "Mount Etna shows signs of increased activity, geologists are monitoring the situation closely.",
         type: "breaking", location: { lat: 37.7510, lng: 14.9934 }, source: "GeoWatch", timestamp: "Just now",
         image: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&q=80&w=300"
     },
     {
-        id: 6, title: "Tokyo Olympics Update", summary: "Preparations for the next summer games are ahead of schedule according to officials.",
+        id: "6", title: "Tokyo Olympics Update", summary: "Preparations for the next summer games are ahead of schedule according to officials.",
         type: "trending", location: { lat: 35.6762, lng: 139.6503 }, source: "Sports Asia", timestamp: "30 mins ago",
         image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&q=80&w=300"
     }
@@ -67,60 +68,49 @@ const MapPage: React.FC = () => {
 
   // Initialize Map
   useEffect(() => {
-    if (!mapContainerRef.current) return;
+    isMountedRef.current = true;
     if (mapInstanceRef.current) return;
 
     // Safety check for script loading
-    if (!(window as any).maplibregl) {
-        const checkInterval = setInterval(() => {
-            if ((window as any).maplibregl) {
-                clearInterval(checkInterval);
-                initMap();
-            }
-        }, 300);
+    const loadMap = () => {
+        if (!isMountedRef.current) return;
         
-        setTimeout(() => {
-            clearInterval(checkInterval);
-            if (!(window as any).maplibregl) {
-                setMapError("Map engine failed to load.");
-                setIsMapLoading(false);
-            }
-        }, 5000);
+        if (!(window as any).maplibregl) {
+            console.log("Waiting for MapLibre...");
+            return false;
+        }
         
-        return () => clearInterval(checkInterval);
-    } else {
-        initMap();
-    }
-
-    function initMap() {
-        if (!mapContainerRef.current) return;
-        
-        // Inject Custom Styles for Markers/Animations (from Map 2 CSS)
-        const style = document.createElement('style');
-        style.innerHTML = `
-            .news-marker {
-                width: 24px; height: 24px; cursor: pointer; border-radius: 50%;
-                background: #3b82f6; display: flex; align-items: center; justify-content: center;
-                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
-                animation: glow-pulse 2s infinite; border: 2px solid white;
-            }
-            .news-marker.breaking { background: #ef4444; animation: breaking-pulse 1.5s infinite; }
-            .news-marker.trending { background: #f59e0b; }
-            
-            @keyframes glow-pulse {
-                0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
-                70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
-                100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
-            }
-            @keyframes breaking-pulse {
-                0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-                70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
-                100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-            }
-        `;
-        document.head.appendChild(style);
+        // Inject Custom Styles for Markers/Animations (Check if already exists)
+        if (!document.getElementById('map-custom-styles')) {
+            const style = document.createElement('style');
+            style.id = 'map-custom-styles';
+            style.innerHTML = `
+                .news-marker {
+                    width: 24px; height: 24px; cursor: pointer; border-radius: 50%;
+                    background: #3b82f6; display: flex; align-items: center; justify-content: center;
+                    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+                    animation: glow-pulse 2s infinite; border: 2px solid white;
+                }
+                .news-marker.breaking { background: #ef4444; animation: breaking-pulse 1.5s infinite; }
+                .news-marker.trending { background: #f59e0b; }
+                
+                @keyframes glow-pulse {
+                    0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+                    70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+                }
+                @keyframes breaking-pulse {
+                    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+                    70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
 
         try {
+            if (!mapContainerRef.current) return false;
+
             const map = new (window as any).maplibregl.Map({
                 container: mapContainerRef.current,
                 style: {
@@ -139,7 +129,8 @@ const MapPage: React.FC = () => {
                 zoom: 2,
                 pitch: 0,
                 bearing: 0,
-                validateStyle: false
+                validateStyle: false,
+                cooperativeGestures: true
             });
 
             // Add Markers
@@ -158,23 +149,54 @@ const MapPage: React.FC = () => {
             });
 
             map.on('click', () => setActiveNews(null));
-            map.on('load', () => setIsMapLoading(false));
+            map.on('load', () => {
+                if (isMountedRef.current) setIsMapLoading(false);
+            });
+            map.on('error', (e: any) => {
+                console.warn("Map error", e);
+                // Don't set error state for tile loading errors, as they might be temporary
+            });
             
             mapInstanceRef.current = map;
 
             // Initial Chat Greeting
             setTimeout(() => {
-                setMessages([{ role: 'bot', text: "Welcome to NewsMap! 🌍 Ask me to 'Go to London' or find specific news." }]);
+                if (isMountedRef.current) {
+                    setMessages([{ role: 'bot', text: "Welcome to NewsMap! 🌍 Ask me to 'Go to London' or find specific news." }]);
+                }
             }, 1000);
 
+            return true;
         } catch (e) {
-            console.error("Map Error", e);
-            setMapError("Failed to initialize map.");
+            console.error("Map Init Error", e);
+            if (isMountedRef.current) {
+                setMapError("Failed to initialize map engine.");
+                setIsMapLoading(false);
+            }
+            return true; // Stop retrying if fatal error
+        }
+    };
+
+    // Retry loop
+    const checkInterval = setInterval(() => {
+        if (loadMap()) {
+            clearInterval(checkInterval);
+        }
+    }, 300);
+    
+    // Timeout
+    const timeout = setTimeout(() => {
+        clearInterval(checkInterval);
+        if (!mapInstanceRef.current && isMountedRef.current) {
+            setMapError("Map engine unavailable.");
             setIsMapLoading(false);
         }
-    }
+    }, 8000);
 
     return () => {
+        isMountedRef.current = false;
+        clearInterval(checkInterval);
+        clearTimeout(timeout);
         if (mapInstanceRef.current) {
             mapInstanceRef.current.remove();
             mapInstanceRef.current = null;
@@ -219,6 +241,7 @@ const MapPage: React.FC = () => {
                 If user asks general question, return JSON: {"action": "chat", "reply": "Answer..."}
                 
                 Keep replies concise.
+                Return ONLY JSON.
               `;
               
               const result = await ai.models.generateContent({
@@ -227,20 +250,27 @@ const MapPage: React.FC = () => {
                   config: { responseMimeType: 'application/json' }
               });
               
-              const response = JSON.parse(result.text);
+              let response;
+              try {
+                  const cleanText = result.text.replace(/```json|```/g, '').trim();
+                  response = JSON.parse(cleanText);
+              } catch (e) {
+                  // Fallback if model fails to output valid JSON
+                  response = { action: 'chat', reply: "I understood, but I'm having trouble processing the map command right now." };
+              }
               
-              if (response.action === 'flyTo') {
-                  mapInstanceRef.current?.flyTo({ center: [response.lng, response.lat], zoom: response.zoom || 10, speed: 1.5 });
+              if (response.action === 'flyTo' && mapInstanceRef.current) {
+                  mapInstanceRef.current.flyTo({ center: [response.lng, response.lat], zoom: response.zoom || 10, speed: 1.5 });
               }
               
               setMessages(prev => [...prev, { role: 'bot', text: response.reply }]);
           } else {
               // Fallback
-              setTimeout(() => {
-                  setMessages(prev => [...prev, { role: 'bot', text: "AI unavailable. I can only show you the map for now." }]);
-              }, 1000);
+              await new Promise(r => setTimeout(r, 1000));
+              setMessages(prev => [...prev, { role: 'bot', text: "AI unavailable. I can only show you the map for now." }]);
           }
       } catch (e) {
+          console.error("Chat error", e);
           setMessages(prev => [...prev, { role: 'bot', text: "Sorry, I couldn't process that command." }]);
       } finally {
           setIsTyping(false);
@@ -287,8 +317,8 @@ const MapPage: React.FC = () => {
             {mapError && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10 p-6 text-center">
                     <p className="text-red-400 font-bold mb-2">Map Error</p>
-                    <p className="text-gray-400 text-sm">{mapError}</p>
-                    <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-white/10 rounded text-xs font-bold hover:bg-white/20">Retry</button>
+                    <p className="text-gray-400 text-sm mb-4">{mapError}</p>
+                    <button onClick={() => window.location.reload()} className="px-4 py-2 bg-white/10 rounded text-xs font-bold hover:bg-white/20">Retry</button>
                 </div>
             )}
             <div ref={mapContainerRef} className="w-full h-full" />
