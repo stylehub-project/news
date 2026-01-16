@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Play, Pause, FastForward, Rewind, X, Download, Volume2 } from 'lucide-react';
 
 interface FloatingAudioPlayerProps {
@@ -22,61 +22,47 @@ const FloatingAudioPlayer: React.FC<FloatingAudioPlayerProps> = ({
   title
 }) => {
   return (
-    <div className="fixed bottom-24 left-4 right-4 z-[60] animate-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-gray-900/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl flex flex-col gap-3">
+    <div className="fixed bottom-24 left-4 right-4 z-[60] animate-in slide-in-from-bottom-4 duration-500 pointer-events-none flex justify-center">
+      <div className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-full py-3 px-5 shadow-2xl flex items-center gap-4 w-full max-w-md pointer-events-auto">
         
-        {/* Progress & Title */}
-        <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 overflow-hidden">
-                <div className={`p-2 rounded-full ${isPlaying ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white'}`}>
-                    <Volume2 size={16} className={isPlaying ? "animate-pulse" : ""} />
-                </div>
-                <div className="min-w-0">
-                    <p className="text-xs font-bold text-white truncate">{title || "AI News Reader"}</p>
-                    <p className="text-[10px] text-gray-400 font-medium">Listening to daily brief</p>
-                </div>
+        {/* Play/Pause Main Control */}
+        <button 
+            onClick={onTogglePlay}
+            className="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all shrink-0"
+        >
+            {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
+        </button>
+
+        {/* Info & Progress */}
+        <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
+            <div className="flex justify-between items-center text-xs font-bold text-white pr-2">
+                <span className="truncate">{title || "AI News Reader"}</span>
+                <span className="text-gray-400 font-mono text-[10px]">{speed}x</span>
             </div>
-            <button onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-full text-gray-400 transition-colors">
-                <X size={16} />
-            </button>
+            
+            {/* Minimal Progress Bar */}
+            <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden">
+                <div 
+                    className="h-full bg-gradient-to-r from-indigo-400 to-purple-400 transition-all duration-300 ease-linear"
+                    style={{ width: `${progress}%` }}
+                ></div>
+            </div>
         </div>
 
-        {/* Progress Bar */}
-        <div className="w-full h-1 bg-gray-700 rounded-full overflow-hidden">
-            <div 
-                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300 ease-linear"
-                style={{ width: `${progress}%` }}
-            ></div>
-        </div>
-
-        {/* Controls */}
-        <div className="flex items-center justify-between">
+        {/* Secondary Actions */}
+        <div className="flex items-center gap-2 shrink-0 border-l border-white/10 pl-3">
             <button 
                 onClick={() => onSpeedChange(speed === 1 ? 1.5 : speed === 1.5 ? 2 : speed === 2 ? 0.75 : 1)}
-                className="text-[10px] font-bold text-gray-400 hover:text-white w-8"
+                className="p-1.5 hover:bg-white/10 rounded-full text-gray-300 transition-colors"
+                title="Speed"
             >
-                {speed}x
+                <FastForward size={16} />
             </button>
-
-            <div className="flex items-center gap-4">
-                <button className="text-gray-400 hover:text-white transition-colors">
-                    <Rewind size={20} />
-                </button>
-                
-                <button 
-                    onClick={onTogglePlay}
-                    className="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all"
-                >
-                    {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
-                </button>
-
-                <button className="text-gray-400 hover:text-white transition-colors">
-                    <FastForward size={20} />
-                </button>
-            </div>
-
-            <button className="text-gray-400 hover:text-white transition-colors">
-                <Download size={18} />
+            <button 
+                onClick={onClose} 
+                className="p-1.5 hover:bg-red-500/20 hover:text-red-400 rounded-full text-gray-400 transition-colors"
+            >
+                <X size={16} />
             </button>
         </div>
       </div>

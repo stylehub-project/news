@@ -1,11 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { Image as ImageIcon, WifiOff, RefreshCw } from 'lucide-react';
 import { useNetwork } from '../../context/NetworkContext';
 
-interface BlurImageLoaderProps extends React.ImgHTMLAttributes<HTMLImageElement> {
+interface BlurImageLoaderProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src'> {
   wrapperClassName?: string;
   fallbackSrc?: string;
+  src?: string;
 }
 
 const BlurImageLoader: React.FC<BlurImageLoaderProps> = ({ 
@@ -103,4 +103,3 @@ const BlurImageLoader: React.FC<BlurImageLoaderProps> = ({
 };
 
 export default BlurImageLoader;
-    

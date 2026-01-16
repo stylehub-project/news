@@ -1,0 +1,48 @@
+/* === GLASS UI === */
+.glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-btn {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.glass-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.glass-input-wrapper {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(8px);
+    border-radius: 99px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+}
+
+.glass-input-wrapper input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: white;
+    padding: 8px 0;
+    margin-left: 8px;
+    font-family: inherit;
+    width: 100%;
+}
+
+.glass-input-wrapper input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}

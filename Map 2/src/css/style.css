@@ -1,0 +1,19 @@
+/* === GLOBAL STYLES === */
+:root {
+    --glass-bg: rgba(20, 20, 25, 0.65);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-highlight: rgba(255, 255, 255, 0.05);
+    --glass-blur: 16px;
+    --primary-color: #3b82f6;
+    --accent-color: #ef4444; /* Breaking news red */
+    --text-primary: #ffffff;
+    --text-secondary: #a1a1aa;
+    --font-family: 'Inter', sans-serif;
+    --z-map: 0;
+    --z-ui: 100;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+body { font-family: var(--font-family); background-color: #0f172a; color: var(--text-primary); overflow: hidden; width: 100vw; height: 100vh; }
+#app { position: relative; width: 100%; height: 100%; }
+#map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: var(--z-map); background: #000; }

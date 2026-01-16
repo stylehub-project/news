@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Map (Satellite Mode)</title>
+
+    <!-- MapLibre GL JS -->
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="src/css/style.css">
+    <link rel="stylesheet" href="src/css/glass.css">
+    <link rel="stylesheet" href="src/css/map.css">
+    <link rel="stylesheet" href="src/css/chat.css">
+</head>
+
+<body>
+    <div id="app">
+        <!-- Top Navigation -->
+        <nav class="top-nav glass-panel">
+            <div class="logo">
+                <i class="ph-fill ph-globe-hemisphere-west"></i>
+                <span>NewsMap</span>
+            </div>
+
+            <div class="search-bar glass-input-wrapper">
+                <i class="ph ph-magnifying-glass"></i>
+                <input type="text" placeholder="Search locations or events..." />
+            </div>
+
+            <div class="nav-actions">
+                <button class="icon-btn" title="Filter"><i class="ph ph-faders"></i></button>
+                <button class="icon-btn" title="Heatmap"><i class="ph ph-flame"></i></button>
+            </div>
+        </nav>
+
+        <!-- Map Container -->
+        <div id="map"></div>
+
+        <!-- Right Side Controls -->
+        <div class="map-controls">
+            <button class="control-btn glass-btn" id="zoom-in"><i class="ph ph-plus"></i></button>
+            <button class="control-btn glass-btn" id="zoom-out"><i class="ph ph-minus"></i></button>
+            <button class="control-btn glass-btn" id="reset-view"><i class="ph ph-arrows-out"></i></button>
+            <button class="control-btn glass-btn" id="toggle-3d">3D</button>
+        </div>
+
+        <!-- Bottom Sheet (News Preview) -->
+        <div id="news-sheet" class="bottom-sheet glass-panel hidden">
+            <div class="sheet-handle"></div>
+            <div class="sheet-content">
+                <div class="placeholder-text">Select a marker</div>
+            </div>
+        </div>
+
+        <!-- Chat Floating Action Button -->
+        <button id="chat-fab" class="chat-fab" title="Chat with Assistant">
+            <i class="ph-fill ph-chat-circle-dots"></i>
+        </button>
+
+        <!-- Chat Window -->
+        <div id="chat-window" class="chat-window hidden">
+            <div class="chat-header">
+                <div class="chat-title">
+                    <span class="chat-status-dot"></span>
+                    News Assistant
+                </div>
+                <button id="close-chat" class="close-chat-btn"><i class="ph ph-x"></i></button>
+            </div>
+
+            <div id="chat-messages" class="chat-messages">
+                <!-- Messages will be injected here -->
+                <div id="typing-indicator" class="typing-indicator">
+                    <div class="loading-dot"></div>
+                    <div class="loading-dot"></div>
+                    <div class="loading-dot"></div>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Ask about news..." autocomplete="off">
+                <button id="send-message" class="send-btn">
+                    <i class="ph-fill ph-paper-plane-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN LOGIC -->
+    <!-- Loaded sequentially to avoid ES Module CORS issues on file:// protocol -->
+    <script src="src/js/newsData.js"></script>
+    <script src="src/js/mapManager.js"></script>
+    <script src="src/js/uiManager.js"></script>
+    <script src="src/js/chatManager.js"></script>
+    <script src="src/js/main.js"></script>
+</body>
+
+</html>
