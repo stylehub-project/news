@@ -1,13 +1,15 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Minus, Maximize2, Layers, MessageCircle, X, Send, Bot, MapPin, Loader2, Sparkles, Navigation } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, Maximize2, Layers, MessageCircle, X, Send, Loader2, Navigation } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
-import { useLoading } from '../../context/LoadingContext';
-import { useNetwork } from '../../context/NetworkContext';
 import UnderReviewBanner from '../../components/ui/UnderReviewBanner';
 
-// Declare MapLibre global
-declare var maplibregl: any;
+declare global {
+  interface Window {
+    maplibregl: any;
+  }
+}
 
 export type WeatherLayerType = 'Temp' | 'Rain' | 'Wind' | 'Storm' | 'Heat' | 'Snow' | 'Cloud';
 
@@ -20,113 +22,150 @@ const MapPage: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [activeNews, setActiveNews] = useState<any>(null);
+  const [isMapLoading, setIsMapLoading] = useState(true);
   
   // Initialize Map
   useEffect(() => {
     if (!mapContainerRef.current) return;
     if (mapInstanceRef.current) return;
 
-    // Load styles
-    const style = document.createElement('style');
-    style.innerHTML = `
-      :root {
-        --glass-bg: rgba(20, 20, 25, 0.65);
-        --glass-border: rgba(255, 255, 255, 0.1);
-        --glass-blur: 16px;
-        --primary-color: #3b82f6;
-        --text-primary: #ffffff;
-        --text-secondary: #a1a1aa;
-      }
-      .glass-panel {
-        background: var(--glass-bg);
-        backdrop-filter: blur(var(--glass-blur));
-        border: 1px solid var(--glass-border);
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-      }
-      .news-marker {
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        background: var(--primary-color);
-        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
-        animation: pulse 2s infinite;
-        cursor: pointer;
-        border: 2px solid white;
-      }
-      .news-marker.breaking {
-        background: #ef4444;
-        animation: pulse-red 2s infinite;
-      }
-      @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
-        70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
-      }
-      @keyframes pulse-red {
-        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-        70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-      }
-    `;
-    document.head.appendChild(style);
-
-    const map = new maplibregl.Map({
-      container: mapContainerRef.current,
-      style: {
-        'version': 8,
-        'sources': {
-            'raster-tiles': {
-                'type': 'raster',
-                'tiles': ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-                'tileSize': 256,
-                'attribution': 'Tiles &copy; Esri'
+    // Safety check for script loading
+    if (!window.maplibregl) {
+        const checkInterval = setInterval(() => {
+            if (window.maplibregl) {
+                clearInterval(checkInterval);
+                initMap();
             }
-        },
-        'layers': [{ 'id': 'simple-tiles', 'type': 'raster', 'source': 'raster-tiles', 'minzoom': 0, 'maxzoom': 22 }]
-      },
-      center: [20, 30],
-      zoom: 1.5,
-      pitch: 45,
-      bearing: 0
-    });
+        }, 300);
+        
+        // Timeout fallback
+        setTimeout(() => {
+            clearInterval(checkInterval);
+            if (!window.maplibregl) {
+                console.error("MapLibre failed to load.");
+                setIsMapLoading(false); // Stop loading spinner so user sees blank/error state
+            }
+        }, 5000);
+        
+        return () => clearInterval(checkInterval);
+    } else {
+        initMap();
+    }
 
-    map.addControl(new maplibregl.NavigationControl({ showCompass: true, showZoom: false }), 'bottom-right');
-    
-    // Add Mock Data
-    const MOCK_NEWS = [
-      { id: 1, title: "Major Climate Summit in Paris", type: "breaking", lat: 48.8566, lng: 2.3522, summary: "Leaders gather for emergency talks on renewable goals." },
-      { id: 2, title: "Tech Innovation in SF", type: "trending", lat: 37.7749, lng: -122.4194, summary: "Silicon Valley unveils new quantum processor." },
-      { id: 3, title: "Tokyo Olympics Prep", type: "normal", lat: 35.6762, lng: 139.6503, summary: "Venues ready ahead of schedule." },
-      { id: 4, title: "New Reef Found in Australia", type: "normal", lat: -16.9186, lng: 145.7781, summary: "Marine biologists discover massive coral system." },
-      { id: 5, title: "New Delhi Heatwave", type: "breaking", lat: 28.6139, lng: 77.2090, summary: "Temperatures cross 45°C, advisory issued." }
-    ];
+    function initMap() {
+        if (!mapContainerRef.current) return;
+        
+        // Load styles dynamically
+        if (!document.getElementById('map-styles')) {
+            const style = document.createElement('style');
+            style.id = 'map-styles';
+            style.innerHTML = `
+              :root {
+                --glass-bg: rgba(20, 20, 25, 0.65);
+                --glass-border: rgba(255, 255, 255, 0.1);
+                --glass-blur: 16px;
+                --primary-color: #3b82f6;
+              }
+              .glass-panel {
+                background: var(--glass-bg);
+                backdrop-filter: blur(var(--glass-blur));
+                border: 1px solid var(--glass-border);
+                box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+              }
+              .news-marker {
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                background: var(--primary-color);
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+                animation: pulse 2s infinite;
+                cursor: pointer;
+                border: 2px solid white;
+              }
+              .news-marker.breaking {
+                background: #ef4444;
+                animation: pulse-red 2s infinite;
+              }
+              @keyframes pulse {
+                0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+                70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+              }
+              @keyframes pulse-red {
+                0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+                70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+              }
+            `;
+            document.head.appendChild(style);
+        }
 
-    MOCK_NEWS.forEach((item: any) => {
-        const el = document.createElement('div');
-        el.className = `news-marker ${item.type}`;
-        el.addEventListener('click', (e: any) => {
-            e.stopPropagation();
-            map.flyTo({ center: [item.lng, item.lat], zoom: 6, speed: 1.5, curve: 1 });
-            setActiveNews(item);
-        });
+        try {
+            const map = new window.maplibregl.Map({
+              container: mapContainerRef.current,
+              style: {
+                'version': 8,
+                'sources': {
+                    'raster-tiles': {
+                        'type': 'raster',
+                        'tiles': ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+                        'tileSize': 256,
+                        'attribution': 'Tiles &copy; Esri'
+                    }
+                },
+                'layers': [{ 'id': 'simple-tiles', 'type': 'raster', 'source': 'raster-tiles', 'minzoom': 0, 'maxzoom': 22 }]
+              },
+              center: [20, 30],
+              zoom: 1.5,
+              pitch: 45,
+              bearing: 0
+            });
 
-        new maplibregl.Marker({ element: el })
-            .setLngLat([item.lng, item.lat])
-            .addTo(map);
-    });
+            map.addControl(new window.maplibregl.NavigationControl({ showCompass: true, showZoom: false }), 'bottom-right');
+            
+            // Add Mock Data
+            const MOCK_NEWS = [
+              { id: 1, title: "Major Climate Summit in Paris", type: "breaking", lat: 48.8566, lng: 2.3522, summary: "Leaders gather for emergency talks on renewable goals." },
+              { id: 2, title: "Tech Innovation in SF", type: "trending", lat: 37.7749, lng: -122.4194, summary: "Silicon Valley unveils new quantum processor." },
+              { id: 3, title: "Tokyo Olympics Prep", type: "normal", lat: 35.6762, lng: 139.6503, summary: "Venues ready ahead of schedule." },
+              { id: 4, title: "New Reef Found in Australia", type: "normal", lat: -16.9186, lng: 145.7781, summary: "Marine biologists discover massive coral system." },
+              { id: 5, title: "New Delhi Heatwave", type: "breaking", lat: 28.6139, lng: 77.2090, summary: "Temperatures cross 45°C, advisory issued." }
+            ];
 
-    map.on('click', () => setActiveNews(null));
+            MOCK_NEWS.forEach((item: any) => {
+                const el = document.createElement('div');
+                el.className = `news-marker ${item.type}`;
+                el.addEventListener('click', (e: any) => {
+                    e.stopPropagation();
+                    map.flyTo({ center: [item.lng, item.lat], zoom: 6, speed: 1.5, curve: 1 });
+                    setActiveNews(item);
+                });
 
-    mapInstanceRef.current = map;
+                new window.maplibregl.Marker({ element: el })
+                    .setLngLat([item.lng, item.lat])
+                    .addTo(map);
+            });
 
-    // Initial greeting
-    setTimeout(() => {
-        setMessages([{ role: 'bot', text: "Welcome to NewsMap! 🌍 Ask me to 'Go to London' or find specific news." }]);
-    }, 1000);
+            map.on('click', () => setActiveNews(null));
+            map.on('load', () => setIsMapLoading(false));
+
+            mapInstanceRef.current = map;
+
+            // Initial greeting
+            setTimeout(() => {
+                setMessages([{ role: 'bot', text: "Welcome to NewsMap! 🌍 Ask me to 'Go to London' or find specific news." }]);
+            }, 1000);
+        } catch (e) {
+            console.error("Map initialization error:", e);
+            setIsMapLoading(false);
+        }
+    }
 
     return () => {
-        map.remove();
-        document.head.removeChild(style);
+        if (mapInstanceRef.current) {
+            mapInstanceRef.current.remove();
+            mapInstanceRef.current = null;
+        }
     };
   }, []);
 
@@ -219,7 +258,17 @@ const MapPage: React.FC = () => {
         </div>
 
         {/* Map Container */}
-        <div ref={mapContainerRef} className="absolute inset-0 z-0 bg-black" />
+        <div className="absolute inset-0 z-0 bg-black">
+            {isMapLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10">
+                    <div className="text-center">
+                        <Loader2 size={32} className="text-blue-500 animate-spin mx-auto mb-2" />
+                        <p className="text-xs text-gray-400 uppercase tracking-widest">Initializing Satellites...</p>
+                    </div>
+                </div>
+            )}
+            <div ref={mapContainerRef} className="w-full h-full" />
+        </div>
 
         {/* Right Controls */}
         <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-20 pointer-events-auto">

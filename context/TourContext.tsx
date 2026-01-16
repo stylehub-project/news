@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 
 export interface TourStep {
   targetId: string;
@@ -16,7 +16,7 @@ interface TourContextType {
   activeTourId: string | null;
   startTour: (tourId: string, customSteps?: TourStep[]) => void;
   endTour: () => void;
-  markTourSeen: (tourId: string) => void; // New method
+  markTourSeen: (tourId: string) => void;
   currentStepIndex: number;
   setCurrentStepIndex: (index: number) => void;
   steps: TourStep[];
@@ -177,19 +177,14 @@ export const TourProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       localStorage.setItem('nc_completed_tours', JSON.stringify(completedTours));
   }, [completedTours]);
 
-  // Initial Welcome Tour Check
-  useEffect(() => {
-    // Small delay to ensure UI is mounted
-    const timer = setTimeout(() => {
-        if (!completedTours.includes('main_v3')) {
-            // We don't auto-start here to avoid conflicts with Splash, 
-            // relying on the Welcome Modal in AppTour to trigger startTour('main_v3')
-        }
-    }, 2000);
-    return () => clearTimeout(timer);
+  const markTourSeen = useCallback((tourId: string) => {
+      setCompletedTours(prev => {
+          if (!prev.includes(tourId)) return [...prev, tourId];
+          return prev;
+      });
   }, []);
 
-  const startTour = (tourId: string, customSteps?: TourStep[]) => {
+  const startTour = useCallback((tourId: string, customSteps?: TourStep[]) => {
     setActiveTourId(tourId);
     if (customSteps) {
         setCustomTourSteps(customSteps);
@@ -198,31 +193,25 @@ export const TourProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     setCurrentStepIndex(0);
     setRunTour(true);
-  };
+  }, []);
 
-  const endTour = () => {
+  const endTour = useCallback(() => {
     setRunTour(false);
     if (activeTourId) {
         markTourSeen(activeTourId);
     }
     setActiveTourId(null);
-  };
+  }, [activeTourId, markTourSeen]);
 
-  const markTourSeen = (tourId: string) => {
-      setCompletedTours(prev => {
-          if (!prev.includes(tourId)) return [...prev, tourId];
-          return prev;
-      });
-  };
+  const hasSeenTour = useCallback((tourId: string) => {
+      return completedTours.includes(tourId);
+  }, [completedTours]);
 
-  const hasSeenTour = (tourId: string) => completedTours.includes(tourId);
-
-  const resetAllTours = () => {
+  const resetAllTours = useCallback(() => {
       setCompletedTours([]);
       localStorage.removeItem('nc_completed_tours');
-      // Optionally restart main tour immediately
       startTour('main_v3');
-  };
+  }, [startTour]);
 
   // Resolve steps based on active mode
   const steps = customTourSteps || TOUR_DATA[tourLanguage];

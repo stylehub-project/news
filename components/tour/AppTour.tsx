@@ -15,14 +15,16 @@ const AppTour: React.FC = () => {
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   const synthRef = useRef<SpeechSynthesis | null>(null);
 
-  // Check for Welcome Modal condition
+  // Check for Welcome Modal condition - RUN ONCE
   useEffect(() => {
+      // Check immediately on mount using the current context value.
+      // We do NOT add hasSeenTour to deps to avoid re-triggering if context updates elsewhere.
       const hasSeenMain = hasSeenTour('main_v3');
       if (!hasSeenMain) {
           const timer = setTimeout(() => setShowWelcomeModal(true), 3500); // Wait for splash
           return () => clearTimeout(timer);
       }
-  }, [hasSeenTour]);
+  }, []); 
 
   // Update target position
   useEffect(() => {
@@ -49,7 +51,7 @@ const AppTour: React.FC = () => {
     } else {
         setTargetRect(null);
     }
-  }, [runTour, currentStepIndex, steps, isVoiceEnabled, tourLanguage]); // Re-run when language changes
+  }, [runTour, currentStepIndex, steps, isVoiceEnabled, tourLanguage]);
 
   const speakText = (text: string) => {
       if (!window.speechSynthesis) return;
@@ -91,7 +93,6 @@ const AppTour: React.FC = () => {
   const changeLanguage = (lang: TourLanguage) => {
       setTourLanguage(lang);
       setIsLangMenuOpen(false);
-      // Voice will reactively update via useEffect
   };
 
   // --- WELCOME MODAL ---
