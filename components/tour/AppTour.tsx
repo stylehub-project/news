@@ -5,7 +5,7 @@ import { X, ChevronRight, Sparkles, Check, ArrowRight, BrainCircuit, Play, Volum
 import Button from '../ui/Button';
 
 const AppTour: React.FC = () => {
-  const { runTour, activeTourId, currentStepIndex, setCurrentStepIndex, steps, startTour, endTour, markTourSeen, hasSeenTour, tourLanguage, setTourLanguage } = useTour();
+  const { runTour, activeTourId, currentStepIndex, setCurrentStepIndex, steps, startTour, endTour, markTourSeen, tourLanguage, setTourLanguage } = useTour();
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [showAIGuide, setShowAIGuide] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
@@ -15,14 +15,18 @@ const AppTour: React.FC = () => {
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   const synthRef = useRef<SpeechSynthesis | null>(null);
 
-  // Check for Welcome Modal condition - RUN ONCE
+  // Check for Welcome Modal condition - RUN ONCE with direct storage check
   useEffect(() => {
-      // Check immediately on mount using the current context value.
-      // We do NOT add hasSeenTour to deps to avoid re-triggering if context updates elsewhere.
-      const hasSeenMain = hasSeenTour('main_v3');
-      if (!hasSeenMain) {
-          const timer = setTimeout(() => setShowWelcomeModal(true), 3500); // Wait for splash
-          return () => clearTimeout(timer);
+      try {
+          const stored = localStorage.getItem('nc_completed_tours');
+          const completedTours = stored ? JSON.parse(stored) : [];
+          
+          if (!completedTours.includes('main_v3')) {
+              const timer = setTimeout(() => setShowWelcomeModal(true), 3500); // Wait for splash
+              return () => clearTimeout(timer);
+          }
+      } catch (e) {
+          console.error("Tour storage error", e);
       }
   }, []); 
 

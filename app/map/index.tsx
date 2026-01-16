@@ -23,6 +23,7 @@ const MapPage: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [activeNews, setActiveNews] = useState<any>(null);
   const [isMapLoading, setIsMapLoading] = useState(true);
+  const [mapError, setMapError] = useState<string | null>(null);
   
   // Initialize Map
   useEffect(() => {
@@ -43,7 +44,8 @@ const MapPage: React.FC = () => {
             clearInterval(checkInterval);
             if (!window.maplibregl) {
                 console.error("MapLibre failed to load.");
-                setIsMapLoading(false); // Stop loading spinner so user sees blank/error state
+                setMapError("Map engine failed to initialize.");
+                setIsMapLoading(false);
             }
         }, 5000);
         
@@ -55,7 +57,7 @@ const MapPage: React.FC = () => {
     function initMap() {
         if (!mapContainerRef.current) return;
         
-        // Load styles dynamically
+        // Load styles dynamically if not present
         if (!document.getElementById('map-styles')) {
             const style = document.createElement('style');
             style.id = 'map-styles';
@@ -118,7 +120,9 @@ const MapPage: React.FC = () => {
               center: [20, 30],
               zoom: 1.5,
               pitch: 45,
-              bearing: 0
+              bearing: 0,
+              validateStyle: false, // Critical for sandbox environments to avoid fetch errors
+              cooperativeGestures: true
             });
 
             map.addControl(new window.maplibregl.NavigationControl({ showCompass: true, showZoom: false }), 'bottom-right');
@@ -148,6 +152,13 @@ const MapPage: React.FC = () => {
 
             map.on('click', () => setActiveNews(null));
             map.on('load', () => setIsMapLoading(false));
+            
+            // Error handling for map events
+            map.on('error', (e: any) => {
+                console.warn("MapLibre internal error:", e);
+                // Don't set fatal error if map still renders
+                if (!map.loaded()) setIsMapLoading(false);
+            });
 
             mapInstanceRef.current = map;
 
@@ -157,6 +168,7 @@ const MapPage: React.FC = () => {
             }, 1000);
         } catch (e) {
             console.error("Map initialization error:", e);
+            setMapError("Failed to initialize map. Environment blocked.");
             setIsMapLoading(false);
         }
     }
@@ -259,11 +271,20 @@ const MapPage: React.FC = () => {
 
         {/* Map Container */}
         <div className="absolute inset-0 z-0 bg-black">
-            {isMapLoading && (
+            {isMapLoading && !mapError && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10">
                     <div className="text-center">
                         <Loader2 size={32} className="text-blue-500 animate-spin mx-auto mb-2" />
                         <p className="text-xs text-gray-400 uppercase tracking-widest">Initializing Satellites...</p>
+                    </div>
+                </div>
+            )}
+            {mapError && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10 p-6 text-center">
+                    <div className="max-w-xs">
+                        <p className="text-red-400 font-bold mb-2">Map Error</p>
+                        <p className="text-gray-400 text-sm">{mapError}</p>
+                        <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-white/10 rounded text-xs font-bold hover:bg-white/20">Retry</button>
                     </div>
                 </div>
             )}
