@@ -42,7 +42,7 @@ const NewspaperPage: React.FC = () => {
     setViewState('GENERATING');
     setGenerationStage('drafting');
     
-    // Set basic data immediately for visual feedback
+    // Set basic data immediately
     setData(prev => ({
         ...prev,
         title: title || "The AI Daily"
@@ -94,20 +94,16 @@ const NewspaperPage: React.FC = () => {
               const pageElement = pages[i] as HTMLElement;
               
               const canvas = await html2canvas(pageElement, {
-                  scale: 2, // High resolution
+                  scale: 2, 
                   useCORS: true,
                   logging: false,
                   allowTaint: true,
-                  // Critical: Force window width to simulate desktop viewport for consistent layout
                   windowWidth: 1600, 
                   backgroundColor: '#ffffff',
                   onclone: (clonedDoc) => {
                       const clonedPage = clonedDoc.querySelector(`[data-page-index="${i}"]`) as HTMLElement;
                       if (clonedPage) {
-                          // Apply the print-export class which contains robust override styles
                           clonedPage.classList.add('print-export');
-                          
-                          // Ensure transforms from the preview zoom are removed in the clone context
                           clonedPage.style.transform = 'none';
                           clonedPage.style.margin = '0';
                       }
@@ -116,8 +112,6 @@ const NewspaperPage: React.FC = () => {
 
               const imgData = canvas.toDataURL('image/jpeg', 0.85);
               const imgProps = pdf.getImageProperties(imgData);
-              
-              // Calculate height to maintain aspect ratio within A4 width
               const pdfImgHeight = (imgProps.height * pdfWidth) / imgProps.width;
               
               if (i > 0) pdf.addPage();

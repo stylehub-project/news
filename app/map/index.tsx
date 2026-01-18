@@ -3,22 +3,20 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
     Globe, Search, Sliders, Flame, Plus, Minus, Maximize2, 
-    Box, X, Send, MessageCircle, Mic, Play, Pause, MapPin, 
-    Navigation, Thermometer, Wind, CloudRain, ShieldAlert,
-    Loader2
+    Box, X, Send, MessageCircle, Loader2
 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
-import UnderReviewBanner from '../../components/ui/UnderReviewBanner';
 
 // Declare MapLibre global
 declare var maplibregl: any;
 
-export type WeatherLayerType = 'Temp' | 'Rain' | 'Wind' | 'Storm' | 'Heat' | 'Snow' | 'All';
+export type WeatherLayerType = 'Storm' | 'Heat' | 'Rain' | 'Snow' | 'Wind' | 'Temp';
 
 const MapPage: React.FC = () => {
   const navigate = useNavigate();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
+  const markersRef = useRef<any[]>([]); // Store marker instances
   const isMountedRef = useRef(true);
   
   // Chat State
@@ -28,41 +26,62 @@ const MapPage: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   
   // UI State
+  const [searchQuery, setSearchQuery] = useState('');
   const [activeNews, setActiveNews] = useState<any>(null);
   const [isMapLoading, setIsMapLoading] = useState(true);
   const [mapError, setMapError] = useState<string | null>(null);
   const [is3D, setIs3D] = useState(false);
 
-  // MOCK DATA (from Map 2 source)
-  const MOCK_NEWS = [
+  // EXPANDED DATA (Layered Indian Context)
+  const NEWS_DATA = [
+    // --- INDIA SPECIFIC ---
     {
-        id: "1", title: "Major Climate Summit Begins in Paris", summary: "World leaders gather to discuss urgent climate action targets for 2030, focusing on renewable energy transitions.",
-        type: "breaking", location: { lat: 48.8566, lng: 2.3522 }, source: "Global News", timestamp: "10 mins ago",
-        image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&q=80&w=300"
+        id: "in-1", title: "New Tech Corridor Announced in Bangalore", summary: "Karnataka government approves a massive new IT park dedicated to AI startups in Whitefield.",
+        type: "trending", location: { lat: 12.9716, lng: 77.5946 }, source: "Tech India", timestamp: "2 hours ago", category: "Technology",
+        image: "https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&q=80&w=300"
     },
     {
-        id: "2", title: "Tech Giant Unveils Quantum Processor", summary: "Silicon Valley sees the reveal of the first commercial-grade quantum processor in San Francisco.",
-        type: "trending", location: { lat: 37.7749, lng: -122.4194 }, source: "TechDaily", timestamp: "2 hours ago",
-        image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=300"
+        id: "in-2", title: "Sensex Hits All-Time High", summary: "Mumbai Stock Exchange celebrates record breaking rally driven by banking sector.",
+        type: "normal", location: { lat: 19.0760, lng: 72.8777 }, source: "Business Today", timestamp: "30 mins ago", category: "Business",
+        image: "https://images.unsplash.com/photo-1611974765270-ca1258634369?auto=format&fit=crop&q=80&w=300"
     },
     {
-        id: "3", title: "Historic Peace Treaty Signed", summary: "A landmark agreement has been reached in Geneva, promising stability for the region.",
-        type: "normal", location: { lat: 46.2044, lng: 6.1432 }, source: "World Peace Org", timestamp: "1 hour ago", image: null
+        id: "in-3", title: "Parliament Session Begins", summary: "Key bills regarding digital data protection to be tabled in New Delhi today.",
+        type: "breaking", location: { lat: 28.6139, lng: 77.2090 }, source: "National News", timestamp: "Live", category: "Politics",
+        image: "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&q=80&w=300"
     },
     {
-        id: "4", title: "New Coral Reef Discovered", summary: "Validating marine biodiversity efforts, a massive new reef system was found off the coast of Australia.",
-        type: "normal", location: { lat: -16.9186, lng: 145.7781 }, source: "Cairns Post", timestamp: "5 hours ago",
-        image: "https://images.unsplash.com/photo-1546026423-cc4642628d2b?auto=format&fit=crop&q=80&w=300"
+        id: "in-4", title: "Cyclone Alert for Chennai Coast", summary: "IMD issues orange alert for coastal Tamil Nadu as depression deepens over Bay of Bengal.",
+        type: "breaking", location: { lat: 13.0827, lng: 80.2707 }, source: "Weather Bureau", timestamp: "1 hour ago", category: "Weather",
+        image: "https://images.unsplash.com/photo-1514632542677-48fae74a01b2?auto=format&fit=crop&q=80&w=300"
     },
     {
-        id: "5", title: "Volcanic Activity detected", summary: "Mount Etna shows signs of increased activity, geologists are monitoring the situation closely.",
-        type: "breaking", location: { lat: 37.7510, lng: 14.9934 }, source: "GeoWatch", timestamp: "Just now",
-        image: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&q=80&w=300"
+        id: "in-5", title: "Literary Festival Kicks Off in Kolkata", summary: "Authors from around the world gather at the Victoria Memorial for the annual lit fest.",
+        type: "normal", location: { lat: 22.5726, lng: 88.3639 }, source: "Culture Beat", timestamp: "5 hours ago", category: "Culture",
+        image: "https://images.unsplash.com/photo-1558431382-27e303142255?auto=format&fit=crop&q=80&w=300"
     },
     {
-        id: "6", title: "Tokyo Olympics Update", summary: "Preparations for the next summer games are ahead of schedule according to officials.",
-        type: "trending", location: { lat: 35.6762, lng: 139.6503 }, source: "Sports Asia", timestamp: "30 mins ago",
-        image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&q=80&w=300"
+        id: "in-6", title: "Hyderabad Pharma City Expansion", summary: "Major investment secured for expanding the genome valley research facilities.",
+        type: "trending", location: { lat: 17.3850, lng: 78.4867 }, source: "Health Wire", timestamp: "4 hours ago", category: "Health",
+        image: "https://images.unsplash.com/photo-1563911302283-d2bc129e7c1f?auto=format&fit=crop&q=80&w=300"
+    },
+    
+    // --- GLOBAL ---
+    {
+        id: "gl-1", title: "Major Climate Summit Begins in Paris", summary: "World leaders gather to discuss urgent climate action targets.",
+        type: "breaking", location: { lat: 48.8566, lng: 2.3522 }, source: "Global News", timestamp: "10 mins ago", category: "World"
+    },
+    {
+        id: "gl-2", title: "Tech Giant Unveils Quantum Processor", summary: "Silicon Valley sees the reveal of the first commercial-grade quantum processor.",
+        type: "trending", location: { lat: 37.7749, lng: -122.4194 }, source: "TechDaily", timestamp: "2 hours ago", category: "Technology"
+    },
+    {
+        id: "gl-3", title: "New Coral Reef Discovered", summary: "Massive new reef system found off the coast of Australia.",
+        type: "normal", location: { lat: -16.9186, lng: 145.7781 }, source: "Nature Mag", timestamp: "5 hours ago", category: "Environment"
+    },
+    {
+        id: "gl-4", title: "Tokyo Olympics Prep", summary: "Preparations for the next summer games are ahead of schedule.",
+        type: "normal", location: { lat: 35.6762, lng: 139.6503 }, source: "Sports Asia", timestamp: "30 mins ago", category: "Sports"
     }
   ];
 
@@ -71,7 +90,6 @@ const MapPage: React.FC = () => {
     isMountedRef.current = true;
     if (mapInstanceRef.current) return;
 
-    // Safety check for script loading
     const loadMap = () => {
         if (!isMountedRef.current) return;
         
@@ -80,7 +98,7 @@ const MapPage: React.FC = () => {
             return false;
         }
         
-        // Inject Custom Styles for Markers/Animations (Check if already exists)
+        // Inject Custom Styles
         if (!document.getElementById('map-custom-styles')) {
             const style = document.createElement('style');
             style.id = 'map-custom-styles';
@@ -125,44 +143,29 @@ const MapPage: React.FC = () => {
                     },
                     'layers': [{ 'id': 'simple-tiles', 'type': 'raster', 'source': 'raster-tiles', 'minzoom': 0, 'maxzoom': 22 }]
                 },
-                center: [20, 30],
-                zoom: 2,
+                center: [78.9629, 20.5937], // Centered on India
+                zoom: 3.5,
                 pitch: 0,
                 bearing: 0,
                 validateStyle: false,
                 cooperativeGestures: true
             });
 
-            // Add Markers
-            MOCK_NEWS.forEach((item: any) => {
-                const el = document.createElement('div');
-                el.className = `news-marker ${item.type}`;
-                el.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    map.flyTo({ center: [item.location.lng, item.location.lat], zoom: 6, speed: 1.2, curve: 1.4 });
-                    setActiveNews(item);
-                });
-
-                new (window as any).maplibregl.Marker({ element: el })
-                    .setLngLat([item.location.lng, item.location.lat])
-                    .addTo(map);
-            });
-
             map.on('click', () => setActiveNews(null));
             map.on('load', () => {
                 if (isMountedRef.current) setIsMapLoading(false);
+                updateMarkers(NEWS_DATA); // Initial render
             });
             map.on('error', (e: any) => {
                 console.warn("Map error", e);
-                // Don't set error state for tile loading errors, as they might be temporary
             });
             
             mapInstanceRef.current = map;
 
-            // Initial Chat Greeting
+            // Chat Greeting
             setTimeout(() => {
                 if (isMountedRef.current) {
-                    setMessages([{ role: 'bot', text: "Welcome to NewsMap! 🌍 Ask me to 'Go to London' or find specific news." }]);
+                    setMessages([{ role: 'bot', text: "Welcome to NewsMap! 🌍 Focusing on India and Global events. Ask me to 'Go to Mumbai'!" }]);
                 }
             }, 1000);
 
@@ -173,18 +176,14 @@ const MapPage: React.FC = () => {
                 setMapError("Failed to initialize map engine.");
                 setIsMapLoading(false);
             }
-            return true; // Stop retrying if fatal error
+            return true; 
         }
     };
 
-    // Retry loop
     const checkInterval = setInterval(() => {
-        if (loadMap()) {
-            clearInterval(checkInterval);
-        }
+        if (loadMap()) clearInterval(checkInterval);
     }, 300);
     
-    // Timeout
     const timeout = setTimeout(() => {
         clearInterval(checkInterval);
         if (!mapInstanceRef.current && isMountedRef.current) {
@@ -204,16 +203,53 @@ const MapPage: React.FC = () => {
     };
   }, []);
 
+  // Filter Logic & Marker Updating
+  const updateMarkers = (data: any[]) => {
+      if (!mapInstanceRef.current) return;
+
+      // Clear existing
+      markersRef.current.forEach(m => m.remove());
+      markersRef.current = [];
+
+      data.forEach((item: any) => {
+          const el = document.createElement('div');
+          el.className = `news-marker ${item.type}`;
+          el.title = item.title; // Tooltip on hover
+          
+          el.addEventListener('click', (e) => {
+              e.stopPropagation();
+              mapInstanceRef.current.flyTo({ center: [item.location.lng, item.location.lat], zoom: 6, speed: 1.2, curve: 1.4 });
+              setActiveNews(item);
+          });
+
+          const marker = new (window as any).maplibregl.Marker({ element: el })
+              .setLngLat([item.location.lng, item.location.lat])
+              .addTo(mapInstanceRef.current);
+          
+          markersRef.current.push(marker);
+      });
+  };
+
+  // Effect to filter markers when search changes
+  useEffect(() => {
+      const lowerQuery = searchQuery.toLowerCase();
+      const filtered = NEWS_DATA.filter(item => 
+          item.title.toLowerCase().includes(lowerQuery) ||
+          item.category.toLowerCase().includes(lowerQuery) ||
+          item.source.toLowerCase().includes(lowerQuery)
+      );
+      updateMarkers(filtered);
+  }, [searchQuery]);
+
   const handleZoomIn = () => mapInstanceRef.current?.zoomIn();
   const handleZoomOut = () => mapInstanceRef.current?.zoomOut();
-  const handleReset = () => mapInstanceRef.current?.flyTo({ center: [20, 30], zoom: 2, pitch: 0 });
+  const handleReset = () => mapInstanceRef.current?.flyTo({ center: [78.9629, 20.5937], zoom: 4, pitch: 0 });
   
   const handleToggle3D = () => {
       const map = mapInstanceRef.current;
       if (!map) return;
       const currentPitch = map.getPitch();
       const targetPitch = currentPitch < 30 ? 60 : 0;
-      
       map.easeTo({ pitch: targetPitch, duration: 1000 });
       setIs3D(targetPitch > 0);
   };
@@ -234,13 +270,12 @@ const MapPage: React.FC = () => {
           if (apiKey) {
               const ai = new GoogleGenAI({ apiKey });
               const prompt = `
-                You are a GIS News Assistant controlling a map.
+                You are a GIS News Assistant.
                 User Request: "${userMsg}"
                 
                 If user asks to go to a place, return JSON: {"action": "flyTo", "lat": number, "lng": number, "zoom": number, "reply": "Flying to..."}
                 If user asks general question, return JSON: {"action": "chat", "reply": "Answer..."}
                 
-                Keep replies concise.
                 Return ONLY JSON.
               `;
               
@@ -255,7 +290,6 @@ const MapPage: React.FC = () => {
                   const cleanText = result.text.replace(/```json|```/g, '').trim();
                   response = JSON.parse(cleanText);
               } catch (e) {
-                  // Fallback if model fails to output valid JSON
                   response = { action: 'chat', reply: "I understood, but I'm having trouble processing the map command right now." };
               }
               
@@ -265,7 +299,6 @@ const MapPage: React.FC = () => {
               
               setMessages(prev => [...prev, { role: 'bot', text: response.reply }]);
           } else {
-              // Fallback
               await new Promise(r => setTimeout(r, 1000));
               setMessages(prev => [...prev, { role: 'bot', text: "AI unavailable. I can only show you the map for now." }]);
           }
@@ -280,9 +313,6 @@ const MapPage: React.FC = () => {
   return (
     <div className="relative w-full h-full bg-[#0f172a] overflow-hidden font-sans text-white">
         
-        {/* Banner */}
-        <UnderReviewBanner featureName="Satellite Map" />
-
         {/* Top Nav (Glass) */}
         <div className="absolute top-5 left-5 right-5 h-[60px] rounded-2xl bg-slate-900/60 backdrop-blur-xl border border-white/10 flex items-center justify-between px-5 z-20 shadow-lg pointer-events-auto">
             <div className="flex items-center gap-2 font-bold text-lg cursor-pointer" onClick={() => navigate(-1)}>
@@ -293,9 +323,12 @@ const MapPage: React.FC = () => {
             <div className="flex-1 max-w-[400px] h-[40px] bg-black/30 rounded-full border border-white/10 flex items-center px-4 mx-4 backdrop-blur-md">
                 <Search size={18} className="text-gray-400 mr-2" />
                 <input 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     className="bg-transparent border-none outline-none text-white text-sm w-full placeholder:text-gray-400 font-medium"
-                    placeholder="Search locations or events..." 
+                    placeholder="Search cities, topics..." 
                 />
+                {searchQuery && <button onClick={() => setSearchQuery('')}><X size={14} className="text-gray-400" /></button>}
             </div>
 
             <div className="flex gap-3">

@@ -15,38 +15,44 @@ const ReelPage: React.FC = () => {
   
   const [reels, setReels] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
+  
+  // Use a function to initialize state so we can check cache immediately
+  const [loading, setLoading] = useState(() => {
+      const cached = sessionStorage.getItem('nc_reels_cached');
+      return !cached; // If cached, not loading. If not cached, loading.
+  });
+  
   const [error, setError] = useState(false);
   const [toast, setToast] = useState({ show: false, msg: '' });
 
-  // Refs for logic control
   const dataFetchedRef = useRef(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Load Data
   useEffect(() => {
-      // Prevent double fetching in Strict Mode
       if (dataFetchedRef.current) return;
 
       const loadReels = async () => {
-          setLoading(true);
+          // If we have cached data in memory or session logic, we might still want to fetch fresh news
+          // but we can skip the "Loading" screen if we had previous data.
+          // For this specific request, we want to show loading ONLY once per session.
+          
+          const hasLoadedBefore = sessionStorage.getItem('nc_reels_cached');
+          if (!hasLoadedBefore) setLoading(true);
+
           setError(false);
           try {
               const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
-              // Fetch a larger batch for the reel to ensure smooth scrolling
               const news = await fetchNewsFeed(1, { category: 'All', sort: 'Top', language: langName });
               
               if (news && news.length > 0) {
-                  // Augment data for the reel format with mock trust scores and locations
                   const formatted = news.map((item: any) => ({
                       ...item,
                       trustScore: 90 + Math.floor(Math.random() * 9),
                       location: item.category || 'Global',
-                      // Ensure high-res images for reels if possible
                       imageUrl: item.imageUrl?.includes('picsum') ? item.imageUrl : `https://picsum.photos/seed/${item.id}/800/1200`
                   }));
                   setReels(formatted);
-                  dataFetchedRef.current = true;
+                  sessionStorage.setItem('nc_reels_cached', 'true');
               } else {
                   setError(true);
               }
@@ -55,16 +61,15 @@ const ReelPage: React.FC = () => {
               setError(true);
           } finally {
               setLoading(false);
+              dataFetchedRef.current = true;
           }
       };
       
       loadReels();
       
-      // Reset ref on unmount to allow refresh if user navigates away and back
       return () => { dataFetchedRef.current = false; };
   }, [contentLanguage]);
 
-  // Actions Handler
   const handleAction = (action: string, id: string) => {
       const item = reels.find(r => r.id === id);
       if (!item) return;
@@ -104,7 +109,8 @@ const ReelPage: React.FC = () => {
       }
   };
 
-  if (loading) {
+  // Only show the full screen loader if it's the first visit in the session
+  if (loading && reels.length === 0) {
       return (
           <div className="reel-container flex flex-col items-center justify-center bg-black text-white z-50">
               <div className="relative w-20 h-20 mb-6">
@@ -116,7 +122,7 @@ const ReelPage: React.FC = () => {
       );
   }
 
-  if (error && !loading) {
+  if (error && reels.length === 0) {
       return (
           <div className="reel-container flex flex-col items-center justify-center bg-black text-white">
               <p className="text-gray-400 mb-4">Unable to load new reels.</p>
@@ -133,14 +139,12 @@ const ReelPage: React.FC = () => {
 
   return (
     <div className="reel-container bg-black">
-        {/* Toast Notification */}
         {toast.show && (
             <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[100] bg-white/10 backdrop-blur-md border border-white/20 text-white px-6 py-3 rounded-full font-bold shadow-2xl animate-in fade-in slide-in-from-top-4">
                 {toast.msg}
             </div>
         )}
 
-        {/* Back Button Overlay */}
         <button 
             onClick={() => navigate('/')} 
             className="absolute top-6 left-4 z-50 p-2 bg-black/20 backdrop-blur-md rounded-full text-white/80 hover:text-white hover:bg-black/40 transition-all border border-white/10"
@@ -148,7 +152,6 @@ const ReelPage: React.FC = () => {
             <ArrowLeft size={24} />
         </button>
 
-        {/* Swipe Container */}
         <div 
             className="reels-wrapper h-full w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth hide-scrollbar"
             ref={wrapperRef}
@@ -156,7 +159,7 @@ const ReelPage: React.FC = () => {
         >
             {reels.map((item, index) => (
                 <div key={item.id} className="h-full w-full snap-start snap-always relative">
-                    {/* Render current, prev, and next slides for performance */}
+                    {/* Render optimization: only nearby slides */}
                     {Math.abs(currentIndex - index) <= 1 && (
                         <ReelSlide 
                             data={item} 
@@ -167,7 +170,6 @@ const ReelPage: React.FC = () => {
                 </div>
             ))}
             
-            {/* End of Feed Message */}
             <div className="h-full w-full snap-start flex flex-col items-center justify-center bg-black text-gray-500 space-y-6">
                 <div className="w-16 h-1 bg-gray-800 rounded-full"></div>
                 <p className="text-lg font-medium">You're all caught up!</p>
