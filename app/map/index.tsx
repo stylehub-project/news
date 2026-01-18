@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
     Globe, Search, Sliders, Flame, Plus, Minus, Maximize2, 
     Box, X, Send, MessageCircle, Loader2, MapPin, RotateCw, Navigation,
-    ArrowRight, Filter, ChevronDown, Check
+    ArrowRight, Filter, Check
 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { fetchNewsFeed } from '../../utils/aiService';
