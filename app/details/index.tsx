@@ -9,6 +9,7 @@ import { useHistory } from '../../context/HistoryContext';
 import Toast from '../../components/ui/Toast';
 import { fetchFullArticle, getArticleById } from '../../utils/aiService';
 import { useLanguage } from '../../context/LanguageContext';
+import FloatingAudioPlayer from '../../components/player/FloatingAudioPlayer';
 
 const DetailsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -61,6 +62,12 @@ const DetailsPage: React.FC = () => {
   useEffect(() => {
       const loadContent = async () => {
           if (!articleData) return;
+
+          // If we have full text in state (from upload), use it
+          if (articleData.description && articleData.description.length > 500) {
+              setFullContent(articleData.description);
+              return;
+          }
 
           setIsLoadingContent(true);
           const langName = contentLanguage === 'hi' ? 'Hindi' : contentLanguage === 'es' ? 'Spanish' : contentLanguage === 'fr' ? 'French' : 'English';
@@ -299,41 +306,53 @@ const DetailsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 8.2 Controls (Floating) */}
-      <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-4 px-5 py-2.5 rounded-full shadow-2xl z-40 border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}>
-         {/* Set Stop Point Button */}
-         <button 
-            onClick={handleSetStopPoint}
-            className="text-xs font-bold w-8 flex flex-col items-center gap-0.5 text-gray-500 hover:text-red-500 transition-colors"
-            title="Set Bookmark Here"
-         >
-            <MapPin size={18} />
-         </button>
+      {/* Floating Controls: Use Transparent Player if active, else standard bar */}
+      {isReading ? (
+          <FloatingAudioPlayer 
+              isPlaying={isReading}
+              onTogglePlay={handleToggleRead}
+              onClose={() => setIsReading(false)}
+              speed={speed}
+              onSpeedChange={setSpeed}
+              progress={35} // Placeholder progress for now, would sync with HighlightReadingMode
+              title={articleData.title}
+          />
+      ) : (
+          <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-4 px-5 py-2.5 rounded-full shadow-2xl z-40 border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}>
+             {/* Set Stop Point Button */}
+             <button 
+                onClick={handleSetStopPoint}
+                className="text-xs font-bold w-8 flex flex-col items-center gap-0.5 text-gray-500 hover:text-red-500 transition-colors"
+                title="Set Bookmark Here"
+             >
+                <MapPin size={18} />
+             </button>
 
-         <div className="w-[1px] h-6 bg-gray-200 dark:bg-gray-700"></div>
+             <div className="w-[1px] h-6 bg-gray-200 dark:bg-gray-700"></div>
 
-         <button 
-            onClick={() => setSpeed(prev => prev === 2 ? 0.5 : prev + 0.5)}
-            className="text-xs font-bold w-8 text-center"
-         >
-            {speed}x
-         </button>
-         
-         <button 
-            onClick={handleToggleRead}
-            className={`p-3.5 rounded-full text-white shadow-lg transition-transform active:scale-95 ${isReading ? 'bg-red-500' : 'bg-blue-600'}`}
-         >
-            {isReading ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" className="ml-1" />}
-         </button>
+             <button 
+                onClick={() => setSpeed(prev => prev === 2 ? 0.5 : prev + 0.5)}
+                className="text-xs font-bold w-8 text-center"
+             >
+                {speed}x
+             </button>
+             
+             <button 
+                onClick={handleToggleRead}
+                className={`p-3.5 rounded-full text-white shadow-lg transition-transform active:scale-95 ${isReading ? 'bg-red-500' : 'bg-blue-600'}`}
+             >
+                <Play size={22} fill="currentColor" className="ml-1" />
+             </button>
 
-         {/* 7.13 AI Explain Button with Context */}
-         <button 
-            className="text-xs font-bold flex items-center gap-1 text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
-            onClick={handleExplain}
-         >
-            <Sparkles size={14} className="fill-indigo-600/20" /> Explain
-         </button>
-      </div>
+             {/* 7.13 AI Explain Button with Context */}
+             <button 
+                className="text-xs font-bold flex items-center gap-1 text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                onClick={handleExplain}
+             >
+                <Sparkles size={14} className="fill-indigo-600/20" /> Explain
+             </button>
+          </div>
+      )}
 
       {/* Settings Sheet */}
       <Sheet isOpen={showSettings} onClose={() => setShowSettings(false)} title="Reader Appearance">
