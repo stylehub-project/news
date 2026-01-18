@@ -6,7 +6,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import ReelSlide from './ReelSlide';
 import './reel.css';
 import { useBookmark } from '../../context/BookmarkContext';
-import Toast from '../../components/ui/Toast';
+import { ArrowLeft, RefreshCw } from 'lucide-react';
 
 const ReelPage: React.FC = () => {
   const navigate = useNavigate();
@@ -16,31 +16,52 @@ const ReelPage: React.FC = () => {
   const [reels, setReels] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [toast, setToast] = useState({ show: false, msg: '' });
 
-  // Swipe Refs
+  // Refs for logic control
+  const dataFetchedRef = useRef(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const startY = useRef(0);
-  const isSwiping = useRef(false);
 
   // Load Data
   useEffect(() => {
+      // Prevent double fetching in Strict Mode
+      if (dataFetchedRef.current) return;
+
       const loadReels = async () => {
           setLoading(true);
-          const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
-          const news = await fetchNewsFeed(1, { category: 'All', sort: 'Latest', language: langName });
-          
-          // Augment data for the reel format
-          const formatted = news.map((item: any) => ({
-              ...item,
-              trustScore: 90 + Math.floor(Math.random() * 9),
-              location: item.category || 'Global'
-          }));
-          
-          setReels(formatted);
-          setLoading(false);
+          setError(false);
+          try {
+              const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
+              // Fetch a larger batch for the reel to ensure smooth scrolling
+              const news = await fetchNewsFeed(1, { category: 'All', sort: 'Top', language: langName });
+              
+              if (news && news.length > 0) {
+                  // Augment data for the reel format with mock trust scores and locations
+                  const formatted = news.map((item: any) => ({
+                      ...item,
+                      trustScore: 90 + Math.floor(Math.random() * 9),
+                      location: item.category || 'Global',
+                      // Ensure high-res images for reels if possible
+                      imageUrl: item.imageUrl?.includes('picsum') ? item.imageUrl : `https://picsum.photos/seed/${item.id}/800/1200`
+                  }));
+                  setReels(formatted);
+                  dataFetchedRef.current = true;
+              } else {
+                  setError(true);
+              }
+          } catch (e) {
+              console.error("Failed to load reels", e);
+              setError(true);
+          } finally {
+              setLoading(false);
+          }
       };
+      
       loadReels();
+      
+      // Reset ref on unmount to allow refresh if user navigates away and back
+      return () => { dataFetchedRef.current = false; };
   }, [contentLanguage]);
 
   // Actions Handler
@@ -54,12 +75,13 @@ const ReelPage: React.FC = () => {
               break;
           case 'save':
               toggleBookmark(item);
-              setToast({ show: true, msg: 'Saved to bookmarks' });
-              setTimeout(() => setToast({ show: false, msg: '' }), 2000);
+              showToast('Saved to bookmarks');
               break;
           case 'share':
               if (navigator.share) {
-                  navigator.share({ title: item.title, text: item.description, url: window.location.href });
+                  navigator.share({ title: item.title, text: item.description, url: window.location.href }).catch(() => {});
+              } else {
+                  showToast('Link copied');
               }
               break;
           case 'read':
@@ -68,20 +90,12 @@ const ReelPage: React.FC = () => {
       }
   };
 
-  // Swipe Logic
-  const handleTouchStart = (e: React.TouchEvent) => {
-      startY.current = e.touches[0].clientY;
-      isSwiping.current = false;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-      // Basic vertical swipe detection
-      // Note: CSS scroll-snap handles the visual snapping, 
-      // but we need to track index for active state
+  const showToast = (msg: string) => {
+      setToast({ show: true, msg });
+      setTimeout(() => setToast({ show: false, msg: '' }), 2000);
   };
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-      // Determine active index based on scroll position
       const height = window.innerHeight;
       const scrollPos = e.currentTarget.scrollTop;
       const index = Math.round(scrollPos / height);
@@ -90,57 +104,79 @@ const ReelPage: React.FC = () => {
       }
   };
 
-  // Wheel support for desktop testing
-  const handleWheel = (e: React.WheelEvent) => {
-      // Let native scroll happen, scroll-snap takes care of it
-  };
-
   if (loading) {
       return (
-          <div className="reel-container flex items-center justify-center bg-black">
-              <div className="text-center">
-                  <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                  <p className="text-gray-400 font-mono text-sm animate-pulse">Curating Global Feed...</p>
+          <div className="reel-container flex flex-col items-center justify-center bg-black text-white z-50">
+              <div className="relative w-20 h-20 mb-6">
+                  <div className="absolute inset-0 border-t-4 border-blue-500 border-solid rounded-full animate-spin"></div>
+                  <div className="absolute inset-2 border-t-4 border-purple-500 border-solid rounded-full animate-spin-reverse"></div>
               </div>
+              <p className="text-gray-400 font-mono text-sm animate-pulse uppercase tracking-widest">Curating Global Feed...</p>
+          </div>
+      );
+  }
+
+  if (error && !loading) {
+      return (
+          <div className="reel-container flex flex-col items-center justify-center bg-black text-white">
+              <p className="text-gray-400 mb-4">Unable to load new reels.</p>
+              <button 
+                  onClick={() => window.location.reload()} 
+                  className="px-6 py-3 bg-white text-black rounded-full font-bold flex items-center gap-2 hover:bg-gray-200 transition-colors"
+              >
+                  <RefreshCw size={18} /> Retry
+              </button>
+              <button onClick={() => navigate('/')} className="mt-4 text-gray-500 text-sm hover:text-white">Go Home</button>
           </div>
       );
   }
 
   return (
-    <div className="reel-container">
+    <div className="reel-container bg-black">
+        {/* Toast Notification */}
         {toast.show && (
-            <div className="fixed top-10 left-1/2 -translate-x-1/2 z-50 bg-white text-black px-4 py-2 rounded-full font-bold shadow-xl animate-in fade-in slide-in-from-top-2">
+            <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[100] bg-white/10 backdrop-blur-md border border-white/20 text-white px-6 py-3 rounded-full font-bold shadow-2xl animate-in fade-in slide-in-from-top-4">
                 {toast.msg}
             </div>
         )}
 
+        {/* Back Button Overlay */}
+        <button 
+            onClick={() => navigate('/')} 
+            className="absolute top-6 left-4 z-50 p-2 bg-black/20 backdrop-blur-md rounded-full text-white/80 hover:text-white hover:bg-black/40 transition-all border border-white/10"
+        >
+            <ArrowLeft size={24} />
+        </button>
+
+        {/* Swipe Container */}
         <div 
-            className="reels-wrapper h-full w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth"
+            className="reels-wrapper h-full w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth hide-scrollbar"
             ref={wrapperRef}
             onScroll={handleScroll}
-            onTouchStart={handleTouchStart}
         >
             {reels.map((item, index) => (
-                <div key={item.id} className="h-full w-full snap-start snap-always">
-                    <ReelSlide 
-                        data={item} 
-                        isActive={index === currentIndex} 
-                        onAction={handleAction}
-                    />
+                <div key={item.id} className="h-full w-full snap-start snap-always relative">
+                    {/* Render current, prev, and next slides for performance */}
+                    {Math.abs(currentIndex - index) <= 1 && (
+                        <ReelSlide 
+                            data={item} 
+                            isActive={index === currentIndex} 
+                            onAction={handleAction}
+                        />
+                    )}
                 </div>
             ))}
             
-            {/* End of Feed */}
-            <div className="h-full w-full snap-start flex items-center justify-center bg-black text-gray-500">
-                <div className="text-center">
-                    <p className="mb-4">You're all caught up!</p>
-                    <button 
-                        onClick={() => navigate('/')}
-                        className="px-6 py-2 border border-gray-700 rounded-full hover:bg-gray-900 transition-colors"
-                    >
-                        Back to Home
-                    </button>
-                </div>
+            {/* End of Feed Message */}
+            <div className="h-full w-full snap-start flex flex-col items-center justify-center bg-black text-gray-500 space-y-6">
+                <div className="w-16 h-1 bg-gray-800 rounded-full"></div>
+                <p className="text-lg font-medium">You're all caught up!</p>
+                <button 
+                    onClick={() => navigate('/')}
+                    className="px-8 py-3 border border-gray-700 rounded-full text-white hover:bg-gray-900 transition-colors font-bold uppercase tracking-wider text-sm"
+                >
+                    Back to Home
+                </button>
             </div>
         </div>
     </div>
