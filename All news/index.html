@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>News Reel | Living News Pages</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app" class="reel-container">
+        <!-- News Reels will be dynamically injected here -->
+        <div id="reels-wrapper" class="reels-wrapper"></div>
+
+        <!-- Smart Loader Overlay -->
+        <div id="loader" class="loader-overlay hidden">
+            <div class="loader-content">
+                <p id="loader-fact" class="loader-fact">Did you know? Light travels faster than sound.</p>
+                <div class="loader-spinner"></div>
+            </div>
+        </div>
+
+        <!-- Global Navigation / Tools (Hidden by default, shown on long-press) -->
+        <div id="focus-overlay" class="focus-overlay hidden">
+            <div class="focus-content">
+                <h2>Reading Focus Mode</h2>
+                <p>Distractions removed. Just you and the news.</p>
+                <button id="exit-focus">Exit Focus</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Templates -->
+    <template id="reel-template">
+        <div class="reel-slide">
+            <!-- Context Strip -->
+            <div class="context-strip">
+                <span class="category-pill">World</span>
+                <span class="location">Global</span>
+                <span class="time">Just Now</span>
+                <span class="trust-badge">Verified Source</span>
+            </div>
+
+            <!-- Headline Zone -->
+            <div class="headline-zone">
+                <h1 class="headline">Breaking News Story Headline</h1>
+            </div>
+
+            <!-- Story Reading Canvas -->
+            <div class="reading-canvas">
+                <div class="article-content">
+                    <!-- Paragraphs will be injected here -->
+                </div>
+            </div>
+
+            <!-- Spoken News Player -->
+            <div class="audio-player-inline">
+                <button class="play-pause-btn" aria-label="Play Narration">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                </button>
+                <div class="progress-container">
+                    <div class="progress-bar"></div>
+                </div>
+                <div class="audio-controls">
+                    <span class="audio-time">0:00 / 0:45</span>
+                    <select class="speed-control">
+                        <option value="0.75">0.75x</option>
+                        <option value="1" selected>1.0x</option>
+                        <option value="1.25">1.25x</option>
+                        <option value="1.5">1.5x</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Bottom Floating Bar -->
+            <div class="reel-action-dock">
+                <button class="action-btn" data-action="explain">
+                    <span class="icon">🤖</span>
+                    <span class="label">Explain</span>
+                </button>
+                <button class="action-btn" data-action="save">
+                    <span class="icon">📌</span>
+                </button>
+                <button class="action-btn" data-action="share">
+                    <span class="icon">📤</span>
+                </button>
+                <button class="action-btn" data-action="read-full">
+                    <span class="label">Read Full</span>
+                </button>
+                <button class="action-btn" data-action="perspective">
+                    <span class="icon">🔄</span>
+                </button>
+            </div>
+
+            <!-- Reading Flow Indicator (Side) -->
+            <div class="reading-flow-indicator">
+                <div class="indicator-fill"></div>
+            </div>
+        </div>
+    </template>
+
+    <script src="script.js"></script>
+</body>
+</html>
