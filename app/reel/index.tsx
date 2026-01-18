@@ -6,7 +6,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import ReelSlide from './ReelSlide';
 import './reel.css';
 import { useBookmark } from '../../context/BookmarkContext';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Loader2 } from 'lucide-react';
 
 const ReelPage: React.FC = () => {
   const navigate = useNavigate();
@@ -15,8 +15,10 @@ const ReelPage: React.FC = () => {
   
   const [reels, setReels] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
   
-  // Use a function to initialize state so we can check cache immediately
   const [loading, setLoading] = useState(() => {
       const cached = sessionStorage.getItem('nc_reels_cached');
       return !cached; // If cached, not loading. If not cached, loading.
@@ -28,14 +30,11 @@ const ReelPage: React.FC = () => {
   const dataFetchedRef = useRef(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
+  // Initial Load
   useEffect(() => {
       if (dataFetchedRef.current) return;
 
       const loadReels = async () => {
-          // If we have cached data in memory or session logic, we might still want to fetch fresh news
-          // but we can skip the "Loading" screen if we had previous data.
-          // For this specific request, we want to show loading ONLY once per session.
-          
           const hasLoadedBefore = sessionStorage.getItem('nc_reels_cached');
           if (!hasLoadedBefore) setLoading(true);
 
@@ -45,12 +44,7 @@ const ReelPage: React.FC = () => {
               const news = await fetchNewsFeed(1, { category: 'All', sort: 'Top', language: langName });
               
               if (news && news.length > 0) {
-                  const formatted = news.map((item: any) => ({
-                      ...item,
-                      trustScore: 90 + Math.floor(Math.random() * 9),
-                      location: item.category || 'Global',
-                      imageUrl: item.imageUrl?.includes('picsum') ? item.imageUrl : `https://picsum.photos/seed/${item.id}/800/1200`
-                  }));
+                  const formatted = processReels(news);
                   setReels(formatted);
                   sessionStorage.setItem('nc_reels_cached', 'true');
               } else {
@@ -66,9 +60,49 @@ const ReelPage: React.FC = () => {
       };
       
       loadReels();
-      
       return () => { dataFetchedRef.current = false; };
   }, [contentLanguage]);
+
+  const processReels = (data: any[]) => {
+      return data.map((item: any) => ({
+          ...item,
+          trustScore: 90 + Math.floor(Math.random() * 9),
+          location: item.category || 'Global',
+          imageUrl: item.imageUrl?.includes('picsum') ? item.imageUrl : `https://picsum.photos/seed/${item.id}/800/1200`
+      }));
+  };
+
+  // Load More Logic
+  const loadMoreReels = async () => {
+      if (isFetchingMore || !hasMore) return;
+      setIsFetchingMore(true);
+      
+      try {
+          const nextPage = page + 1;
+          const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
+          const news = await fetchNewsFeed(nextPage, { category: 'All', sort: 'Latest', language: langName });
+          
+          if (news && news.length > 0) {
+              const formatted = processReels(news);
+              // Filter duplicates
+              const currentIds = new Set(reels.map(r => r.id));
+              const uniqueNew = formatted.filter((r: any) => !currentIds.has(r.id));
+              
+              if (uniqueNew.length > 0) {
+                  setReels(prev => [...prev, ...uniqueNew]);
+                  setPage(nextPage);
+              } else {
+                  setHasMore(false);
+              }
+          } else {
+              setHasMore(false);
+          }
+      } catch (e) {
+          console.error("Failed to load more reels", e);
+      } finally {
+          setIsFetchingMore(false);
+      }
+  };
 
   const handleAction = (action: string, id: string) => {
       const item = reels.find(r => r.id === id);
@@ -104,12 +138,17 @@ const ReelPage: React.FC = () => {
       const height = window.innerHeight;
       const scrollPos = e.currentTarget.scrollTop;
       const index = Math.round(scrollPos / height);
+      
       if (index !== currentIndex) {
           setCurrentIndex(index);
+          
+          // Trigger load more when near end (e.g., 2 slides remaining)
+          if (index >= reels.length - 2 && hasMore && !isFetchingMore) {
+              loadMoreReels();
+          }
       }
   };
 
-  // Only show the full screen loader if it's the first visit in the session
   if (loading && reels.length === 0) {
       return (
           <div className="reel-container flex flex-col items-center justify-center bg-black text-white z-50">
@@ -170,16 +209,26 @@ const ReelPage: React.FC = () => {
                 </div>
             ))}
             
-            <div className="h-full w-full snap-start flex flex-col items-center justify-center bg-black text-gray-500 space-y-6">
-                <div className="w-16 h-1 bg-gray-800 rounded-full"></div>
-                <p className="text-lg font-medium">You're all caught up!</p>
-                <button 
-                    onClick={() => navigate('/')}
-                    className="px-8 py-3 border border-gray-700 rounded-full text-white hover:bg-gray-900 transition-colors font-bold uppercase tracking-wider text-sm"
-                >
-                    Back to Home
-                </button>
-            </div>
+            {/* Loading Indicator at Bottom */}
+            {hasMore && (
+                <div className="h-full w-full snap-start flex flex-col items-center justify-center bg-black text-gray-500">
+                    <Loader2 size={32} className="animate-spin mb-2" />
+                    <p className="text-xs font-bold uppercase tracking-widest">Fetching more...</p>
+                </div>
+            )}
+
+            {!hasMore && (
+                <div className="h-full w-full snap-start flex flex-col items-center justify-center bg-black text-gray-500 space-y-6">
+                    <div className="w-16 h-1 bg-gray-800 rounded-full"></div>
+                    <p className="text-lg font-medium">You're all caught up!</p>
+                    <button 
+                        onClick={() => navigate('/')}
+                        className="px-8 py-3 border border-gray-700 rounded-full text-white hover:bg-gray-900 transition-colors font-bold uppercase tracking-wider text-sm"
+                    >
+                        Back to Home
+                    </button>
+                </div>
+            )}
         </div>
     </div>
   );
