@@ -4,7 +4,7 @@ import SipsDashboard from './SipsDashboard';
 
 const SipsPage: React.FC = () => {
   return (
-    <div className="h-screen w-full bg-[#0f172a]">
+    <div className="h-full w-full bg-[#0f172a] overflow-hidden">
         <SipsDashboard />
     </div>
   );

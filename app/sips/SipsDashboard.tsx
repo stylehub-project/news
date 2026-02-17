@@ -120,7 +120,7 @@ const SipsDashboard: React.FC = () => {
         
         {/* Top Control Bar (Hidden in Student Mode) */}
         {!studentMode && (
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 mb-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl shrink-0 z-20 relative">
+            <div className="max-w-6xl mx-auto w-full bg-gray-900 border border-gray-800 rounded-2xl p-4 mb-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl shrink-0 z-20 relative">
                 <div className="flex items-center gap-4 w-full md:w-auto">
                     <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20 shrink-0">
                         <BookOpen size={24} className="text-white" />
@@ -132,7 +132,7 @@ const SipsDashboard: React.FC = () => {
                 </div>
 
                 <div className="flex flex-1 w-full md:w-auto justify-center">
-                    <div className="flex items-center gap-1 bg-black/40 p-1.5 rounded-xl border border-white/5">
+                    <div className="flex items-center gap-1 bg-black/40 p-1.5 rounded-xl border border-white/5 overflow-x-auto max-w-full">
                         {[
                             {id: 'topic', icon: PenTool, label: 'Topic'}, 
                             {id: 'link', icon: LinkIcon, label: 'Link'}, 
@@ -153,7 +153,7 @@ const SipsDashboard: React.FC = () => {
                                     title={m.label}
                                 >
                                     <Icon size={16} />
-                                    <span className="text-xs font-bold hidden md:inline capitalize">{m.label}</span>
+                                    <span className="text-xs font-bold hidden sm:inline capitalize">{m.label}</span>
                                 </button>
                             );
                         })}
@@ -249,8 +249,8 @@ const SipsDashboard: React.FC = () => {
             </div>
         )}
 
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden relative rounded-3xl border border-gray-800 bg-[#0a0a0a] shadow-2xl">
+        {/* Main Content Area - Center Smart Panel */}
+        <div className="flex-1 flex flex-col overflow-hidden relative rounded-3xl border border-gray-800 bg-[#0a0a0a] shadow-2xl max-w-6xl mx-auto w-full">
             
             {/* Input Panel (Hidden when content loaded or in student mode) */}
             {!content && !isLoading && (
@@ -271,46 +271,58 @@ const SipsDashboard: React.FC = () => {
                             onDrop={handleDrop}
                         >
                             {inputMode === 'image' ? (
-                                <div 
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className={`w-full h-48 md:h-64 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group ${file ? 'border-emerald-500/50 bg-emerald-500/5' : isDragActive ? 'border-indigo-500 bg-indigo-500/10' : 'border-gray-700 hover:border-indigo-500/50 hover:bg-indigo-500/5'}`}
-                                >
-                                    <input 
-                                        type="file" 
-                                        ref={fileInputRef} 
-                                        className="hidden" 
-                                        accept="image/*" 
-                                        onChange={handleFileSelect} 
-                                    />
+                                <div className="space-y-4">
+                                    <div 
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className={`w-full h-48 md:h-64 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group ${file ? 'border-emerald-500/50 bg-emerald-500/5' : isDragActive ? 'border-indigo-500 bg-indigo-500/10' : 'border-gray-700 hover:border-indigo-500/50 hover:bg-indigo-500/5'}`}
+                                    >
+                                        <input 
+                                            type="file" 
+                                            ref={fileInputRef} 
+                                            className="hidden" 
+                                            accept="image/*" 
+                                            onChange={handleFileSelect} 
+                                        />
+                                        
+                                        {file ? (
+                                            <div className="text-center space-y-3">
+                                                <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto text-emerald-400">
+                                                    <Check size={32} />
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-emerald-400">{file.name}</p>
+                                                    <p className="text-xs text-emerald-500/70 mt-1">{(file.size / 1024).toFixed(1)} KB • Ready to process</p>
+                                                </div>
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); setFile(null); }}
+                                                    className="text-xs text-gray-500 hover:text-white underline mt-2"
+                                                >
+                                                    Remove Image
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="text-center space-y-3 group-hover:scale-105 transition-transform pointer-events-none">
+                                                <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto text-gray-400 group-hover:text-indigo-400 group-hover:bg-indigo-500/20 transition-colors">
+                                                    <Upload size={32} />
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-gray-300">
+                                                        {isDragActive ? "Drop image here" : "Click to upload image"}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500 mt-1">Supports JPG, PNG, WEBP</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                     
-                                    {file ? (
-                                        <div className="text-center space-y-3">
-                                            <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto text-emerald-400">
-                                                <Check size={32} />
-                                            </div>
-                                            <div>
-                                                <p className="font-bold text-emerald-400">{file.name}</p>
-                                                <p className="text-xs text-emerald-500/70 mt-1">{(file.size / 1024).toFixed(1)} KB • Ready to process</p>
-                                            </div>
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); setFile(null); }}
-                                                className="text-xs text-gray-500 hover:text-white underline mt-2"
-                                            >
-                                                Remove Image
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="text-center space-y-3 group-hover:scale-105 transition-transform pointer-events-none">
-                                            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto text-gray-400 group-hover:text-indigo-400 group-hover:bg-indigo-500/20 transition-colors">
-                                                <Upload size={32} />
-                                            </div>
-                                            <div>
-                                                <p className="font-bold text-gray-300">
-                                                    {isDragActive ? "Drop image here" : "Click to upload image"}
-                                                </p>
-                                                <p className="text-xs text-gray-500 mt-1">Supports JPG, PNG, WEBP</p>
-                                            </div>
-                                        </div>
+                                    {/* Fallback button for mobile users where drag/click area might be tricky */}
+                                    {!file && (
+                                        <button 
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="w-full py-2 bg-gray-800 hover:bg-gray-700 rounded-xl text-xs font-bold text-gray-300 border border-gray-700 transition-colors"
+                                        >
+                                            Browse Files
+                                        </button>
                                     )}
                                 </div>
                             ) : (

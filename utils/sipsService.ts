@@ -44,7 +44,7 @@ export const processSipsContent = async (
     Your goal is to convert input content into a classroom-ready presentation format.
     
     Target Audience: ${advancedMode ? 'University Students / Experts' : 'School Students'}.
-    Language: ${language}.
+    Language: ${language} (Ensure all content is in this language).
     Presentation Mode: ${mode}.
     Complexity Level: ${advancedMode ? 'Advanced (Retain technical jargon and complexity)' : 'Standard (Simplify complex jargon)'}.
     
@@ -60,7 +60,8 @@ export const processSipsContent = async (
     ${type === 'text' ? input : ''}
     ${promptContext}
 
-    Output strictly as JSON:
+    IMPORTANT: Return ONLY valid JSON. No markdown code blocks, no introductory text.
+    JSON Structure:
     {
       "headline": "Engaging Title",
       "summary": "2 sentence overview",
@@ -93,14 +94,24 @@ export const processSipsContent = async (
     }
 
     const text = response.text || "";
-    const cleanText = text.replace(/```json|```/g, '').trim();
+    // Robust cleaning: Remove markdown code blocks and any text before/after JSON
+    let cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    // Find the first '{' and last '}' to handle potential preamble text
     const jsonStart = cleanText.indexOf('{');
     const jsonEnd = cleanText.lastIndexOf('}');
     
     if (jsonStart !== -1 && jsonEnd !== -1) {
-        return JSON.parse(cleanText.substring(jsonStart, jsonEnd + 1));
+        cleanText = cleanText.substring(jsonStart, jsonEnd + 1);
+        return JSON.parse(cleanText);
     }
-    throw new Error("Invalid JSON response from AI");
+    
+    // Fallback if regex/substring failed but text looks like JSON
+    try {
+        return JSON.parse(cleanText);
+    } catch (e) {
+        throw new Error("AI returned invalid format. Please try again.");
+    }
 
   } catch (error: any) {
     console.error("SIPS AI Error", error);
