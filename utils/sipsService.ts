@@ -22,15 +22,52 @@ export interface SipsContent {
   discussionPrompts: string[];
 }
 
+const getMockSipsContent = (topic: string): SipsContent => ({
+  headline: `Guide to ${topic || "Selected Topic"} (Mock)`,
+  summary: "This is a generated fallback lesson plan because the AI service is currently busy or offline. It demonstrates the structure of a SIPS presentation.",
+  fullText: `
+    ## Introduction
+    Welcome to this lesson on ${topic || "the topic"}. In this session, we will explore the fundamental concepts and understand why this subject matters in today's world.
+
+    ## Core Concepts
+    At the heart of this subject lies a set of principles that govern how it functions. Understanding these core ideas is essential for mastering the topic. We will break down complex jargon into simple, digestible parts.
+
+    ## Real-World Application
+    Theory is important, but application is key. We see examples of this in various industries, from technology to healthcare. For instance, recent studies show that applying these principles can improve efficiency by up to 25%.
+
+    ## Conclusion
+    To wrap up, remember that this field is constantly evolving. Staying curious and continuing to learn is the best way to stay ahead.
+  `,
+  keyTerms: [
+    { term: "Concept A", definition: "A fundamental building block of the theory." },
+    { term: "Mechanism", definition: "The process by which the system operates." },
+    { term: "Outcome", definition: "The final result or consequence of the process." }
+  ],
+  quiz: [
+    { question: "What is the main focus of this lesson?", options: ["History", "Core Concepts", "Mathematics"], answer: "Core Concepts" },
+    { question: "How much can efficiency improve?", options: ["10%", "25%", "50%"], answer: "25%" },
+    { question: "What is key to staying ahead?", options: ["Staying curious", "Sleeping", "Eating"], answer: "Staying curious" }
+  ],
+  discussionPrompts: [
+    "How would you apply these concepts in your daily life?",
+    "What are the potential risks associated with this technology?"
+  ]
+});
+
 export const processSipsContent = async (
   input: string, 
-  type: 'text' | 'image' | 'url' | 'topic',
+  type: 'text' | 'image' | 'url' | 'topic' | 'pdf',
   language: string,
   mode: string,
   advancedMode: boolean = false
 ): Promise<SipsContent> => {
   const apiKey = getApiKey();
-  if (!apiKey) throw new Error("API Key missing");
+  
+  // Fallback immediately if no key
+  if (!apiKey) {
+      console.warn("No API Key, using mock data.");
+      return new Promise(resolve => setTimeout(() => resolve(getMockSipsContent(type === 'topic' ? input : 'Uploaded Content')), 1500));
+  }
 
   const ai = new GoogleGenAI({ apiKey });
 
@@ -51,7 +88,7 @@ export const processSipsContent = async (
     Instructions:
     1. Extract/Generate the core content.
     2. ${advancedMode ? 'Retain and explain specific technical terminology/jargon.' : 'Simplify complex jargon unless it is a key term to learn.'}
-    3. Structure the 'fullText' for clear, engaging reading aloud. Break into paragraphs.
+    3. Structure the 'fullText' for clear, engaging reading aloud. Break into paragraphs using markdown headers (##).
     4. Extract 3-5 Key Terms with definitions.
     5. Create a short 3-question quiz.
     6. Generate 2 thought-provoking discussion prompts.
@@ -74,18 +111,26 @@ export const processSipsContent = async (
 
   try {
     let response;
-    if (type === 'image') {
+    
+    if (type === 'image' || type === 'pdf') {
        // Input is base64 string without header
+       // For PDF, we treat it similarly using the appropriate mime type if model supports it, 
+       // otherwise we rely on text extraction or multimodal vision if converted to image.
+       // Here we assume multimodal support for 'application/pdf' or 'image/jpeg'
+       const mimeType = type === 'pdf' ? 'application/pdf' : 'image/jpeg';
+       
+       // Use gemini-2.5-flash-image for visual/document tasks
        response = await ai.models.generateContent({
           model: 'gemini-2.5-flash-image',
           contents: {
             parts: [
-              { inlineData: { mimeType: 'image/jpeg', data: input } },
+              { inlineData: { mimeType, data: input } },
               { text: systemPrompt }
             ]
           }
        });
     } else {
+       // Use gemini-3-flash-preview for text/search tasks
        response = await ai.models.generateContent({
           model: 'gemini-3-flash-preview',
           contents: systemPrompt,
@@ -97,7 +142,6 @@ export const processSipsContent = async (
     // Robust cleaning: Remove markdown code blocks and any text before/after JSON
     let cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
     
-    // Find the first '{' and last '}' to handle potential preamble text
     const jsonStart = cleanText.indexOf('{');
     const jsonEnd = cleanText.lastIndexOf('}');
     
@@ -106,7 +150,6 @@ export const processSipsContent = async (
         return JSON.parse(cleanText);
     }
     
-    // Fallback if regex/substring failed but text looks like JSON
     try {
         return JSON.parse(cleanText);
     } catch (e) {
@@ -115,6 +158,14 @@ export const processSipsContent = async (
 
   } catch (error: any) {
     console.error("SIPS AI Error", error);
+    
+    // Check for Quota Exceeded (429) or other API errors
+    if (error.status === 429 || (error.message && error.message.includes('429'))) {
+        console.warn("Quota exceeded, falling back to mock data.");
+        // Return mock data to keep app usable
+        return getMockSipsContent(type === 'topic' ? input : 'Content');
+    }
+
     throw new Error(error.message || "Failed to process content");
   }
 };

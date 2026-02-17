@@ -19,8 +19,11 @@ const Layout: React.FC = () => {
   const isFullScreenPage = ['/splash', '/login', '/onboarding', '/reel'].includes(path);
   const showNav = !isFullScreenPage;
 
+  // Pages that need a wider layout (Desktop friendly)
+  const isWidePage = ['/sips', '/map', '/newspaper', '/admin'].some(r => path.startsWith(r));
+
   // Hide AI button on entry pages too
-  const showAIButton = !['/splash', '/login', '/onboarding', '/ai-chat', '/reel'].includes(path);
+  const showAIButton = !['/splash', '/login', '/onboarding', '/ai-chat', '/reel', '/sips'].includes(path);
 
   // Background Logic
   const getBackgroundClass = () => {
@@ -30,7 +33,7 @@ const Layout: React.FC = () => {
   };
 
   return (
-    <div className={`font-sans h-dvh w-full max-w-md mx-auto shadow-2xl overflow-hidden relative border-x dark:border-gray-800 flex flex-col transition-colors duration-300 ${getBackgroundClass()}`}>
+    <div className={`font-sans h-dvh w-full mx-auto shadow-2xl overflow-hidden relative border-x dark:border-gray-800 flex flex-col transition-colors duration-300 ${getBackgroundClass()} ${isWidePage ? 'max-w-7xl' : 'max-w-md'}`}>
       
       {/* Network Status Overlay */}
       <ConnectivityIndicator />
@@ -56,8 +59,11 @@ const Layout: React.FC = () => {
 
       {/* Bottom Navigation - Overlay at bottom */}
       {showNav && (
-        <div className="absolute bottom-0 left-0 w-full z-50">
-          <BottomNav />
+        <div className="absolute bottom-0 left-0 w-full z-50 pointer-events-none">
+          {/* Wrapper to constrain nav width on wide screens if needed, or let it span */}
+          <div className={`pointer-events-auto mx-auto ${isWidePage ? 'max-w-md' : 'w-full'}`}>
+             <BottomNav />
+          </div>
         </div>
       )}
     </div>

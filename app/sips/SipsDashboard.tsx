@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { Upload, Link as LinkIcon, FileText, Image as ImageIcon, BookOpen, Mic, Layout, Eye, EyeOff, Check, RefreshCw, PenTool, X, ChevronRight, PlayCircle, Settings, Sliders, AlertCircle } from 'lucide-react';
+import { Upload, Link as LinkIcon, FileText, Image as ImageIcon, BookOpen, Mic, Layout, Eye, EyeOff, Check, RefreshCw, PenTool, X, ChevronRight, PlayCircle, Settings, Sliders, AlertCircle, FileType } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { processSipsContent, SipsContent } from '../../utils/sipsService';
@@ -18,7 +18,7 @@ const MODES = ['Summary', 'Detailed', 'Kids', 'Headline'];
 
 const SipsDashboard: React.FC = () => {
   const [content, setContent] = useState<SipsContent | null>(null);
-  const [inputMode, setInputMode] = useState<'text' | 'link' | 'image' | 'topic'>('topic');
+  const [inputMode, setInputMode] = useState<'text' | 'link' | 'image' | 'topic' | 'pdf'>('topic');
   const [inputValue, setInputValue] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -48,9 +48,9 @@ const SipsDashboard: React.FC = () => {
           let input = inputValue;
           let type: any = inputMode;
 
-          if (inputMode === 'image') {
+          if (inputMode === 'image' || inputMode === 'pdf') {
               if (!file) {
-                  setErrorMsg("Please select an image first.");
+                  setErrorMsg("Please select a file first.");
                   setIsLoading(false);
                   return;
               }
@@ -61,6 +61,10 @@ const SipsDashboard: React.FC = () => {
               reader.readAsDataURL(file);
               const base64 = await promise;
               input = base64.split(',')[1];
+              
+              // Ensure type is correct for service if we switched modes implicitly
+              if (file.type.includes('pdf')) type = 'pdf';
+              else if (file.type.includes('image')) type = 'image';
           } else if (!input.trim()) {
               setErrorMsg("Please enter some content.");
               setIsLoading(false);
@@ -87,8 +91,12 @@ const SipsDashboard: React.FC = () => {
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
-          setFile(e.target.files[0]);
+          const selectedFile = e.target.files[0];
+          setFile(selectedFile);
           setErrorMsg(null);
+          // Auto-detect mode
+          if (selectedFile.type.includes('pdf')) setInputMode('pdf');
+          else if (selectedFile.type.includes('image')) setInputMode('image');
       }
   };
 
@@ -107,9 +115,11 @@ const SipsDashboard: React.FC = () => {
       e.stopPropagation();
       setIsDragActive(false);
       if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-          setInputMode('image'); // Switch mode automatically
-          setFile(e.dataTransfer.files[0]);
+          const droppedFile = e.dataTransfer.files[0];
+          setFile(droppedFile);
           setErrorMsg(null);
+          if (droppedFile.type.includes('pdf')) setInputMode('pdf');
+          else setInputMode('image');
       }
   };
 
@@ -137,7 +147,8 @@ const SipsDashboard: React.FC = () => {
                             {id: 'topic', icon: PenTool, label: 'Topic'}, 
                             {id: 'link', icon: LinkIcon, label: 'Link'}, 
                             {id: 'text', icon: FileText, label: 'Text'}, 
-                            {id: 'image', icon: ImageIcon, label: 'Image'}
+                            {id: 'image', icon: ImageIcon, label: 'Image'},
+                            {id: 'pdf', icon: FileType, label: 'PDF/Doc'}
                         ].map((m) => {
                             const Icon = m.icon;
                             return (
@@ -270,7 +281,7 @@ const SipsDashboard: React.FC = () => {
                             onDragOver={handleDrag}
                             onDrop={handleDrop}
                         >
-                            {inputMode === 'image' ? (
+                            {inputMode === 'image' || inputMode === 'pdf' ? (
                                 <div className="space-y-4">
                                     <div 
                                         onClick={() => fileInputRef.current?.click()}
@@ -280,14 +291,14 @@ const SipsDashboard: React.FC = () => {
                                             type="file" 
                                             ref={fileInputRef} 
                                             className="hidden" 
-                                            accept="image/*" 
+                                            accept="image/*, .pdf, .txt" 
                                             onChange={handleFileSelect} 
                                         />
                                         
                                         {file ? (
                                             <div className="text-center space-y-3">
                                                 <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto text-emerald-400">
-                                                    <Check size={32} />
+                                                    {file.type.includes('pdf') ? <FileText size={32} /> : <Check size={32} />}
                                                 </div>
                                                 <div>
                                                     <p className="font-bold text-emerald-400">{file.name}</p>
@@ -297,25 +308,25 @@ const SipsDashboard: React.FC = () => {
                                                     onClick={(e) => { e.stopPropagation(); setFile(null); }}
                                                     className="text-xs text-gray-500 hover:text-white underline mt-2"
                                                 >
-                                                    Remove Image
+                                                    Remove File
                                                 </button>
                                             </div>
                                         ) : (
                                             <div className="text-center space-y-3 group-hover:scale-105 transition-transform pointer-events-none">
                                                 <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto text-gray-400 group-hover:text-indigo-400 group-hover:bg-indigo-500/20 transition-colors">
-                                                    <Upload size={32} />
+                                                    {inputMode === 'pdf' ? <FileText size={32} /> : <Upload size={32} />}
                                                 </div>
                                                 <div>
                                                     <p className="font-bold text-gray-300">
-                                                        {isDragActive ? "Drop image here" : "Click to upload image"}
+                                                        {isDragActive ? "Drop file here" : `Click to upload ${inputMode === 'pdf' ? 'document' : 'image'}`}
                                                     </p>
-                                                    <p className="text-xs text-gray-500 mt-1">Supports JPG, PNG, WEBP</p>
+                                                    <p className="text-xs text-gray-500 mt-1">{inputMode === 'pdf' ? 'PDF, TXT supported' : 'JPG, PNG, WEBP'}</p>
                                                 </div>
                                             </div>
                                         )}
                                     </div>
                                     
-                                    {/* Fallback button for mobile users where drag/click area might be tricky */}
+                                    {/* Fallback button for mobile users */}
                                     {!file && (
                                         <button 
                                             onClick={() => fileInputRef.current?.click()}
