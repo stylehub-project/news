@@ -36,6 +36,7 @@ import AdminPage from './app/admin/index';
 import DetailsPage from './app/details/index';
 import NotificationsPage from './app/notifications/index';
 import HistoryPage from './app/history/index';
+import SipsPage from './app/sips/index';
 
 const App: React.FC = () => {
   return (
@@ -80,6 +81,9 @@ const App: React.FC = () => {
                             <Route path="/notifications" element={<NotificationsPage />} />
                             <Route path="/history" element={<HistoryPage />} />
                             <Route path="/admin" element={<AdminPage />} />
+                            
+                            {/* Secret SIPS Route */}
+                            <Route path="/sips" element={<SipsPage />} />
                             
                             {/* Fallback to Splash instead of Home for a fresh feel, or Home for dev convenience */}
                             <Route path="*" element={<Navigate to="/splash" replace />} />
