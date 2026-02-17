@@ -26,7 +26,8 @@ export const processSipsContent = async (
   input: string, 
   type: 'text' | 'image' | 'url' | 'topic',
   language: string,
-  mode: string
+  mode: string,
+  advancedMode: boolean = false
 ): Promise<SipsContent> => {
   const apiKey = getApiKey();
   if (!apiKey) throw new Error("API Key missing");
@@ -42,15 +43,16 @@ export const processSipsContent = async (
     You are SIPS (Smart Interactive Presentation System), an elite educational AI assistant for teachers.
     Your goal is to convert input content into a classroom-ready presentation format.
     
-    Target Audience: Students.
+    Target Audience: ${advancedMode ? 'University Students / Experts' : 'School Students'}.
     Language: ${language}.
-    Presentation Mode: ${mode} (Adjust complexity accordingly).
+    Presentation Mode: ${mode}.
+    Complexity Level: ${advancedMode ? 'Advanced (Retain technical jargon and complexity)' : 'Standard (Simplify complex jargon)'}.
     
     Instructions:
     1. Extract/Generate the core content.
-    2. Simplify complex jargon unless it's a key term to learn.
+    2. ${advancedMode ? 'Retain and explain specific technical terminology/jargon.' : 'Simplify complex jargon unless it is a key term to learn.'}
     3. Structure the 'fullText' for clear, engaging reading aloud. Break into paragraphs.
-    4. Extract 3-5 Key Terms with simple definitions.
+    4. Extract 3-5 Key Terms with definitions.
     5. Create a short 3-question quiz.
     6. Generate 2 thought-provoking discussion prompts.
 
@@ -98,18 +100,10 @@ export const processSipsContent = async (
     if (jsonStart !== -1 && jsonEnd !== -1) {
         return JSON.parse(cleanText.substring(jsonStart, jsonEnd + 1));
     }
-    throw new Error("Invalid JSON");
+    throw new Error("Invalid JSON response from AI");
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("SIPS AI Error", error);
-    // Fallback mock
-    return {
-        headline: "Content Processing Error",
-        summary: "We couldn't process the input source directly.",
-        fullText: "Please try pasting the text content directly or try a different source. The AI service may be temporarily unavailable.",
-        keyTerms: [],
-        quiz: [],
-        discussionPrompts: []
-    };
+    throw new Error(error.message || "Failed to process content");
   }
 };

@@ -1,31 +1,46 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Mic, Settings, Download, Repeat } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, FileText, Download } from 'lucide-react';
 
 interface SipsPlayerProps {
   text: string;
-  onHighlight: (index: number) => void; // Paragraph/Sentence index
+  onHighlight: (index: number) => void;
   onComplete: () => void;
   voiceLang?: string;
+  speed?: number;
+  pitch?: number;
 }
 
-const SipsPlayer: React.FC<SipsPlayerProps> = ({ text, onHighlight, onComplete, voiceLang = 'en-US' }) => {
+const SipsPlayer: React.FC<SipsPlayerProps> = ({ 
+  text, 
+  onHighlight, 
+  onComplete, 
+  voiceLang = 'en-US',
+  speed = 1,
+  pitch = 1
+}) => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [rate, setRate] = useState(1);
   const [progress, setProgress] = useState(0);
   const synth = window.speechSynthesis;
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   
-  // Split text for granularity
   const sentences = React.useMemo(() => text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text], [text]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
-    // Reset when text changes
     cancel();
     setCurrentIndex(0);
     setProgress(0);
   }, [text]);
+
+  // Update ongoing speech if parameters change while playing
+  useEffect(() => {
+    if (isPlaying) {
+      // We can't update live utterance properties easily without restart in Web Speech API
+      // For a smooth experience, changes usually apply to the *next* sentence automatically.
+      // If immediate change is needed, we would need to cancel and restart at currentIndex.
+    }
+  }, [speed, pitch]);
 
   const cancel = () => {
     synth.cancel();
@@ -44,8 +59,9 @@ const SipsPlayer: React.FC<SipsPlayerProps> = ({ text, onHighlight, onComplete, 
     setProgress(((index) / sentences.length) * 100);
 
     const u = new SpeechSynthesisUtterance(sentences[index]);
-    u.rate = rate;
-    // Attempt to match requested lang or fallback to browser default
+    u.rate = speed;
+    u.pitch = pitch;
+    
     const voices = synth.getVoices();
     const voice = voices.find(v => v.lang.startsWith(voiceLang.split('-')[0])) || voices[0];
     if (voice) u.voice = voice;
@@ -63,8 +79,6 @@ const SipsPlayer: React.FC<SipsPlayerProps> = ({ text, onHighlight, onComplete, 
   const togglePlay = () => {
     if (isPlaying) {
         cancel();
-        // We pause by cancelling and remembering index. 
-        // Real pause/resume in speech synthesis API can be buggy on some browsers.
     } else {
         setIsPlaying(true);
         speakSentence(currentIndex);
@@ -76,13 +90,25 @@ const SipsPlayer: React.FC<SipsPlayerProps> = ({ text, onHighlight, onComplete, 
       let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
       newIndex = Math.max(0, Math.min(newIndex, sentences.length - 1));
       setCurrentIndex(newIndex);
-      if (isPlaying) { // If was playing, resume immediately from new point
+      if (isPlaying) {
           setIsPlaying(true);
           speakSentence(newIndex); 
       } else {
           onHighlight(newIndex);
           setProgress((newIndex / sentences.length) * 100);
       }
+  };
+
+  const handleDownloadTranscript = () => {
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sips-transcript-${Date.now()}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
   };
 
   return (
@@ -111,12 +137,12 @@ const SipsPlayer: React.FC<SipsPlayerProps> = ({ text, onHighlight, onComplete, 
 
             <div className="flex items-center gap-3">
                 <button 
-                    onClick={() => setRate(r => r === 1 ? 1.5 : r === 1.5 ? 0.75 : 1)} 
-                    className="text-xs font-bold bg-white/10 px-2 py-1 rounded hover:bg-white/20 transition-colors w-10 text-center"
+                    onClick={handleDownloadTranscript}
+                    className="hover:text-indigo-400 transition-colors bg-white/10 p-2 rounded-full hover:bg-white/20"
+                    title="Download Transcript"
                 >
-                    {rate}x
+                    <FileText size={18} />
                 </button>
-                <button className="hover:text-indigo-400 transition-colors"><Download size={18} /></button>
             </div>
         </div>
     </div>

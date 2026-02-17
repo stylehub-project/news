@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { Upload, Link as LinkIcon, FileText, Image as ImageIcon, BookOpen, Mic, Layout, Eye, EyeOff, Check, RefreshCw, PenTool, X, ChevronRight, PlayCircle } from 'lucide-react';
+import { Upload, Link as LinkIcon, FileText, Image as ImageIcon, BookOpen, Mic, Layout, Eye, EyeOff, Check, RefreshCw, PenTool, X, ChevronRight, PlayCircle, Settings, Sliders, AlertCircle } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { processSipsContent, SipsContent } from '../../utils/sipsService';
@@ -23,10 +23,18 @@ const SipsDashboard: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [studentMode, setStudentMode] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
   // Settings
   const [language, setLanguage] = useState('English');
   const [presentationMode, setPresentationMode] = useState('Detailed');
+  const [advancedMode, setAdvancedMode] = useState(false);
+  const [voiceSpeed, setVoiceSpeed] = useState(1.0);
+  const [voicePitch, setVoicePitch] = useState(1.0);
+  const [showSettings, setShowSettings] = useState(false);
+  
+  // Drag and Drop
+  const [isDragActive, setIsDragActive] = useState(false);
   
   // Reading State
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -35,13 +43,14 @@ const SipsDashboard: React.FC = () => {
 
   const handleProcess = async () => {
       setIsLoading(true);
+      setErrorMsg(null);
       try {
           let input = inputValue;
           let type: any = inputMode;
 
           if (inputMode === 'image') {
               if (!file) {
-                  alert("Please select an image first.");
+                  setErrorMsg("Please select an image first.");
                   setIsLoading(false);
                   return;
               }
@@ -53,16 +62,16 @@ const SipsDashboard: React.FC = () => {
               const base64 = await promise;
               input = base64.split(',')[1];
           } else if (!input.trim()) {
-              alert("Please enter some content.");
+              setErrorMsg("Please enter some content.");
               setIsLoading(false);
               return;
           }
 
-          const result = await processSipsContent(input, type, language, presentationMode);
+          const result = await processSipsContent(input, type, language, presentationMode, advancedMode);
           setContent(result);
-      } catch (e) {
+      } catch (e: any) {
           console.error(e);
-          alert("Failed to process content. Please try again.");
+          setErrorMsg(e.message || "Failed to process content. The AI service may be temporarily unavailable.");
       } finally {
           setIsLoading(false);
       }
@@ -73,11 +82,34 @@ const SipsDashboard: React.FC = () => {
       setInputValue('');
       setFile(null);
       setActiveIndex(-1);
+      setErrorMsg(null);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
           setFile(e.target.files[0]);
+          setErrorMsg(null);
+      }
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.type === "dragenter" || e.type === "dragover") {
+          setIsDragActive(true);
+      } else if (e.type === "dragleave") {
+          setIsDragActive(false);
+      }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragActive(false);
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          setInputMode('image'); // Switch mode automatically
+          setFile(e.dataTransfer.files[0]);
+          setErrorMsg(null);
       }
   };
 
@@ -115,6 +147,7 @@ const SipsDashboard: React.FC = () => {
                                         setInputMode(m.id as any);
                                         setFile(null);
                                         setInputValue('');
+                                        setErrorMsg(null);
                                     }}
                                     className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${inputMode === m.id ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}
                                     title={m.label}
@@ -127,24 +160,82 @@ const SipsDashboard: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
-                    <div className="flex items-center gap-2 bg-black/40 rounded-lg p-1 border border-white/5">
-                        <select 
-                            value={language} 
-                            onChange={(e) => setLanguage(e.target.value)}
-                            className="bg-transparent text-white text-xs font-bold px-2 py-1 outline-none cursor-pointer"
-                        >
-                            {LANGUAGES.map(l => <option key={l.code} value={l.label} className="bg-gray-900">{l.label}</option>)}
-                        </select>
-                        <div className="w-[1px] h-4 bg-gray-700"></div>
-                        <select 
-                            value={presentationMode}
-                            onChange={(e) => setPresentationMode(e.target.value)}
-                            className="bg-transparent text-white text-xs font-bold px-2 py-1 outline-none cursor-pointer"
-                        >
-                            {MODES.map(m => <option key={m} value={m} className="bg-gray-900">{m}</option>)}
-                        </select>
-                    </div>
+                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end relative">
+                    {/* Settings Toggle */}
+                    <button 
+                        onClick={() => setShowSettings(!showSettings)}
+                        className={`p-2 rounded-lg transition-colors border ${showSettings ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-black/40 border-white/5 text-gray-400 hover:text-white'}`}
+                    >
+                        <Settings size={18} />
+                    </button>
+
+                    {/* Settings Popover */}
+                    {showSettings && (
+                        <div className="absolute top-12 right-0 bg-gray-900 border border-gray-700 rounded-xl p-4 w-64 shadow-2xl z-50 animate-in slide-in-from-top-2 fade-in">
+                            <h3 className="text-xs font-bold text-gray-400 uppercase mb-3 flex items-center gap-2">
+                                <Sliders size={12} /> Teacher Controls
+                            </h3>
+                            
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-[10px] text-gray-500 font-bold block mb-1">Language</label>
+                                    <select 
+                                        value={language} 
+                                        onChange={(e) => setLanguage(e.target.value)}
+                                        className="w-full bg-gray-800 border border-gray-600 rounded-lg px-2 py-1.5 text-xs text-white outline-none"
+                                    >
+                                        {LANGUAGES.map(l => <option key={l.code} value={l.label}>{l.label}</option>)}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="text-[10px] text-gray-500 font-bold block mb-1">Mode</label>
+                                    <select 
+                                        value={presentationMode}
+                                        onChange={(e) => setPresentationMode(e.target.value)}
+                                        className="w-full bg-gray-800 border border-gray-600 rounded-lg px-2 py-1.5 text-xs text-white outline-none"
+                                    >
+                                        {MODES.map(m => <option key={m} value={m}>{m}</option>)}
+                                    </select>
+                                </div>
+
+                                {/* Advanced Mode Toggle */}
+                                <div className="flex items-center justify-between border-t border-gray-800 pt-2">
+                                    <label className="text-xs font-bold text-gray-300">Advanced Mode</label>
+                                    <button 
+                                        onClick={() => setAdvancedMode(!advancedMode)}
+                                        className={`w-8 h-4 rounded-full relative transition-colors ${advancedMode ? 'bg-indigo-500' : 'bg-gray-600'}`}
+                                    >
+                                        <div className={`w-2 h-2 bg-white rounded-full absolute top-1 transition-all ${advancedMode ? 'left-5' : 'left-1'}`}></div>
+                                    </button>
+                                </div>
+                                <p className="text-[9px] text-gray-500 -mt-2">Retain technical jargon & complex terms.</p>
+
+                                {/* Voice Controls */}
+                                <div className="border-t border-gray-800 pt-2 space-y-2">
+                                    <div className="flex justify-between">
+                                        <label className="text-[10px] text-gray-500 font-bold">Voice Speed</label>
+                                        <span className="text-[10px] text-indigo-400">{voiceSpeed.toFixed(1)}x</span>
+                                    </div>
+                                    <input 
+                                        type="range" min="0.5" max="2" step="0.1" 
+                                        value={voiceSpeed} onChange={(e) => setVoiceSpeed(parseFloat(e.target.value))}
+                                        className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                    />
+                                    
+                                    <div className="flex justify-between">
+                                        <label className="text-[10px] text-gray-500 font-bold">Pitch</label>
+                                        <span className="text-[10px] text-indigo-400">{voicePitch.toFixed(1)}</span>
+                                    </div>
+                                    <input 
+                                        type="range" min="0.5" max="2" step="0.1" 
+                                        value={voicePitch} onChange={(e) => setVoicePitch(parseFloat(e.target.value))}
+                                        className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {content && (
                         <button 
@@ -172,11 +263,17 @@ const SipsDashboard: React.FC = () => {
                             <p className="text-gray-400 text-sm md:text-base">Upload content to generate an interactive lesson plan instantly.</p>
                         </div>
                         
-                        <div className="bg-gray-900/50 p-6 md:p-8 rounded-3xl border border-gray-800 shadow-inner">
+                        <div 
+                            className={`bg-gray-900/50 p-6 md:p-8 rounded-3xl border transition-all duration-300 shadow-inner ${isDragActive ? 'border-indigo-500 bg-indigo-500/10' : 'border-gray-800'}`}
+                            onDragEnter={handleDrag}
+                            onDragLeave={handleDrag}
+                            onDragOver={handleDrag}
+                            onDrop={handleDrop}
+                        >
                             {inputMode === 'image' ? (
                                 <div 
                                     onClick={() => fileInputRef.current?.click()}
-                                    className={`w-full h-48 md:h-64 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group ${file ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-gray-700 hover:border-indigo-500/50 hover:bg-indigo-500/5'}`}
+                                    className={`w-full h-48 md:h-64 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group ${file ? 'border-emerald-500/50 bg-emerald-500/5' : isDragActive ? 'border-indigo-500 bg-indigo-500/10' : 'border-gray-700 hover:border-indigo-500/50 hover:bg-indigo-500/5'}`}
                                 >
                                     <input 
                                         type="file" 
@@ -203,12 +300,14 @@ const SipsDashboard: React.FC = () => {
                                             </button>
                                         </div>
                                     ) : (
-                                        <div className="text-center space-y-3 group-hover:scale-105 transition-transform">
+                                        <div className="text-center space-y-3 group-hover:scale-105 transition-transform pointer-events-none">
                                             <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto text-gray-400 group-hover:text-indigo-400 group-hover:bg-indigo-500/20 transition-colors">
                                                 <Upload size={32} />
                                             </div>
                                             <div>
-                                                <p className="font-bold text-gray-300">Click to upload image</p>
+                                                <p className="font-bold text-gray-300">
+                                                    {isDragActive ? "Drop image here" : "Click to upload image"}
+                                                </p>
                                                 <p className="text-xs text-gray-500 mt-1">Supports JPG, PNG, WEBP</p>
                                             </div>
                                         </div>
@@ -225,6 +324,12 @@ const SipsDashboard: React.FC = () => {
                                     }
                                     className="w-full h-48 md:h-64 bg-black/30 rounded-2xl border border-gray-700 p-6 text-base md:text-lg text-white placeholder:text-gray-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 outline-none resize-none leading-relaxed transition-all"
                                 />
+                            )}
+
+                            {errorMsg && (
+                                <div className="mt-4 flex items-center gap-2 text-red-400 text-xs bg-red-900/20 p-3 rounded-lg border border-red-900/50">
+                                    <AlertCircle size={14} /> {errorMsg}
+                                </div>
                             )}
 
                             <div className="mt-6 flex justify-end">
@@ -269,7 +374,7 @@ const SipsDashboard: React.FC = () => {
                         {/* Header */}
                         <div className="text-center space-y-6">
                             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 text-indigo-300 text-xs font-bold uppercase tracking-widest border border-indigo-500/20">
-                                <BookOpen size={12} /> {presentationMode} Overview
+                                <BookOpen size={12} /> {presentationMode} Overview {advancedMode && '(Advanced)'}
                             </div>
                             <h1 className="text-4xl md:text-7xl font-black leading-tight text-transparent bg-clip-text bg-gradient-to-b from-white via-gray-200 to-gray-500 drop-shadow-sm">
                                 {content.headline}
@@ -354,6 +459,8 @@ const SipsDashboard: React.FC = () => {
                 onHighlight={setActiveIndex} 
                 onComplete={() => setActiveIndex(-1)} 
                 voiceLang={language === 'Hindi' ? 'hi-IN' : language === 'Spanish' ? 'es-ES' : language === 'French' ? 'fr-FR' : 'en-US'}
+                speed={voiceSpeed}
+                pitch={voicePitch}
             />
         )}
     </div>
