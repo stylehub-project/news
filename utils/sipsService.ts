@@ -1,17 +1,5 @@
 
-import { GoogleGenAI } from "@google/genai";
-
-const getApiKey = () => {
-  // @ts-ignore
-  if (typeof window !== 'undefined' && window.process?.env?.API_KEY) {
-    // @ts-ignore
-    return window.process.env.API_KEY;
-  }
-  if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
-    return (import.meta as any).env.VITE_API_KEY || (import.meta as any).env.API_KEY;
-  }
-  return '';
-};
+import { GoogleGenAI, Type } from "@google/genai";
 
 export interface SipsContent {
   headline: string;
@@ -29,52 +17,62 @@ export const processSipsContent = async (
   mode: string,
   advancedMode: boolean = false
 ): Promise<SipsContent> => {
-  const apiKey = getApiKey();
-  
-  // Explicitly fail if no key is found so the UI can report it
-  if (!apiKey) {
-      throw new Error("API Key is missing. Please configure VITE_API_KEY or process.env.API_KEY.");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   let promptContext = "";
-  if (type === 'url') promptContext = `Source is a URL: ${input}. Use Google Search to fetch content.`;
-  else if (type === 'topic') promptContext = `Source is a Topic: ${input}. Generate educational content about this.`;
-  else promptContext = `Source Content provided below.`;
+  if (type === 'url') promptContext = `Source is a URL: ${input}. Search for the content of this page.`;
+  else if (type === 'topic') promptContext = `Source is a Topic: ${input}. Generate deep educational content about this.`;
+  else promptContext = `Source Content provided in input.`;
 
-  const systemPrompt = `
-    You are SIPS (Smart Interactive Presentation System), an elite educational AI assistant for teachers.
-    Your goal is to convert input content into a classroom-ready presentation format.
-    
+  const systemInstruction = `
+    You are SIPS (Smart Interactive Presentation System), an elite educational AI assistant.
     Target Audience: ${advancedMode ? 'University Students / Experts' : 'School Students'}.
-    Language: ${language} (Ensure all content is in this language).
+    Language: ${language}.
     Presentation Mode: ${mode}.
-    Complexity Level: ${advancedMode ? 'Advanced (Retain technical jargon and complexity)' : 'Standard (Simplify complex jargon)'}.
+    Complexity Level: ${advancedMode ? 'Advanced (Technical terminology)' : 'Standard (Simplified for students)'}.
     
-    Instructions:
-    1. Extract/Generate the core content.
-    2. ${advancedMode ? 'Retain and explain specific technical terminology/jargon.' : 'Simplify complex jargon unless it is a key term to learn.'}
-    3. Structure the 'fullText' for clear, engaging reading aloud. Break into paragraphs using markdown headers (##).
-    4. Extract 3-5 Key Terms with definitions.
-    5. Create a short 3-question quiz.
-    6. Generate 2 thought-provoking discussion prompts.
-
-    Input Content:
-    ${type === 'text' ? input : ''}
-    ${promptContext}
-
-    IMPORTANT: Return ONLY valid JSON. No markdown code blocks, no introductory text.
-    JSON Structure:
-    {
-      "headline": "Engaging Title",
-      "summary": "2 sentence overview",
-      "fullText": "The main content formatted for reading...",
-      "keyTerms": [{"term": "Word", "definition": "Meaning"}],
-      "quiz": [{"question": "Q?", "options": ["A","B","C"], "answer": "A"}],
-      "discussionPrompts": ["Question 1", "Question 2"]
-    }
+    Convert input content into a structured lesson plan. 
+    1. 'headline': An engaging title.
+    2. 'summary': 2-sentence overview.
+    3. 'fullText': The main body formatted in Markdown for clear reading.
+    4. 'keyTerms': 3-5 crucial terms with definitions.
+    5. 'quiz': 3 multiple-choice questions.
+    6. 'discussionPrompts': 2 thought-provoking questions.
   `;
+
+  const responseSchema = {
+    type: Type.OBJECT,
+    properties: {
+      headline: { type: Type.STRING },
+      summary: { type: Type.STRING },
+      fullText: { type: Type.STRING },
+      keyTerms: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            term: { type: Type.STRING },
+            definition: { type: Type.STRING }
+          },
+          required: ["term", "definition"]
+        }
+      },
+      quiz: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            question: { type: Type.STRING },
+            options: { type: Type.ARRAY, items: { type: Type.STRING } },
+            answer: { type: Type.STRING }
+          },
+          required: ["question", "options", "answer"]
+        }
+      },
+      discussionPrompts: { type: Type.ARRAY, items: { type: Type.STRING } }
+    },
+    required: ["headline", "summary", "fullText", "keyTerms", "quiz", "discussionPrompts"]
+  };
 
   try {
     let response;
@@ -86,47 +84,42 @@ export const processSipsContent = async (
           contents: {
             parts: [
               { inlineData: { mimeType, data: input } },
-              { text: systemPrompt }
+              { text: `Process this document as SIPS. ${systemInstruction}` }
             ]
+          },
+          config: {
+            responseMimeType: "application/json",
+            responseSchema
           }
        });
     } else {
        response = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
-          contents: systemPrompt,
-          config: type === 'url' || type === 'topic' ? { tools: [{ googleSearch: {} }] } : undefined
+          model: 'gemini-3-pro-preview',
+          contents: `${systemInstruction}\n\nInput: ${input}\n${promptContext}`,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema,
+            tools: type === 'url' || type === 'topic' ? [{ googleSearch: {} }] : undefined
+          }
        });
     }
 
-    const text = response.text || "";
-    let cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const text = response.text;
+    if (!text) throw new Error("AI returned no content.");
     
-    const jsonStart = cleanText.indexOf('{');
-    const jsonEnd = cleanText.lastIndexOf('}');
-    
-    if (jsonStart !== -1 && jsonEnd !== -1) {
-        cleanText = cleanText.substring(jsonStart, jsonEnd + 1);
-        return JSON.parse(cleanText);
-    }
-    
-    try {
-        return JSON.parse(cleanText);
-    } catch (e) {
-        throw new Error("AI returned invalid format. Please try again.");
-    }
+    return JSON.parse(text) as SipsContent;
 
   } catch (error: any) {
-    console.error("SIPS AI Error", error);
+    console.error("SIPS AI Error:", error);
     
-    // Throw descriptive errors instead of falling back to mock data
-    if (error.status === 429 || (error.message && error.message.includes('429'))) {
-        throw new Error("AI Service is busy (Rate Limit Exceeded). Please try again in a moment.");
+    if (error.status === 429 || error.message?.includes('429')) {
+        throw new Error("AI Service is busy. Please wait a moment before trying again.");
     }
 
-    if (error.message && error.message.includes('API key')) {
-        throw new Error("Invalid API Key. Please check your configuration.");
+    if (error.message?.includes('API key')) {
+        throw new Error("Configuration Error: The AI service could not be authenticated.");
     }
 
-    throw new Error(error.message || "Failed to process content");
+    throw new Error(error.message || "The lesson could not be prepared at this time.");
   }
 };

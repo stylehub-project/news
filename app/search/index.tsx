@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Search, X, Filter, SlidersHorizontal, FileText, User, Tag, Globe, Image as ImageIcon, Layout, AlignLeft } from 'lucide-react';
+import { Search, X, Filter, SlidersHorizontal, FileText, User, Tag, Globe, Image as ImageIcon, Layout, AlignLeft, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import NewsCardBasic from '../../components/cards/NewsCardBasic';
 import AIAnalysisCard from '../../components/cards/AIAnalysisCard';
@@ -31,8 +31,20 @@ const SearchPage = () => {
     ];
 
     const performSearch = async (searchTerm: string, filterType: string) => {
-        if (!searchTerm.trim()) return;
+        const trimmedQuery = searchTerm.trim().toLowerCase();
+        if (!trimmedQuery) return;
         
+        // --- SIPS Redirect Logic ---
+        const sipsKeywords = ['sips', 'open sips', 'enter sips', 'launch sips', 'go to sips', 'sips app', 'sips dashboard'];
+        if (sipsKeywords.some(kw => trimmedQuery === kw || (trimmedQuery.includes('sips') && trimmedQuery.length < 15))) {
+            setIsSearching(true);
+            // Small delay for aesthetic "searching" feel before the jump
+            setTimeout(() => {
+                navigate('/sips');
+            }, 800);
+            return;
+        }
+
         setIsSearching(true);
         setHasSearched(true);
         setResults([]); // Clear previous
