@@ -17,6 +17,28 @@ export enum NewsCategory {
   WORLD = 'World',
 }
 
+export interface Comment {
+  id: string;
+  articleId: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  content: string;
+  timestamp: number;
+  likes: number;
+  replies: CommentReply[];
+}
+
+export interface CommentReply {
+  id: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  content: string;
+  timestamp: number;
+  likes: number;
+}
+
 export interface UserProfile {
   id: string;
   name: string;

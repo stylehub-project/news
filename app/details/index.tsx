@@ -10,6 +10,7 @@ import Toast from '../../components/ui/Toast';
 import { fetchFullArticle, getArticleById } from '../../utils/aiService';
 import { useLanguage } from '../../context/LanguageContext';
 import FloatingAudioPlayer from '../../components/player/FloatingAudioPlayer';
+import CommentSection from '../../components/comments/CommentSection';
 
 const DetailsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -304,6 +305,9 @@ const DetailsPage: React.FC = () => {
                 />
             )}
         </div>
+
+        {/* Commenting System */}
+        <CommentSection articleId={articleId} />
       </div>
 
       {/* Floating Controls: Use Transparent Player if active, else standard bar */}

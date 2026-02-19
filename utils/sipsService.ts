@@ -17,7 +17,9 @@ export const processSipsContent = async (
   mode: string,
   advancedMode: boolean = false
 ): Promise<SipsContent> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = (window as any).process?.env?.API_KEY || (import.meta as any).env?.VITE_API_KEY || process.env.API_KEY;
+  if (!apiKey) throw new Error("AI Configuration Error: API Key Missing");
+  const ai = new GoogleGenAI({ apiKey });
 
   let promptContext = "";
   if (type === 'url') promptContext = `Source is a URL: ${input}. Search for the content of this page.`;
