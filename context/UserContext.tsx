@@ -15,9 +15,9 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 const DEFAULT_USER: UserProfile = {
-  name: "Lakshya",
-  username: "lakshya",
-  avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=400&auto=format&fit=crop"
+  name: "Guest User",
+  username: "guest",
+  avatar: "https://ui-avatars.com/api/?name=Guest+User&background=random&color=fff"
 };
 
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {

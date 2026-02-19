@@ -123,7 +123,26 @@ const SipsDashboard: React.FC = () => {
       }
   };
 
-  const sentences = content ? (content.fullText.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [content.fullText]) : [];
+  // Helper to parse content into paragraphs and sentences for better formatting
+  const paragraphs = React.useMemo(() => {
+      if (!content) return [];
+      // Split by double newline to get paragraphs
+      const rawParagraphs = content.fullText.split(/\n\n+/);
+      
+      let globalIndex = 0;
+      return rawParagraphs.map((para, pIdx) => {
+          // Split paragraph into sentences
+          const paraSentences = para.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [para];
+          return {
+              id: pIdx,
+              sentences: paraSentences.map((s) => {
+                  const currentIdx = globalIndex;
+                  globalIndex++;
+                  return { text: s, index: currentIdx };
+              })
+          };
+      });
+  }, [content]);
 
   return (
     <div className={`h-full flex flex-col bg-[#0f172a] text-white overflow-hidden transition-all duration-500 ${studentMode ? 'p-0' : 'p-4 md:p-6'}`}>
@@ -410,15 +429,19 @@ const SipsDashboard: React.FC = () => {
                         <div className="w-24 h-1 bg-gradient-to-r from-transparent via-indigo-600 to-transparent mx-auto opacity-50"></div>
 
                         {/* Reading Content */}
-                        <div className="text-xl md:text-3xl leading-loose font-medium text-gray-300 max-w-4xl mx-auto font-serif tracking-wide">
-                            {sentences.map((sentence, idx) => (
-                                <span 
-                                    key={idx}
-                                    className={`transition-all duration-500 px-1 py-0.5 rounded cursor-pointer hover:bg-white/5 hover:text-white ${idx === activeIndex ? 'bg-indigo-600 text-white shadow-[0_0_30px_rgba(79,70,229,0.4)] scale-[1.02] inline-block transform' : 'opacity-80'}`}
-                                    onClick={() => setActiveIndex(idx)}
-                                >
-                                    {sentence}{' '}
-                                </span>
+                        <div className="max-w-4xl mx-auto space-y-8">
+                            {paragraphs.map((para) => (
+                                <p key={para.id} className="text-xl md:text-2xl leading-loose font-medium text-gray-300 font-serif tracking-wide text-justify">
+                                    {para.sentences.map((s) => (
+                                        <span 
+                                            key={s.index}
+                                            className={`transition-all duration-300 rounded cursor-pointer hover:bg-white/5 hover:text-white inline decoration-clone box-decoration-clone px-1 -mx-1 ${s.index === activeIndex ? 'bg-indigo-600 text-white shadow-sm font-semibold' : 'opacity-90'}`}
+                                            onClick={() => setActiveIndex(s.index)}
+                                        >
+                                            {s.text}{' '}
+                                        </span>
+                                    ))}
+                                </p>
                             ))}
                         </div>
 

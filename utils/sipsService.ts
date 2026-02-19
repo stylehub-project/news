@@ -17,8 +17,27 @@ export const processSipsContent = async (
   mode: string,
   advancedMode: boolean = false
 ): Promise<SipsContent> => {
-  const apiKey = (window as any).process?.env?.API_KEY || (import.meta as any).env?.VITE_API_KEY || process.env.API_KEY;
-  if (!apiKey) throw new Error("AI Configuration Error: API Key Missing");
+  // Robust API Key Retrieval
+  let apiKey = '';
+  
+  // 1. Check Vite environment variables (Vercel/Netlify/Local)
+  if (import.meta.env.VITE_GEMINI_API_KEY) apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  else if (import.meta.env.VITE_API_KEY) apiKey = import.meta.env.VITE_API_KEY;
+  
+  // 2. Check process.env (in case of define replacement or Node env)
+  else if (typeof process !== 'undefined' && process.env) {
+      if (process.env.GEMINI_API_KEY) apiKey = process.env.GEMINI_API_KEY;
+      else if (process.env.API_KEY) apiKey = process.env.API_KEY;
+      else if (process.env.NEXT_PUBLIC_API_KEY) apiKey = process.env.NEXT_PUBLIC_API_KEY;
+  }
+
+  // 3. Check window shim
+  if (!apiKey && (window as any).process?.env?.API_KEY) {
+      apiKey = (window as any).process.env.API_KEY;
+  }
+
+  if (!apiKey) throw new Error("AI Configuration Error: API Key Missing. Please check your environment variables (VITE_GEMINI_API_KEY).");
+  
   const ai = new GoogleGenAI({ apiKey });
 
   let promptContext = "";
