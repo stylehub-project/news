@@ -124,7 +124,7 @@ export const processSipsContent = async (
     if (type === 'image' || type === 'pdf') {
        const mimeType = type === 'pdf' ? 'application/pdf' : 'image/jpeg';
        response = await generateWithRetry({
-          model: 'gemini-3-flash-preview',
+          model: 'gemini-2.5-flash',
           contents: {
             parts: [
               { inlineData: { mimeType, data: input } },
@@ -138,7 +138,7 @@ export const processSipsContent = async (
        });
     } else {
        response = await generateWithRetry({
-          model: 'gemini-3-flash-preview',
+          model: 'gemini-2.5-flash',
           contents: `${systemInstruction}\n\nInput: ${input}\n${promptContext}`,
           config: {
             responseMimeType: "application/json",
