@@ -41,7 +41,7 @@ export const processSipsContent = async (
   
   const ai = new GoogleGenAI({ apiKey });
 
-  const generateWithRetry = async (params: any, retries = 3, delay = 2000) => {
+  const generateWithRetry = async (params: any, retries = 3, delay = 3000) => {
     for (let i = 0; i < retries; i++) {
         try {
             return await ai.models.generateContent(params);
@@ -142,8 +142,7 @@ export const processSipsContent = async (
           contents: `${systemInstruction}\n\nInput: ${input}\n${promptContext}`,
           config: {
             responseMimeType: "application/json",
-            responseSchema,
-            tools: type === 'url' || type === 'topic' ? [{ googleSearch: {} }] : undefined
+            responseSchema
           }
        });
     }
@@ -156,7 +155,7 @@ export const processSipsContent = async (
     console.error("SIPS AI Error:", error);
     
     if (error.status === 429 || error.message?.includes('429') || error.message?.includes('quota') || error.message?.includes('exhausted') || error.message?.includes('rate limit')) {
-        throw new Error("AI Service is busy or rate limited. Please wait a moment before trying again.");
+        throw new Error("AI Service quota exceeded or rate limited. Please check your Gemini API key billing details or try again later.");
     }
 
     if (error.message?.includes('API key')) {
