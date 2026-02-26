@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Download, Save, RefreshCw, FileText, Mic, Clock, Zap, Filter, List, Volume2, Radio } from 'lucide-react';
+import { Play, Pause, Download, Save, RefreshCw, FileText, Mic, Clock, Zap, Filter, List, Volume2, Radio, Eye } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -150,7 +150,7 @@ const SipsDashboard: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingSaved, setIsLoadingSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<'create' | 'saved'>('create');
-  const [isReferMode, setIsReferMode] = useState(false);
+  const [isReaderMode, setIsReaderMode] = useState(false);
   const transcriptRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -411,13 +411,13 @@ const SipsDashboard: React.FC = () => {
                   const isActive = idx === currentLineIndex && isPlaying;
                   
                   let displayText = line;
-                  if (isReferMode) {
+                  if (isReaderMode) {
                       displayText = line.replace(/^(Joe|Jane):\s*/, '');
                   }
 
                   let className = "p-3 rounded-xl transition-all duration-300 ";
                   
-                  if (isReferMode) {
+                  if (isReaderMode) {
                       className += "text-center text-2xl md:text-3xl font-medium ";
                       if (isActive) {
                           className += "text-white active-line scale-105";
@@ -619,11 +619,11 @@ const SipsDashboard: React.FC = () => {
                             <h3 className="text-lg font-bold text-white">Live Transcript</h3>
                         </div>
                         <button 
-                            onClick={() => setIsReferMode(!isReferMode)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${isReferMode ? 'bg-purple-500 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}
+                            onClick={() => setIsReaderMode(!isReaderMode)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${isReaderMode ? 'bg-purple-500 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}
                         >
                             <Eye className="w-4 h-4" />
-                            Refer Mode
+                            Reader Mode
                         </button>
                     </div>
                     
