@@ -176,8 +176,8 @@ const HomePage: React.FC = () => {
                   {articles.map((article, index) => {
                       // Determine context label for recommendations
                       let contextLabel;
-                      if (activeCategory === 'All' && index === 2 && recommendations.length > 0) {
-                          contextLabel = `Because you read about ${recommendations[0].category}`;
+                      if (activeCategory === 'All' && index === 2 && recommendations) {
+                          contextLabel = `Because you read about ${recommendations.topic}`;
                       }
 
                       return (
