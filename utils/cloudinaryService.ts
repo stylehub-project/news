@@ -1,4 +1,4 @@
-export const CLOUD_NAME = 'd_7066c22f-84e3-4622-a3ea-df6f2a61aee8';
+export const CLOUD_NAME = 'cloudinary_3d_7066c22f-84e3-4622-a3ea-df6f2a61aee8';
 export const API_KEY = '884247873451835';
 export const API_SECRET = 'YMIVl-hidOuXm0yYkzq7xX0raKg';
 

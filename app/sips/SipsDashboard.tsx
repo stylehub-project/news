@@ -150,10 +150,22 @@ const SipsDashboard: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingSaved, setIsLoadingSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<'create' | 'saved'>('create');
+  const [isReferMode, setIsReferMode] = useState(false);
+  const transcriptRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadSavedNews();
   }, []);
+
+  // Auto-scroll to active line
+  useEffect(() => {
+      if (isPlaying && transcriptRef.current) {
+          const activeEl = transcriptRef.current.querySelector('.active-line');
+          if (activeEl) {
+              activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+      }
+  }, [playbackTime, isPlaying]);
 
   const loadSavedNews = async () => {
     setIsLoadingSaved(true);
@@ -392,26 +404,41 @@ const SipsDashboard: React.FC = () => {
       );
 
       return (
-          <div className="space-y-4 text-lg leading-relaxed">
+          <div className="space-y-4 text-lg leading-relaxed" ref={transcriptRef}>
               {lines.map((line, idx) => {
                   const isJoe = line.startsWith('Joe:');
                   const isJane = line.startsWith('Jane:');
                   const isActive = idx === currentLineIndex && isPlaying;
                   
+                  let displayText = line;
+                  if (isReferMode) {
+                      displayText = line.replace(/^(Joe|Jane):\s*/, '');
+                  }
+
                   let className = "p-3 rounded-xl transition-all duration-300 ";
-                  if (isJoe) className += "bg-blue-500/10 border border-blue-500/20 text-blue-100 ";
-                  else if (isJane) className += "bg-purple-500/10 border border-purple-500/20 text-purple-100 ";
-                  else className += "text-gray-300 ";
                   
-                  if (isActive) {
-                      className += "ring-2 ring-white/50 shadow-[0_0_15px_rgba(255,255,255,0.2)] transform scale-[1.02]";
-                  } else if (idx < currentLineIndex) {
-                      className += "opacity-60";
+                  if (isReferMode) {
+                      className += "text-center text-2xl md:text-3xl font-medium ";
+                      if (isActive) {
+                          className += "text-white active-line scale-105";
+                      } else {
+                          className += "text-gray-600 opacity-40";
+                      }
+                  } else {
+                      if (isJoe) className += "bg-blue-500/10 border border-blue-500/20 text-blue-100 ";
+                      else if (isJane) className += "bg-purple-500/10 border border-purple-500/20 text-purple-100 ";
+                      else className += "text-gray-300 ";
+                      
+                      if (isActive) {
+                          className += "ring-2 ring-white/50 shadow-[0_0_15px_rgba(255,255,255,0.2)] transform scale-[1.02] active-line";
+                      } else if (idx < currentLineIndex) {
+                          className += "opacity-60";
+                      }
                   }
 
                   return (
                       <div key={idx} className={className}>
-                          {line}
+                          {displayText}
                       </div>
                   );
               })}
@@ -420,28 +447,28 @@ const SipsDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0f1c] text-white p-6 md:p-12 font-sans">
+    <div className="min-h-screen bg-[#0a0f1c] text-white p-4 md:p-8 font-sans overflow-y-auto pb-24">
       <div className="max-w-5xl mx-auto">
         
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
             <div>
-                <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 flex items-center gap-3">
-                    <Volume2 className="w-10 h-10 text-blue-400" />
+                <h1 className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 flex items-center gap-3">
+                    <Volume2 className="w-8 h-8 md:w-10 md:h-10 text-blue-400" />
                     SIPS News Reader
                 </h1>
-                <p className="text-gray-400 mt-2">Generate, listen, and save live news broadcasts.</p>
+                <p className="text-gray-400 mt-2 text-sm md:text-base">Generate, listen, and save live news broadcasts.</p>
             </div>
             
-            <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
+            <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 w-full md:w-auto">
                 <button 
                     onClick={() => setActiveTab('create')}
-                    className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'create' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'}`}
+                    className={`flex-1 md:flex-none px-6 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'create' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'}`}
                 >
                     Create News
                 </button>
                 <button 
                     onClick={() => setActiveTab('saved')}
-                    className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'saved' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'}`}
+                    className={`flex-1 md:flex-none px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${activeTab === 'saved' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'}`}
                 >
                     <List className="w-4 h-4" />
                     Saved Library
@@ -585,10 +612,19 @@ const SipsDashboard: React.FC = () => {
 
               {/* Right Column: Live Text Reader */}
               <div className="lg:col-span-7">
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-6 h-[600px] flex flex-col backdrop-blur-sm">
-                    <div className="flex items-center gap-2 mb-6 pb-4 border-b border-white/10">
-                        <FileText className="w-5 h-5 text-purple-400" />
-                        <h3 className="text-lg font-bold text-white">Live Transcript</h3>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-6 h-[400px] lg:h-[600px] flex flex-col backdrop-blur-sm">
+                    <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
+                        <div className="flex items-center gap-2">
+                            <FileText className="w-5 h-5 text-purple-400" />
+                            <h3 className="text-lg font-bold text-white">Live Transcript</h3>
+                        </div>
+                        <button 
+                            onClick={() => setIsReferMode(!isReferMode)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${isReferMode ? 'bg-purple-500 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}
+                        >
+                            <Eye className="w-4 h-4" />
+                            Refer Mode
+                        </button>
                     </div>
                     
                     <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar">
