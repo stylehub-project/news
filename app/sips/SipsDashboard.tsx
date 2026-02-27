@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Play, Pause, Download, Save, RefreshCw, FileText, Mic, Clock, Zap, Filter, List, Volume2, Radio, Eye, Sparkles } from 'lucide-react';
+import { Play, Pause, Download, Save, RefreshCw, FileText, Mic, Clock, Zap, Filter, List, Volume2, Radio, Eye, Sparkles, Upload } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { motion, AnimatePresence } from 'motion/react';
 import Button from '../../components/ui/Button';
@@ -130,6 +130,8 @@ const AudioVisualizer = ({ isPlaying, audioData }: { isPlaying: boolean, audioDa
 
 const SipsDashboard: React.FC = () => {
   const [topic, setTopic] = useState('');
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
+  const [sourceText, setSourceText] = useState<string>('');
   const [language, setLanguage] = useState('English');
   const [tone, setTone] = useState('Professional');
   const [duration, setDuration] = useState('Medium');
@@ -211,9 +213,24 @@ const SipsDashboard: React.FC = () => {
     }
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      
+      setSourceFile(file);
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+          if (event.target?.result) {
+              setSourceText(event.target.result as string);
+          }
+      };
+      reader.readAsText(file);
+  };
+
   const generateAudioWithSettings = async () => {
-      if (!topic.trim()) {
-          alert("Please enter a topic.");
+      if (!topic.trim() && !sourceText.trim()) {
+          alert("Please enter a topic or upload a source document.");
           return;
       }
       setStep('generating');
@@ -232,6 +249,7 @@ const SipsDashboard: React.FC = () => {
 
           const scriptPrompt = `
             Create a spoken news dialogue between Joe (Male) and Jane (Female) about: "${topic}".
+            ${sourceText ? `Source Material to base the news on:\n${sourceText.substring(0, 5000)}\n` : ''}
             Language: ${language}.
             Tone: ${tone}. 
             Constraint: ${durationConstraint}
@@ -539,6 +557,24 @@ const SipsDashboard: React.FC = () => {
                                 placeholder="e.g., Latest AI breakthroughs..."
                                 className="w-full bg-black/40 border-white/10 text-white rounded-xl"
                             />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-2">Upload Source (Optional)</label>
+                            <div className="relative">
+                                <input 
+                                    type="file" 
+                                    accept=".txt,.md,.csv" 
+                                    onChange={handleFileUpload}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                />
+                                <div className={`w-full bg-black/40 border border-dashed rounded-xl px-4 py-3 flex items-center justify-center gap-2 transition-colors ${sourceFile ? 'border-blue-500/50 text-blue-400' : 'border-white/20 text-gray-400 hover:border-white/40 hover:text-gray-300'}`}>
+                                    <Upload size={18} />
+                                    <span className="text-sm truncate max-w-[200px]">
+                                        {sourceFile ? sourceFile.name : 'Upload .txt or .md file'}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                         
                         <div className="grid grid-cols-2 gap-4">

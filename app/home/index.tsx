@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import NewsCardBasic from '../../components/cards/NewsCardBasic';
-import SmartLoader from '../../components/loaders/SmartLoader';
+import NewsCardSkeleton from '../../components/loaders/NewsCardSkeleton';
 import ContinueReadingCard from '../../components/cards/ContinueReadingCard';
 import { useLoading } from '../../context/LoadingContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -145,10 +145,6 @@ const HomePage: React.FC = () => {
       const article = articles.find(a => a.id === id) || recommendedArticles.find(a => a.id === id);
       navigate(`/news/${id}`, { state: { article } });
   };
-
-  if (isLoading) {
-      return <SmartLoader type="home" />;
-  }
 
   const CATEGORY_CHIPS = [
       { id: 'Latest', label: 'Latest', icon: Zap, color: 'text-yellow-500' },
@@ -352,31 +348,39 @@ const HomePage: React.FC = () => {
         </div>
 
         <div className="space-y-4">
-            {articles.map((news, index) => {
-                if (articles.length === index + 1) {
+            {isLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                    <div key={`skeleton-${i}`}>
+                        <NewsCardSkeleton />
+                    </div>
+                ))
+            ) : (
+                articles.map((news, index) => {
+                    if (articles.length === index + 1) {
+                        return (
+                            <div ref={lastElementRef} key={news.id + index}>
+                                <NewsCardBasic
+                                    {...news}
+                                    onClick={handleCardClick}
+                                    onSave={() => console.log('Saved', news.id)}
+                                    onShare={() => console.log('Shared', news.id)}
+                                    onAIExplain={() => navigate(`/ai-chat?context=article&headline=${encodeURIComponent(news.title)}`)}
+                                />
+                            </div>
+                        );
+                    }
                     return (
-                        <div ref={lastElementRef} key={news.id + index}>
-                            <NewsCardBasic
-                                {...news}
-                                onClick={handleCardClick}
-                                onSave={() => console.log('Saved', news.id)}
-                                onShare={() => console.log('Shared', news.id)}
-                                onAIExplain={() => navigate(`/ai-chat?context=article&headline=${encodeURIComponent(news.title)}`)}
-                            />
-                        </div>
+                        <NewsCardBasic
+                            key={news.id + index}
+                            {...news}
+                            onClick={handleCardClick}
+                            onSave={() => console.log('Saved', news.id)}
+                            onShare={() => console.log('Shared', news.id)}
+                            onAIExplain={() => navigate(`/ai-chat?context=article&headline=${encodeURIComponent(news.title)}`)}
+                        />
                     );
-                }
-                return (
-                    <NewsCardBasic
-                        key={news.id + index}
-                        {...news}
-                        onClick={handleCardClick}
-                        onSave={() => console.log('Saved', news.id)}
-                        onShare={() => console.log('Shared', news.id)}
-                        onAIExplain={() => navigate(`/ai-chat?context=article&headline=${encodeURIComponent(news.title)}`)}
-                    />
-                );
-            })}
+                })
+            )}
             
             {/* Infinite Scroll Loader */}
             {isFetchingMore && (

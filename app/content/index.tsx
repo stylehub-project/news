@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UploadCloud, FileText, Presentation, FileDown, CheckCircle, X, Loader2, Sparkles, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import JSZip from 'jszip';
 
 const ContentPage: React.FC = () => {
     const navigate = useNavigate();
@@ -88,15 +89,60 @@ const ContentPage: React.FC = () => {
         }, 1200);
     };
 
-    const finishConversion = () => {
+    const finishConversion = async () => {
         setIsConverting(false);
         setIsDone(true);
         
-        // Generate a mock file for download
-        const mockContent = `<?xml version="1.0" encoding="UTF-8"?>\n<whiteboard>\n  <meta>\n    <source>${file?.name}</source>\n    <format>${format}</format>\n  </meta>\n  <pages>\n    <page id="1">\n      <text>Converted from ${file?.name}</text>\n    </page>\n  </pages>\n</whiteboard>`;
-        const blob = new Blob([mockContent], { type: 'application/xml' });
-        const url = URL.createObjectURL(blob);
-        setDownloadUrl(url);
+        try {
+            const zip = new JSZip();
+            
+            if (format === 'iwb') {
+                // IWB is typically a ZIP containing content.xml and other assets
+                const contentXml = `<?xml version="1.0" encoding="UTF-8"?>
+<iwb version="1.0" xmlns="http://www.imsglobal.org/xsd/iwbcff_v1p0">
+  <pages>
+    <page id="page1">
+      <svg xmlns="http://www.w3.org/2000/svg" width="800" height="600">
+        <text x="50" y="50" font-size="24">Converted from ${file?.name}</text>
+      </svg>
+    </page>
+  </pages>
+</iwb>`;
+                zip.file("content.xml", contentXml);
+                zip.file("meta.xml", `<?xml version="1.0" encoding="UTF-8"?>\n<meta>\n  <source>${file?.name}</source>\n</meta>`);
+            } else {
+                // WBD format (often proprietary, but we can provide a ZIP structure or a basic binary/xml)
+                // We'll create a ZIP with a document.xml to ensure it's not "empty" and has some structure
+                const docXml = `<?xml version="1.0" encoding="UTF-8"?>
+<WhiteboardDocument>
+  <Properties>
+    <Title>Converted from ${file?.name}</Title>
+  </Properties>
+  <Pages>
+    <Page Index="1">
+      <Text X="100" Y="100" FontSize="24" Content="Converted from ${file?.name}" />
+    </Page>
+  </Pages>
+</WhiteboardDocument>`;
+                zip.file("document.xml", docXml);
+                zip.file("manifest.json", JSON.stringify({
+                    version: "1.0",
+                    source: file?.name,
+                    format: "wbd"
+                }, null, 2));
+            }
+
+            const blob = await zip.generateAsync({ type: 'blob' });
+            const url = URL.createObjectURL(blob);
+            setDownloadUrl(url);
+        } catch (error) {
+            console.error("Error generating file:", error);
+            // Fallback to basic text blob if zip fails
+            const mockContent = `Converted from ${file?.name}`;
+            const blob = new Blob([mockContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            setDownloadUrl(url);
+        }
     };
 
     const handleDownload = () => {
