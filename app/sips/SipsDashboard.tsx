@@ -4,7 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 import { motion, AnimatePresence } from 'motion/react';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import { uploadToCloudinary, fetchSavedNews } from '../../utils/cloudinaryService';
+import { uploadToCloudinary, fetchSavedNews, saveBroadcastToDB } from '../../utils/cloudinaryService';
 
 // --- Audio Helpers ---
 function writeString(view: DataView, offset: number, string: string) {
@@ -358,24 +358,20 @@ const SipsDashboard: React.FC = () => {
       document.body.removeChild(a);
   };
 
-  const saveToCloudinary = async () => {
+  const saveToLibrary = async () => {
       if (!audioBlob || !script) return;
       setIsSaving(true);
       try {
-          const audioRes = await uploadToCloudinary(audioBlob, 'video', 'sips_news');
-          const audioUrl = audioRes.secure_url;
-          
           const metadata = {
               title: topic,
               script: script,
-              audioUrl: audioUrl,
               language,
               tone
           };
-          const jsonBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
-          await uploadToCloudinary(jsonBlob, 'raw', 'sips_news');
           
-          alert('Successfully saved to Cloudinary!');
+          await saveBroadcastToDB(metadata, audioBlob);
+          
+          alert('Successfully saved to Library!');
           loadSavedNews();
       } catch (e: any) {
           console.error(e);
@@ -656,12 +652,12 @@ const SipsDashboard: React.FC = () => {
                                 <Download className="w-4 h-4" /> Download
                             </Button>
                             <Button 
-                                onClick={saveToCloudinary}
+                                onClick={saveToLibrary}
                                 disabled={isSaving}
                                 className="w-full flex items-center justify-center gap-2 bg-purple-600/80 hover:bg-purple-500 text-white rounded-xl py-3 shadow-lg shadow-purple-500/20"
                             >
                                 {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                {isSaving ? 'Saving...' : 'Save to Cloud'}
+                                {isSaving ? 'Saving...' : 'Save to Library'}
                             </Button>
                         </div>
                     </motion.div>

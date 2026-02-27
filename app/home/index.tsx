@@ -155,6 +155,63 @@ const HomePage: React.FC = () => {
 
       <main className="p-4 max-w-7xl mx-auto">
           
+          {/* Quick Actions */}
+          <div className="mb-8">
+              <h2 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Quick Actions</h2>
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 sm:gap-4">
+                  <button 
+                      onClick={() => navigate('/newspaper')}
+                      className="flex flex-col items-center gap-2 group"
+                  >
+                      <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/40 shadow-sm border border-blue-100 dark:border-blue-900/30">
+                          <Newspaper className="w-6 h-6" />
+                      </div>
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Newspaper</span>
+                  </button>
+                  
+                  <button 
+                      onClick={() => navigate('/map')}
+                      className="flex flex-col items-center gap-2 group"
+                  >
+                      <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/40 shadow-sm border border-emerald-100 dark:border-emerald-900/30">
+                          <Map className="w-6 h-6" />
+                      </div>
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Map</span>
+                  </button>
+
+                  <button 
+                      onClick={() => navigate('/chat')}
+                      className="flex flex-col items-center gap-2 group"
+                  >
+                      <div className="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-purple-100 dark:group-hover:bg-purple-900/40 shadow-sm border border-purple-100 dark:border-purple-900/30 relative">
+                          <Sparkles className="w-6 h-6" />
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-500 rounded-full border-2 border-white dark:border-[#0a0f1c]"></div>
+                      </div>
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center">AI Chat</span>
+                  </button>
+
+                  <button 
+                      onClick={() => navigate('/reel')}
+                      className="flex flex-col items-center gap-2 group"
+                  >
+                      <div className="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-rose-100 dark:group-hover:bg-rose-900/40 shadow-sm border border-rose-100 dark:border-rose-900/30">
+                          <Smartphone className="w-6 h-6" />
+                      </div>
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Headlines</span>
+                  </button>
+
+                  <button 
+                      onClick={() => navigate('/sips')}
+                      className="flex flex-col items-center gap-2 group hidden sm:flex"
+                  >
+                      <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-amber-100 dark:group-hover:bg-amber-900/40 shadow-sm border border-amber-100 dark:border-amber-900/30">
+                          <Headphones className="w-6 h-6" />
+                      </div>
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Audio Sips</span>
+                  </button>
+              </div>
+          </div>
+
           {/* Continue Reading Section */}
           {lastActive && lastActive.progress > 5 && lastActive.progress < 95 && activeCategory === 'All' && (
               <motion.div 
