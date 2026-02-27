@@ -268,13 +268,8 @@ export const fetchNewsFeed = async (page: number, filters: any) => {
     if (arrayStart !== -1 && arrayEnd !== -1) {
         const jsonStr = cleanText.substring(arrayStart, arrayEnd + 1);
         const data = JSON.parse(jsonStr);
-        if (Array.isArray(data) && data.length > 0) {
-            cacheService.set(cacheKey, data);
-            return data;
-        } else {
-            console.warn("API returned empty array, falling back to mock data");
-            return getMockData(page, filters.category, language);
-        }
+        cacheService.set(cacheKey, data);
+        return data;
     }
     
     throw new Error("Invalid JSON format");

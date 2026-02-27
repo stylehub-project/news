@@ -17,7 +17,6 @@ import {
     Globe, Cpu, Landmark, Briefcase, Trophy, FlaskConical, Wifi, WifiOff, RefreshCw, Sun, Moon, Coffee, Sunrise
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
 import NewsCardBasic from '../../components/cards/NewsCardBasic';
 import SmartLoader from '../../components/loaders/SmartLoader';
 import ContinueReadingCard from '../../components/cards/ContinueReadingCard';
@@ -28,40 +27,55 @@ import { useHistory } from '../../context/HistoryContext';
 import { translations } from '../../utils/translations';
 import { fetchNewsFeed } from '../../utils/aiService';
 
-const CATEGORIES = ['All', 'Technology', 'Politics', 'Business', 'Sports', 'Science', 'Health', 'Entertainment'];
-
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { isLoaded, markAsLoaded } = useLoading();
   const { isOnline, lastSyncTime } = useNetwork();
   const { getLastActive, getRecommendations, getTimeContext } = useHistory();
   
+  // Only show full loading screen if Home hasn't been loaded in this session yet
   const [isLoading, setIsLoading] = useState(!isLoaded('home'));
   const [articles, setArticles] = useState<any[]>([]);
+  const [recommendedArticles, setRecommendedArticles] = useState<any[]>([]); 
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [activeCategory, setActiveCategory] = useState('All');
+  const [showSyncBadge, setShowSyncBadge] = useState(false);
+  
+  // Filters
+  const [activeFilter, setActiveFilter] = useState('Latest');
   
   const { appLanguage, contentLanguage } = useLanguage();
   const t = translations[appLanguage];
+  const observer = useRef<IntersectionObserver | null>(null);
 
-  const timeContext = getTimeContext();
-  const lastActive = getLastActive();
-  const recommendations = getRecommendations();
+  // Resume State
+  const lastActiveItem = useMemo(() => getLastActive(), [getLastActive]);
+  
+  // 15.9 Smart Time Context
+  const timeContext = useMemo(() => getTimeContext(), [getTimeContext]);
+  
+  // 15.8 Recommendation State
+  const recommendation = useMemo(() => getRecommendations(), [getRecommendations]);
 
   // Initial Load
   const loadContent = async (showLoader = false) => {
         if (showLoader) setIsLoading(true);
         const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
         
-        const initialNews = await fetchNewsFeed(1, { 
-          category: activeCategory === 'All' ? 'All' : activeCategory, 
-          sort: 'Latest', 
-          language: langName 
-        });
-        
-        setArticles(initialNews);
+        // Main Feed
+        const initialNews = await fetchNewsFeed(1, { category: 'All', sort: 'Latest', language: langName });
+        const processedNews = initialNews.map((n: any) => ({
+            ...n,
+            isCached: !navigator.onLine
+        }));
+        setArticles(processedNews);
+
+        // Load Recommendations if available
+        if (recommendation) {
+            const recNews = await fetchNewsFeed(1, { category: recommendation.topic, sort: 'Trending', language: langName });
+            setRecommendedArticles(recNews.slice(0, 3)); // Top 3
+        }
 
         if (showLoader) {
             setTimeout(() => {
@@ -72,242 +86,315 @@ const HomePage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadContent(!isLoaded('home'));
-  }, [contentLanguage, activeCategory]); 
+    // Only trigger full load animation if not loaded yet
+    const needsLoader = !isLoaded('home');
+    loadContent(needsLoader);
+  }, [contentLanguage]); 
 
+  // Silent Background Sync Effect (Prompt 13.7)
+  useEffect(() => {
+      // Only sync if already loaded to avoid double fetching on mount
+      if (isOnline && isLoaded('home') && articles.length > 0) {
+          setShowSyncBadge(true);
+          loadContent(false).then(() => {
+              setTimeout(() => setShowSyncBadge(false), 2000);
+          });
+      }
+  }, [lastSyncTime, isOnline]);
+
+  // Filter Change
+  const handleFilterChange = async (filter: string) => {
+      setActiveFilter(filter);
+      setIsLoading(true);
+      setPage(1);
+      setArticles([]);
+      const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
+      const news = await fetchNewsFeed(1, { category: filter === 'Latest' ? 'All' : filter, filter: 'Latest', language: langName });
+      setArticles(news);
+      setIsLoading(false);
+  };
+
+  // Infinite Scroll Fetch
   const loadMore = async () => {
       if (isFetchingMore || !hasMore) return;
       setIsFetchingMore(true);
-      try {
-          const nextPage = page + 1;
-          const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
-          const moreNews = await fetchNewsFeed(nextPage, { 
-            category: activeCategory === 'All' ? 'All' : activeCategory, 
-            sort: 'Latest', 
-            language: langName 
-          });
-          
-          if (moreNews.length === 0) {
-              setHasMore(false);
-          } else {
-              setArticles(prev => [...prev, ...moreNews]);
-              setPage(nextPage);
-          }
-      } catch (error) {
-          console.error("Failed to load more news:", error);
-      } finally {
-          setIsFetchingMore(false);
+      const nextPage = page + 1;
+      const langName = contentLanguage === 'hi' ? 'Hindi' : 'English';
+      const news = await fetchNewsFeed(nextPage, { category: activeFilter === 'Latest' ? 'All' : activeFilter, filter: 'Latest', language: langName });
+      
+      if (news.length === 0) setHasMore(false);
+      else {
+          setArticles(prev => [...prev, ...news]);
+          setPage(nextPage);
       }
+      setIsFetchingMore(false);
   };
 
-  const handleCategoryChange = (category: string) => {
-    setActiveCategory(category);
-    setPage(1);
-    setHasMore(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const lastElementRef = useCallback((node: HTMLDivElement) => {
+      if (isLoading || isFetchingMore) return;
+      if (observer.current) observer.current.disconnect();
+      observer.current = new IntersectionObserver(entries => {
+          if (entries[0].isIntersecting && hasMore) {
+              loadMore();
+          }
+      });
+      if (node) observer.current.observe(node);
+  }, [isLoading, hasMore, isFetchingMore]);
+
+  const handleCardClick = (id: string) => {
+      const article = articles.find(a => a.id === id) || recommendedArticles.find(a => a.id === id);
+      navigate(`/news/${id}`, { state: { article } });
   };
 
   if (isLoading) {
       return <SmartLoader type="home" />;
   }
 
+  const CATEGORY_CHIPS = [
+      { id: 'Latest', label: 'Latest', icon: Zap, color: 'text-yellow-500' },
+      { id: 'World', label: 'World', icon: Globe, color: 'text-blue-500' },
+      { id: 'Tech', label: 'Tech', icon: Cpu, color: 'text-purple-500' },
+      { id: 'Politics', label: 'Politics', icon: Landmark, color: 'text-red-500' },
+      { id: 'Business', label: 'Business', icon: Briefcase, color: 'text-slate-500' },
+      { id: 'Sports', label: 'Sports', icon: Trophy, color: 'text-orange-500' },
+      { id: 'Science', label: 'Science', icon: FlaskConical, color: 'text-emerald-500' },
+  ];
+
+  const getTimeIcon = () => {
+      switch(timeContext.icon) {
+          case 'sun': return <Sunrise size={16} className="text-orange-400" />;
+          case 'coffee': return <Coffee size={16} className="text-brown-500" />;
+          case 'moon': return <Moon size={16} className="text-indigo-400" />;
+          default: return <Sparkles size={16} className="text-yellow-400" />;
+      }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#0a0f1c] pb-24 transition-colors duration-300">
+    <div className="h-full overflow-y-auto pb-24 bg-gray-50 dark:bg-black transition-colors duration-300 relative">
       
-      {/* Header Section */}
-      <header className="sticky top-0 z-40 bg-white/80 dark:bg-[#0a0f1c]/80 backdrop-blur-xl border-b border-gray-200 dark:border-white/10 pt-4 pb-2 px-4 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
-                    {timeContext.icon === 'sun' ? <Sun className="text-yellow-500" /> : 
-                     timeContext.icon === 'sunrise' ? <Sunrise className="text-orange-500" /> : 
-                     timeContext.icon === 'coffee' ? <Coffee className="text-amber-600" /> : 
-                     <Moon className="text-indigo-400" />}
-                    {t.home}
-                </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{timeContext.message}</p>
-            </div>
+      {/* 13.7 Smart Refresh Badge */}
+      {showSyncBadge && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-black/80 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-2 shadow-lg animate-in slide-in-from-top-4 fade-in">
+              <RefreshCw size={12} className="animate-spin" /> Updating Feed...
+          </div>
+      )}
+
+      {/* 15.9 Time Aware Greeting Header */}
+      <div className="px-6 pt-4 pb-2 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+              {getTimeIcon()}
+              <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{timeContext.message}</span>
+          </div>
+          {timeContext.mode === 'audio' && (
+              <button 
+                onClick={() => navigate('/ai-chat?mode=generator')}
+                className="flex items-center gap-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-2 py-1 rounded-full text-[10px] font-bold"
+              >
+                  <Headphones size={10} /> Audio Mode
+              </button>
+          )}
+      </div>
+
+      {/* Hero Section */}
+      <div className="p-4 pb-2 pt-0">
+        <div className="relative w-full rounded-3xl overflow-hidden shadow-2xl h-56 bg-black text-white flex flex-col justify-between p-6">
             
+            {/* Offline Visual Override */}
             {!isOnline && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-full text-xs font-bold border border-red-100 dark:border-red-900/30">
-                    <WifiOff size={12} /> Offline Mode
+                <div className="absolute inset-0 bg-gray-800 z-10 opacity-90 flex flex-col items-center justify-center text-center p-6">
+                    <WifiOff size={32} className="text-gray-400 mb-2" />
+                    <h3 className="text-lg font-bold">Offline Daily Brief</h3>
+                    <p className="text-xs text-gray-400">Reading from device storage. Images may be low quality.</p>
                 </div>
             )}
-        </div>
 
-        {/* Category Filter Bar */}
-        <div className="flex overflow-x-auto hide-scrollbar gap-2 pb-2 -mx-4 px-4">
-            {CATEGORIES.map(category => (
-                <button
-                    key={category}
-                    onClick={() => handleCategoryChange(category)}
-                    className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${
-                        activeCategory === category 
-                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20 scale-105' 
-                        : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10'
-                    }`}
+            {/* Background Image/Gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 to-black z-0"></div>
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 z-0"></div>
+            
+            {/* Content */}
+            <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-3">
+                    <span className="text-[10px] font-bold bg-white/10 backdrop-blur-md px-2 py-1 rounded border border-white/10 uppercase tracking-widest text-indigo-300">
+                        {t.daily_briefing}
+                    </span>
+                    {isOnline && <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>}
+                </div>
+                <h1 className="text-2xl font-black leading-tight drop-shadow-lg line-clamp-3">
+                    {articles.length > 0 ? articles[0].title : t.todays_highlights}
+                </h1>
+            </div>
+
+            <div className="relative z-10 flex items-center justify-between mt-auto pt-4">
+                <p className="text-xs text-gray-400 font-medium">{articles.length} Stories Available</p>
+                <button 
+                    onClick={() => {
+                        if (articles.length > 0) {
+                            navigate(`/ai-chat?context=daily_brief&headline=${encodeURIComponent(articles[0].title)}&autoSpeak=true`);
+                        } else {
+                            navigate('/ai-chat?mode=generator');
+                        }
+                    }}
+                    className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:scale-105 active:scale-95 transition-transform"
                 >
-                    {category}
+                    <Mic size={14} /> {t.speak_news}
                 </button>
-            ))}
+            </div>
         </div>
-      </header>
+      </div>
 
-      <main className="p-4 max-w-7xl mx-auto">
-          
-          {/* Quick Actions */}
-          <div className="mb-8">
-              <h2 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Quick Actions</h2>
-              <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 sm:gap-4">
-                  <button 
-                      onClick={() => navigate('/newspaper')}
-                      className="flex flex-col items-center gap-2 group"
-                  >
-                      <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/40 shadow-sm border border-blue-100 dark:border-blue-900/30">
-                          <Newspaper className="w-6 h-6" />
-                      </div>
-                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Newspaper</span>
-                  </button>
-                  
-                  <button 
-                      onClick={() => navigate('/map')}
-                      className="flex flex-col items-center gap-2 group"
-                  >
-                      <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/40 shadow-sm border border-emerald-100 dark:border-emerald-900/30">
-                          <Map className="w-6 h-6" />
-                      </div>
-                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Map</span>
-                  </button>
+      {/* 15.2 Continue Reading Card */}
+      {lastActiveItem && <ContinueReadingCard item={lastActiveItem} />}
 
-                  <button 
-                      onClick={() => navigate('/chat')}
-                      className="flex flex-col items-center gap-2 group"
-                  >
-                      <div className="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-purple-100 dark:group-hover:bg-purple-900/40 shadow-sm border border-purple-100 dark:border-purple-900/30 relative">
-                          <Sparkles className="w-6 h-6" />
-                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-500 rounded-full border-2 border-white dark:border-[#0a0f1c]"></div>
-                      </div>
-                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center">AI Chat</span>
-                  </button>
+      {/* Feature Grid - Always visible for offline access to Saved items */}
+      <div className="px-4 py-4">
+          <div className="grid grid-cols-4 gap-y-4 gap-x-2">
+             {[
+                { label: t.ai_analysis, icon: Sparkles, color: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400', path: '/ai-chat' },
+                { label: t.headlines, icon: Zap, color: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400', path: '/top-stories' },
+                { label: t.reels, icon: Smartphone, color: 'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400', path: '/reel' },
+                { label: t.chatbot, icon: MessageSquare, color: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400', path: '/ai-chat' },
+                { label: t.newspaper, icon: Newspaper, color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200', path: '/newspaper' },
+                { label: t.map_news, icon: Map, color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400', path: '/map' },
+                { label: t.saved, icon: Bookmark, color: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400', path: '/bookmarks' },
+                { label: t.read_mode, icon: Headphones, color: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400', path: '/ai-chat?mode=generator' }, 
+             ].map((feat, idx) => {
+                 const Icon = feat.icon;
+                 return (
+                     <div key={idx} className="flex flex-col items-center gap-2 cursor-pointer group" onClick={() => navigate(feat.path)}>
+                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm transition-transform group-active:scale-90 ${feat.color}`}>
+                             <Icon size={22} />
+                         </div>
+                         <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 text-center leading-tight w-full truncate px-1">
+                             {feat.label}
+                         </span>
+                     </div>
+                 )
+             })}
+          </div>
+      </div>
 
-                  <button 
-                      onClick={() => navigate('/reel')}
-                      className="flex flex-col items-center gap-2 group"
-                  >
-                      <div className="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-rose-100 dark:group-hover:bg-rose-900/40 shadow-sm border border-rose-100 dark:border-rose-900/30">
-                          <Smartphone className="w-6 h-6" />
-                      </div>
-                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Headlines</span>
-                  </button>
-
-                  <button 
-                      onClick={() => navigate('/sips')}
-                      className="flex flex-col items-center gap-2 group hidden sm:flex"
-                  >
-                      <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-amber-100 dark:group-hover:bg-amber-900/40 shadow-sm border border-amber-100 dark:border-amber-900/30">
-                          <Headphones className="w-6 h-6" />
-                      </div>
-                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Audio Sips</span>
-                  </button>
+      {/* Map Entry Point - Visual change if offline */}
+      <div className="px-4 mb-6">
+          <div 
+            onClick={() => navigate('/map')}
+            className={`w-full h-24 rounded-2xl relative overflow-hidden flex items-center justify-center p-5 cursor-pointer shadow-sm group border border-gray-800 ${isOnline ? 'bg-gray-900' : 'bg-gray-800 grayscale'}`}
+          >
+              <div className="absolute inset-0 opacity-20 bg-[url('https://upload.wikimedia.org/wikipedia/commons/e/ec/World_map_blank_without_borders.svg')] bg-cover bg-center invert filter"></div>
+              <div className="relative z-10 text-white w-full flex justify-between items-center">
+                  <div>
+                    <h3 className="font-bold text-lg flex items-center gap-2">
+                        <MapPin size={18} className={isOnline ? "text-emerald-400" : "text-gray-400"} /> 
+                        {isOnline ? t.news_around_you : "Offline Maps"}
+                    </h3>
+                    <p className="text-xs text-gray-400 mt-1">{isOnline ? t.explore_map : "View cached locations"}</p>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-sm p-2 rounded-full group-hover:scale-110 transition-transform">
+                      <ArrowRight size={20} className="text-white" />
+                  </div>
               </div>
           </div>
+      </div>
 
-          {/* Continue Reading Section */}
-          {lastActive && lastActive.progress > 5 && lastActive.progress < 95 && activeCategory === 'All' && (
-              <motion.div 
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className="mb-8"
-              >
-                  <ContinueReadingCard item={lastActive} />
-              </motion.div>
-          )}
-
-          {/* News Grid */}
-          <motion.div 
-            layout
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-          >
-              <AnimatePresence mode="popLayout">
-                  {articles.map((article, index) => {
-                      // Determine context label for recommendations
-                      let contextLabel;
-                      if (activeCategory === 'All' && index === 2 && recommendations) {
-                          contextLabel = `Because you read about ${recommendations.topic}`;
-                      }
-
-                      return (
-                          <motion.div
-                              key={article.id || index}
-                              layout
-                              initial={{ opacity: 0, scale: 0.9, y: 30 }}
-                              animate={{ opacity: 1, scale: 1, y: 0 }}
-                              exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                              transition={{ 
-                                  duration: 0.4, 
-                                  ease: [0.23, 1, 0.32, 1],
-                                  delay: index < 8 ? index * 0.05 : 0 // Only stagger initial load
-                              }}
-                              whileHover={{ y: -5, transition: { duration: 0.2 } }}
-                              className="h-full"
-                          >
-                              <NewsCardBasic
-                                  id={article.id}
-                                  title={article.title}
-                                  description={article.description}
-                                  imageUrl={article.imageUrl}
-                                  source={article.source}
-                                  timeAgo={article.timeAgo}
-                                  category={article.category}
-                                  contextLabel={contextLabel}
-                                  onClick={(id) => navigate(`/news/${id}`)}
-                                  onAIExplain={(id) => navigate(`/news/${id}?explain=true`)}
-                              />
-                          </motion.div>
-                      );
-                  })}
-              </AnimatePresence>
-          </motion.div>
-
-          {/* Load More / Loading State */}
-          {articles.length > 0 && hasMore && (
-              <div className="mt-12 flex justify-center">
-                  <button
-                      onClick={loadMore}
-                      disabled={isFetchingMore}
-                      className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-full text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                  >
-                      {isFetchingMore ? (
-                          <>
-                              <RefreshCw className="w-4 h-4 animate-spin" />
-                              Loading more...
-                          </>
-                      ) : (
-                          <>
-                              <ArrowRight className="w-4 h-4" />
-                              Load More Stories
-                          </>
-                      )}
-                  </button>
+      {/* 15.8 Context Aware Recommendations Section */}
+      {recommendation && recommendedArticles.length > 0 && (
+          <div className="mb-6 animate-in slide-in-from-right-8 duration-700">
+              <div className="px-4 mb-2 flex items-center gap-2">
+                  <Sparkles size={16} className="text-indigo-500" />
+                  <h3 className="text-sm font-bold text-gray-800 dark:text-white">Because you read {recommendation.topic}</h3>
               </div>
-          )}
+              <div className="flex gap-3 overflow-x-auto px-4 pb-4 scrollbar-hide">
+                  {recommendedArticles.map((article) => (
+                      <div key={article.id} className="min-w-[240px] w-[240px] snap-center">
+                          <NewsCardBasic 
+                              {...article} 
+                              onClick={handleCardClick}
+                              contextLabel={recommendation.label} // Pass context label
+                          />
+                      </div>
+                  ))}
+              </div>
+          </div>
+      )}
 
-          {!hasMore && articles.length > 0 && (
-              <div className="mt-12 text-center text-gray-500 dark:text-gray-400 text-sm font-medium flex items-center justify-center gap-2">
-                  <Sparkles className="w-4 h-4 text-yellow-500" />
-                  You've caught up on all the latest news.
-              </div>
-          )}
-          
-          {articles.length === 0 && !isLoading && (
-              <div className="mt-20 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
-                  <Newspaper className="w-16 h-16 opacity-20 mb-4" />
-                  <p className="text-lg font-medium">No articles found.</p>
-                  <p className="text-sm mt-1">Try selecting a different category.</p>
-              </div>
-          )}
-      </main>
+      {/* News Feed */}
+      <div className="px-4 mt-2">
+        <div className="flex items-center justify-between mb-3">
+             <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                <PlayCircle size={18} className={isOnline ? "text-red-500 fill-red-500" : "text-gray-400"} />
+                {t.latest_feed}
+             </h2>
+             <div onClick={() => navigate('/categories')} className="text-xs font-bold text-blue-600 dark:text-blue-400 cursor-pointer">
+                 View All
+             </div>
+        </div>
+
+        {/* Enhanced Category Scroll */}
+        <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
+            {CATEGORY_CHIPS.map(cat => {
+                const Icon = cat.icon;
+                const isActive = activeFilter === cat.id;
+                return (
+                    <button
+                        key={cat.id}
+                        onClick={() => handleFilterChange(cat.id)}
+                        className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${
+                            isActive 
+                            ? 'bg-black text-white border-black dark:bg-white dark:text-black dark:border-white shadow-lg' 
+                            : 'bg-white text-gray-600 border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700'
+                        }`}
+                    >
+                        <Icon size={14} className={isActive ? 'text-current' : cat.color} />
+                        {cat.label}
+                    </button>
+                )
+            })}
+        </div>
+
+        <div className="space-y-4">
+            {articles.map((news, index) => {
+                if (articles.length === index + 1) {
+                    return (
+                        <div ref={lastElementRef} key={news.id + index}>
+                            <NewsCardBasic
+                                {...news}
+                                onClick={handleCardClick}
+                                onSave={() => console.log('Saved', news.id)}
+                                onShare={() => console.log('Shared', news.id)}
+                                onAIExplain={() => navigate(`/ai-chat?context=article&headline=${encodeURIComponent(news.title)}`)}
+                            />
+                        </div>
+                    );
+                }
+                return (
+                    <NewsCardBasic
+                        key={news.id + index}
+                        {...news}
+                        onClick={handleCardClick}
+                        onSave={() => console.log('Saved', news.id)}
+                        onShare={() => console.log('Shared', news.id)}
+                        onAIExplain={() => navigate(`/ai-chat?context=article&headline=${encodeURIComponent(news.title)}`)}
+                    />
+                );
+            })}
+            
+            {/* Infinite Scroll Loader */}
+            {isFetchingMore && (
+                <div className="py-6 flex justify-center opacity-70">
+                    <div className="flex gap-1">
+                        <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce"></span>
+                        <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce delay-100"></span>
+                        <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce delay-200"></span>
+                    </div>
+                </div>
+            )}
+            
+            {!hasMore && (
+                <p className="text-center text-xs text-gray-400 py-4">No more stories to load.</p>
+            )}
+        </div>
+      </div>
+
     </div>
   );
 };

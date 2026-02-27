@@ -21,9 +21,8 @@ export const processSipsContent = async (
   let apiKey = '';
   
   // 1. Check Vite environment variables (Vercel/Netlify/Local)
-  const metaEnv = (import.meta as any).env;
-  if (metaEnv?.VITE_GEMINI_API_KEY) apiKey = metaEnv.VITE_GEMINI_API_KEY;
-  else if (metaEnv?.VITE_API_KEY) apiKey = metaEnv.VITE_API_KEY;
+  if (import.meta.env.VITE_GEMINI_API_KEY) apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  else if (import.meta.env.VITE_API_KEY) apiKey = import.meta.env.VITE_API_KEY;
   
   // 2. Check process.env (in case of define replacement or Node env)
   else if (typeof process !== 'undefined' && process.env) {
@@ -40,28 +39,6 @@ export const processSipsContent = async (
   if (!apiKey) throw new Error("AI Configuration Error: API Key Missing. Please check your environment variables (VITE_GEMINI_API_KEY).");
   
   const ai = new GoogleGenAI({ apiKey });
-
-  const generateWithRetry = async (params: any, retries = 3, delay = 3000) => {
-    for (let i = 0; i < retries; i++) {
-        try {
-            return await ai.models.generateContent(params);
-        } catch (error: any) {
-            const isRateLimit = error.status === 429 || 
-                               error.message?.includes('429') || 
-                               error.message?.includes('quota') || 
-                               error.message?.includes('exhausted') ||
-                               error.message?.includes('rate limit');
-            
-            if (isRateLimit && i < retries - 1) {
-                console.warn(`AI Rate limited. Retrying in ${delay}ms... (Attempt ${i + 1}/${retries})`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-                delay *= 2; // Exponential backoff
-                continue;
-            }
-            throw error;
-        }
-    }
-  };
 
   let promptContext = "";
   if (type === 'url') promptContext = `Source is a URL: ${input}. Search for the content of this page.`;
@@ -123,8 +100,8 @@ export const processSipsContent = async (
     
     if (type === 'image' || type === 'pdf') {
        const mimeType = type === 'pdf' ? 'application/pdf' : 'image/jpeg';
-       response = await generateWithRetry({
-          model: 'gemini-2.5-flash',
+       response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash-image',
           contents: {
             parts: [
               { inlineData: { mimeType, data: input } },
@@ -137,25 +114,27 @@ export const processSipsContent = async (
           }
        });
     } else {
-       response = await generateWithRetry({
-          model: 'gemini-2.5-flash',
+       response = await ai.models.generateContent({
+          model: 'gemini-3-pro-preview',
           contents: `${systemInstruction}\n\nInput: ${input}\n${promptContext}`,
           config: {
             responseMimeType: "application/json",
-            responseSchema
+            responseSchema,
+            tools: type === 'url' || type === 'topic' ? [{ googleSearch: {} }] : undefined
           }
        });
     }
 
-    if (!response || !response.text) throw new Error("AI returned no content.");
+    const text = response.text;
+    if (!text) throw new Error("AI returned no content.");
     
-    return JSON.parse(response.text) as SipsContent;
+    return JSON.parse(text) as SipsContent;
 
   } catch (error: any) {
     console.error("SIPS AI Error:", error);
     
-    if (error.status === 429 || error.message?.includes('429') || error.message?.includes('quota') || error.message?.includes('exhausted') || error.message?.includes('rate limit')) {
-        throw new Error("AI Service quota exceeded or rate limited. Please check your Gemini API key billing details or try again later.");
+    if (error.status === 429 || error.message?.includes('429')) {
+        throw new Error("AI Service is busy. Please wait a moment before trying again.");
     }
 
     if (error.message?.includes('API key')) {
