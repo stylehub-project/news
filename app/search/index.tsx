@@ -38,10 +38,15 @@ const SearchPage = () => {
         const sipsKeywords = ['sips', 'open sips', 'enter sips', 'launch sips', 'go to sips', 'sips app', 'sips dashboard'];
         if (sipsKeywords.some(kw => trimmedQuery === kw || (trimmedQuery.includes('sips') && trimmedQuery.length < 15))) {
             setIsSearching(true);
-            // Small delay for aesthetic "searching" feel before the jump
-            setTimeout(() => {
-                navigate('/sips');
-            }, 800);
+            setTimeout(() => { navigate('/sips'); }, 800);
+            return;
+        }
+        
+        // --- Content/Whiteboard Redirect Logic ---
+        const contentKeywords = ['content', 'whiteboard', 'convert pdf', 'convert pptx', 'iwb', 'wbd'];
+        if (contentKeywords.some(kw => trimmedQuery.includes(kw))) {
+            setIsSearching(true);
+            setTimeout(() => { navigate('/content'); }, 800);
             return;
         }
 

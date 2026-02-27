@@ -37,6 +37,7 @@ import DetailsPage from './app/details/index';
 import NotificationsPage from './app/notifications/index';
 import HistoryPage from './app/history/index';
 import SipsPage from './app/sips/index';
+import ContentPage from './app/content/index';
 
 const App: React.FC = () => {
   return (
@@ -84,6 +85,9 @@ const App: React.FC = () => {
                             
                             {/* Secret SIPS Route */}
                             <Route path="/sips" element={<SipsPage />} />
+                            
+                            {/* Content / Whiteboard Converter Route */}
+                            <Route path="/content" element={<ContentPage />} />
                             
                             {/* Fallback to Splash instead of Home for a fresh feel, or Home for dev convenience */}
                             <Route path="*" element={<Navigate to="/splash" replace />} />
