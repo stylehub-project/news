@@ -1,8 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UploadCloud, FileText, Presentation, FileDown, CheckCircle, X, Loader2, Sparkles, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import JSZip from 'jszip';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Set worker path for pdfjs
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 const ContentPage: React.FC = () => {
     const navigate = useNavigate();
@@ -13,8 +17,8 @@ const ContentPage: React.FC = () => {
     const [conversionStep, setConversionStep] = useState('');
     const [isDone, setIsDone] = useState(false);
     const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
-    const [format, setFormat] = useState<'iwb' | 'wbd'>('iwb');
-    
+    const [extractedData, setExtractedData] = useState<any[]>([]);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -47,6 +51,7 @@ const ContentPage: React.FC = () => {
             setIsDone(false);
             setDownloadUrl(null);
             setProgress(0);
+            setExtractedData([]);
         } else {
             alert('Please upload a valid PDF or PPTX file.');
         }
@@ -60,36 +65,92 @@ const ContentPage: React.FC = () => {
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
-    const simulateConversion = () => {
+    const extractPdfData = async (file: File) => {
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const numPages = pdf.numPages;
+            const allPagesData = [];
+
+            for (let i = 1; i <= numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const viewport = page.getViewport({ scale: 1.0 });
+
+                const pageItems = textContent.items.map((item: any) => {
+                    // Transform coordinates (pdf.js uses bottom-left origin, SVG uses top-left)
+                    const x = item.transform[4];
+                    const y = viewport.height - item.transform[5]; // Invert Y axis
+                    const fontSize = Math.sqrt(item.transform[0] * item.transform[0] + item.transform[1] * item.transform[1]);
+                    const fontFamily = item.fontName || 'Arial';
+
+                    return {
+                        str: item.str,
+                        x: Math.round(x),
+                        y: Math.round(y),
+                        fontSize: Math.round(fontSize),
+                        fontFamily: fontFamily,
+                        width: Math.round(item.width),
+                        height: Math.round(item.height)
+                    };
+                });
+                
+                allPagesData.push({
+                    pageIndex: i,
+                    width: viewport.width,
+                    height: viewport.height,
+                    items: pageItems
+                });
+            }
+            return allPagesData;
+        } catch (error) {
+            console.error("Error extracting PDF data:", error);
+            return [];
+        }
+    };
+
+    const simulateConversion = async () => {
         if (!file) return;
         setIsConverting(true);
         setIsDone(false);
         setProgress(0);
         
-        const steps = [
-            { p: 10, text: 'Analyzing document structure...' },
-            { p: 30, text: 'Extracting text and images...' },
-            { p: 50, text: 'Applying AI layout recognition...' },
-            { p: 70, text: 'Generating whiteboard elements...' },
-            { p: 90, text: `Packaging as .${format} format...` },
-            { p: 100, text: 'Finalizing...' }
-        ];
-
-        let currentStep = 0;
+        setConversionStep('Analyzing document structure...');
+        setProgress(10);
         
-        const interval = setInterval(() => {
-            if (currentStep < steps.length) {
-                setProgress(steps[currentStep].p);
-                setConversionStep(steps[currentStep].text);
-                currentStep++;
-            } else {
-                clearInterval(interval);
-                finishConversion();
-            }
-        }, 1200);
+        let extracted = [];
+        if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+            setConversionStep('Extracting text and coordinates via PDF.js...');
+            setProgress(30);
+            extracted = await extractPdfData(file);
+        } else {
+            // For PPTX, we'd ideally use a library, but for now we mock the extraction
+            // since pure JS PPTX extraction with coordinates is very complex without a backend.
+            setConversionStep('Extracting PPTX data (Mocked)...');
+            setProgress(30);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            extracted = [{
+                pageIndex: 1, width: 800, height: 600,
+                items: [{ str: `Converted PPTX: ${file.name}`, x: 50, y: 50, fontSize: 24, fontFamily: 'Arial' }]
+            }];
+        }
+        
+        setExtractedData(extracted);
+        setProgress(60);
+        setConversionStep('Generating whiteboard XML...');
+        
+        setTimeout(() => {
+            setProgress(90);
+            setConversionStep(`Packaging as .${format} format...`);
+            setTimeout(() => {
+                setProgress(100);
+                setConversionStep('Finalizing...');
+                finishConversion(extracted);
+            }, 500);
+        }, 800);
     };
 
-    const finishConversion = async () => {
+    const finishConversion = async (extracted: any[]) => {
         setIsConverting(false);
         setIsDone(true);
         
@@ -97,31 +158,76 @@ const ContentPage: React.FC = () => {
             const zip = new JSZip();
             
             if (format === 'iwb') {
-                // IWB is typically a ZIP containing content.xml and other assets
-                const contentXml = `<?xml version="1.0" encoding="UTF-8"?>
-<iwb version="1.0" xmlns="http://www.imsglobal.org/xsd/iwbcff_v1p0">
-  <pages>
+                // Generate IWB XML using extracted coordinates
+                let pagesXml = '';
+                
+                if (extracted && extracted.length > 0) {
+                    extracted.forEach((pageData, index) => {
+                        let textElements = '';
+                        pageData.items.forEach((item: any) => {
+                            // Only add non-empty strings
+                            if (item.str.trim()) {
+                                // Escape XML special characters
+                                const safeStr = item.str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                textElements += `\n        <text x="${item.x}" y="${item.y}" font-family="${item.fontFamily}" font-size="${item.fontSize || 16}" fill="#000000">${safeStr}</text>`;
+                            }
+                        });
+
+                        pagesXml += `
+    <page id="page${index + 1}">
+      <svg xmlns="http://www.w3.org/2000/svg" width="${pageData.width || 800}" height="${pageData.height || 600}">
+        <rect width="100%" height="100%" fill="#ffffff"/>${textElements}
+      </svg>
+    </page>`;
+                    });
+                } else {
+                    // Fallback if extraction failed
+                    pagesXml = `
     <page id="page1">
       <svg xmlns="http://www.w3.org/2000/svg" width="800" height="600">
         <text x="50" y="50" font-size="24">Converted from ${file?.name}</text>
       </svg>
-    </page>
+    </page>`;
+                }
+
+                const contentXml = `<?xml version="1.0" encoding="UTF-8"?>
+<iwb version="1.0" xmlns="http://www.imsglobal.org/xsd/iwbcff_v1p0">
+  <pages>${pagesXml}
   </pages>
 </iwb>`;
                 zip.file("content.xml", contentXml);
                 zip.file("meta.xml", `<?xml version="1.0" encoding="UTF-8"?>\n<meta>\n  <source>${file?.name}</source>\n</meta>`);
             } else {
-                // WBD format (often proprietary, but we can provide a ZIP structure or a basic binary/xml)
-                // We'll create a ZIP with a document.xml to ensure it's not "empty" and has some structure
+                // WBD format generation using extracted coordinates
+                let pagesXml = '';
+                
+                if (extracted && extracted.length > 0) {
+                    extracted.forEach((pageData, index) => {
+                        let textElements = '';
+                        pageData.items.forEach((item: any) => {
+                            if (item.str.trim()) {
+                                const safeStr = item.str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                                textElements += `\n      <Text X="${item.x}" Y="${item.y}" FontSize="${item.fontSize || 16}" FontFamily="${item.fontFamily}" Content="${safeStr}" />`;
+                            }
+                        });
+
+                        pagesXml += `
+    <Page Index="${index + 1}" Width="${pageData.width || 800}" Height="${pageData.height || 600}">${textElements}
+    </Page>`;
+                    });
+                } else {
+                    pagesXml = `
+    <Page Index="1">
+      <Text X="100" Y="100" FontSize="24" Content="Converted from ${file?.name}" />
+    </Page>`;
+                }
+
                 const docXml = `<?xml version="1.0" encoding="UTF-8"?>
 <WhiteboardDocument>
   <Properties>
     <Title>Converted from ${file?.name}</Title>
   </Properties>
-  <Pages>
-    <Page Index="1">
-      <Text X="100" Y="100" FontSize="24" Content="Converted from ${file?.name}" />
-    </Page>
+  <Pages>${pagesXml}
   </Pages>
 </WhiteboardDocument>`;
                 zip.file("document.xml", docXml);
@@ -157,7 +263,7 @@ const ContentPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-[#0a0f1c] text-gray-900 dark:text-white transition-colors duration-300 flex flex-col">
+        <div className="h-full overflow-y-auto bg-gray-50 dark:bg-[#0a0f1c] text-gray-900 dark:text-white transition-colors duration-300 flex flex-col custom-scrollbar pb-24">
             {/* Header */}
             <header className="sticky top-0 z-40 bg-white/80 dark:bg-[#0a0f1c]/80 backdrop-blur-xl border-b border-gray-200 dark:border-white/10 px-4 py-4 flex items-center gap-3">
                 <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
