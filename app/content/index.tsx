@@ -17,6 +17,7 @@ const ContentPage: React.FC = () => {
     const [conversionStep, setConversionStep] = useState('');
     const [isDone, setIsDone] = useState(false);
     const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+    const [format, setFormat] = useState<'iwb' | 'wbd'>('iwb');
     const [extractedData, setExtractedData] = useState<any[]>([]);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
