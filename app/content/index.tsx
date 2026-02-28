@@ -239,7 +239,10 @@ const ContentPage: React.FC = () => {
                 }, null, 2));
             }
 
-            const blob = await zip.generateAsync({ type: 'blob' });
+            const blob = await zip.generateAsync({ 
+                type: 'blob',
+                mimeType: 'application/octet-stream'
+            });
             const url = URL.createObjectURL(blob);
             setDownloadUrl(url);
         } catch (error) {
@@ -256,7 +259,9 @@ const ContentPage: React.FC = () => {
         if (downloadUrl && file) {
             const a = document.createElement('a');
             a.href = downloadUrl;
-            a.download = `${file.name.split('.')[0]}_converted.${format}`;
+            // Use regex to remove extension more reliably
+            const baseName = file.name.replace(/\.[^/.]+$/, "");
+            a.download = `${baseName}_converted.${format}`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
